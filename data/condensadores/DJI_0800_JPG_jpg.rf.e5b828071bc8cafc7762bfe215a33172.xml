@@ -1,0 +1,27 @@
+<annotation>
+	<folder></folder>
+	<filename>DJI_0800_JPG_jpg.rf.e5b828071bc8cafc7762bfe215a33172.jpg</filename>
+	<path>DJI_0800_JPG_jpg.rf.e5b828071bc8cafc7762bfe215a33172.jpg</path>
+	<source>
+		<database>roboflow.ai</database>
+	</source>
+	<size>
+		<width>500</width>
+		<height>500</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>conde</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<occluded>0</occluded>
+		<bndbox>
+			<xmin>228</xmin>
+			<xmax>270</xmax>
+			<ymin>421</ymin>
+			<ymax>462</ymax>
+		</bndbox>
+	</object>
+</annotation>
