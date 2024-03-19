@@ -1,3 +1,4 @@
+.vscode
 .RData
 .Rhistory
 .idea
@@ -5,3 +6,4 @@ checkpoints/**
 dataset/**
 __pycache__/**
 data.yaml
+Detectors/**/__pycache__
