@@ -6,4 +6,4 @@ checkpoints/**
 dataset/**
 __pycache__/**
 data.yaml
-Detectors/**/__pycache__
+src/Detectors/**/__pycache__
