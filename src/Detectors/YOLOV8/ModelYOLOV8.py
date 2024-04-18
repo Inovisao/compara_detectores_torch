@@ -12,7 +12,7 @@ model = YOLO('yolov8n.pt')  # load a pretrained model (recommended for training)
 def treino():
     #model = YOLO('yolov8n.pt') 
     model.train(
-            data = '../dataset/data.yaml',
+            data = '../dataset/all/data.yaml',
                 epochs=4, 
                 imgsz=640, 
                 patience = 50,

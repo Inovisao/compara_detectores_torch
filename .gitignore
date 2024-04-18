@@ -7,3 +7,6 @@ dataset/**
 __pycache__/**
 data.yaml
 src/Detectors/**/__pycache__
+src/Detectors/MMdetection/checkpoints
+src/Detectors/MMdetection/mmdetection/configs
+src/model_checkpoints

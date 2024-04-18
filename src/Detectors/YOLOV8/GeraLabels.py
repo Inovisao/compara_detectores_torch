@@ -3,11 +3,11 @@ import os
 import shutil
 import yaml
 
-ROOT_DATA_DIR = os.path.join('..', 'dataset')
+ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 
 def CriarLabelsYOLOV8(fold):
 
-    with open(os.path.join(ROOT_DATA_DIR, 'all', 'train', '_annotations.coco.json'), 'r') as f:
+    with open(os.path.join(ROOT_DATA_DIR, 'train', '_annotations.coco.json'), 'r') as f:
         anotacaoGeral = json.load(f)
     
     diretorio = os.path.join(ROOT_DATA_DIR, "YOLO")
@@ -17,7 +17,7 @@ def CriarLabelsYOLOV8(fold):
         shutil.rmtree(diretorio)         
     classes = anotacaoGeral['categories']
     className = []
-    #Ira pegar as classes do dataset
+    #Ira pegar as classes do datasetz
     for i in range(len(classes)):
         className.append(classes[i]['name'])
 
@@ -100,7 +100,7 @@ def CriarLabelsYOLOV8(fold):
                 height = abs(anotacao[id][i][3])
                 linhas.append(str(idAnotcao[id][i])+' '+str(x_center/640)+' '+str(y_center/640)+' '+str(width/640)+' '+str(height/640)+"\n")
 
-            image = os.path.join(ROOT_DATA_DIR,'all/train',NameFile[slectImage])
+            image = os.path.join(ROOT_DATA_DIR,'train',NameFile[slectImage])
             arq = NameFile[slectImage][0:-4]+'.txt'
             with open(arq, 'w') as arquivo:
             # Escrevendo múltiplas linhas no arquivo

@@ -2,7 +2,7 @@ from pycocotools.coco import COCO
 import os
 import shutil
 from tqdm import tqdm
-ROOT_DATA_DIR = os.path.join('..','dataset')
+ROOT_DATA_DIR = os.path.join('..','dataset','all')
 
 def convert_coco_to_voc(fold):
     diretorio = os.path.join(ROOT_DATA_DIR,'faster')
@@ -23,6 +23,7 @@ def convert_coco_to_voc(fold):
     for caminho in caminhos:
         if str(caminho[0:6]) == str(fold):
             foldsUsadas.append(caminho)
+    
     for Caminho in foldsUsadas:
         coco_annotation_file = os.path.join(ROOT_DATA_DIR,'filesJSON',Caminho)
         path = Caminho[7:-5]
@@ -38,7 +39,7 @@ def convert_coco_to_voc(fold):
         category_id_to_name = {category['id']: category['name'] for category in categories}
         
         image_ids = coco.getImgIds()
-        
+ 
         for image_id in tqdm(image_ids, desc="Converting images"):
             image_data = coco.loadImgs(image_id)[0]
             file_name = image_data['file_name']
@@ -75,6 +76,6 @@ def convert_coco_to_voc(fold):
                     f.write('\t</object>\n')
                     
                 f.write('</annotation>')
-            image = os.path.join(ROOT_DATA_DIR,'all','train',file_name)
+            image = os.path.join(ROOT_DATA_DIR,'train',file_name)
             shutil.copy(image,output_dir)
 

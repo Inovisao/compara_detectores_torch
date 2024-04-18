@@ -17,7 +17,7 @@ from sklearn.model_selection import train_test_split
 parser = argparse.ArgumentParser(description='Divide o conjunto de anotações para permitir aplicação de validação cruzada em dobras')
 parser.add_argument('-annotations', default='../dataset/all/train/_annotations.coco.json',metavar='coco_annotations', type=str,
                     help='Caminho para o arquivo com as anotações',required=False)
-parser.add_argument('-json', default='../dataset/filesJSON/',type=str, help='Pasta para os arquivos resultantes',required=False)
+parser.add_argument('-json', default='../dataset/all/filesJSON/',type=str, help='Pasta para os arquivos resultantes',required=False)
 parser.add_argument('-folds', default='5',dest='folds', type=int,
                     help="Número de dobras a ser usado",required=False)
 parser.add_argument('-valperc', default='0.3',dest='valperc', type=float,

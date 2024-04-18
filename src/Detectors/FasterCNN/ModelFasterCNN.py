@@ -51,7 +51,7 @@ import numpy as np    # Várias funções numéricas
 
 
 # Definindo alguns hiperparâmetros importantes:
-ROOT_DATA_DIR = os.path.join('..','dataset')
+ROOT_DATA_DIR = os.path.join('..','dataset','all')
 epocas = 4  # Total de passagens durante a aprendizagem pelo conjunto de imagens
 tamanho_lote = 4  # Tamanho de cada lote sobre o qual é calculado o gradiente
 taxa_aprendizagem = 0.001   # Magnitude das alterações nos pesos
@@ -151,7 +151,7 @@ class CustomDataset(Dataset):
         
         # Converte os retângulo para um tensor
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
-
+        
         # Calcula a área do retângulo
         area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
         # Avisa que não é um problema de detecção de multidões
