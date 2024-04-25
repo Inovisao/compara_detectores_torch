@@ -5,12 +5,14 @@ import yaml
 
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 
-def CriarLabelsYOLOV8(fold):
 
+# Função para criar o dataset para treinamento da YOLOV8
+def CriarLabelsYOLOV8(fold):
+    # Abre o arquivo Json onde temos as anotações de cada imagem
     with open(os.path.join(ROOT_DATA_DIR, 'train', '_annotations.coco.json'), 'r') as f:
         anotacaoGeral = json.load(f)
     
-    diretorio = os.path.join(ROOT_DATA_DIR, "YOLO")
+    diretorio = os.path.join(ROOT_DATA_DIR, "YOLO") # Diretorio para onde ira as labels e as imagens
 
     #Verifica se o diretorio existe e romove ele
     if os.path.exists(diretorio):  

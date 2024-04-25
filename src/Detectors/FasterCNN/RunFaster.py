@@ -3,7 +3,7 @@ import shutil
 import subprocess
 from Detectors.FasterCNN.GeraDobras import convert_coco_to_voc
 
-
+# Função para Rodar a rede 
 def runFaster(fold,fold_dir,ROOT_DATA_DIR):
 
     if not os.path.exists(fold_dir):

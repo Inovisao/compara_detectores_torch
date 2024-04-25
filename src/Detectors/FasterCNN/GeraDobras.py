@@ -3,8 +3,9 @@ import os
 import shutil
 from tqdm import tqdm
 ROOT_DATA_DIR = os.path.join('..','dataset','all')
-
+# Função que Ira gerar as labels para o Treino da faster
 def convert_coco_to_voc(fold):
+
     diretorio = os.path.join(ROOT_DATA_DIR,'faster')
     if os.path.exists(diretorio):  
         shutil.rmtree(diretorio)
@@ -16,30 +17,31 @@ def convert_coco_to_voc(fold):
     os.makedirs(caminho_test,exist_ok=True)
     os.makedirs(caminho_valid,exist_ok=True)
 
-
     caminhos = (os.listdir(os.path.join(ROOT_DATA_DIR,'filesJSON')))
     foldsUsadas = []
     #Pega o caminho do arquivo coco que esta sendo usada
     for caminho in caminhos:
         if str(caminho[0:6]) == str(fold):
             foldsUsadas.append(caminho)
-    
+    # Loop para separar e criar as labels e imagens
     for Caminho in foldsUsadas:
-        coco_annotation_file = os.path.join(ROOT_DATA_DIR,'filesJSON',Caminho)
+        coco_annotation_file = os.path.join(ROOT_DATA_DIR,'filesJSON',Caminho) # Le o arquivo Json
         path = Caminho[7:-5]
+        # Ira selecionar o diretorio
         if path == 'val':
             output_dir = caminho_valid
         elif path == 'test':
             output_dir = caminho_test
         else:
             output_dir = caminho_train
-        coco = COCO(coco_annotation_file)
+
+        coco = COCO(coco_annotation_file) # Convert coco para json
         
         categories = coco.loadCats(coco.getCatIds())
         category_id_to_name = {category['id']: category['name'] for category in categories}
         
         image_ids = coco.getImgIds()
- 
+        # Loop onde escreve a labels referente as imagens
         for image_id in tqdm(image_ids, desc="Converting images"):
             image_data = coco.loadImgs(image_id)[0]
             file_name = image_data['file_name']

@@ -97,14 +97,17 @@ def main():
                                '"auto_scale_lr.base_batch_size" in your'
                                ' configuration file.')
 
-    # resume is determined in this priority: resume from > auto_resume
+    try: 
+        cfg.model.bbox_head.num_classes = len(cfg.train_dataloader.dataset.metainfo.classes)
+    except:
+        pass
+
     if args.resume == 'auto':
         cfg.resume = True
         cfg.load_from = None
     elif args.resume is not None:
         cfg.resume = True
         cfg.load_from = args.resume
-
     # build the runner from config
     if 'runner_type' not in cfg:
         # build the default runner

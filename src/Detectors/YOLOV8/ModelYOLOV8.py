@@ -1,32 +1,25 @@
-import os
 from ultralytics import YOLO
 
 #https://docs.ultralytics.com/pt/modes/train/#resuming-interrupted-trainings Link para os parametros de treiono
 
-
-
-#model = YOLO('yolov8n.yaml')  # build a new model from YAML
 model = YOLO('yolov8n.pt')  # load a pretrained model (recommended for training)
-#model = YOLO('yolov8n.yaml').load('yolov8n.pt')  # build from YAML and transfer weights
-
+# Função para Rodar o Treino da YOLOV8
 def treino():
-    #model = YOLO('yolov8n.pt') 
+
     model.train(
-            data = '../dataset/all/data.yaml',
-                epochs=4, 
-                imgsz=640, 
-                patience = 50,
-                batch = 64,
-                project = 'YOLOV8',
-                #name = 'Contador_De_Alevinos',
-                exist_ok = True,
-                optimizer = 'AdamW',
-                single_cls = True,
+                data = '../dataset/all/data.yaml',
+                epochs=100, # Epocas que o Modelo ira Rodar
+                imgsz=640, # Dimeção das imagens
+                patience = 50, # paciencia para o modelo parar o treinamento geral mente se usa 10% das epocas
+                batch = 64, # Tamanho do lote da GPU
+                project = 'YOLOV8', # Nome do Projeto
+                exist_ok = True, # Caso o arquivo ja exista ele sobre escreve
+                optimizer = 'AdamW', # Optimizador do modelo (SGD, Adam, AdamW, NAdam, RAdam, RMSPro) Talvez tenha mais
+                single_cls = True, # Se o dataset é multiclasses = False ou Com uma classe so = True
                 rect = True,
                 cos_lr = True,
-                lr0 = 0.001, #Taxa De Aprendizado Inicial
-                lrf = 0.001,#Taxa de Aprendizado Final
-                plots = True,
-            
+                lr0 = 0.001, # Taxa De Aprendizado Inicial
+                lrf = 0.001,# Taxa de Aprendizado Final
+                plots = False, # Usado para salvar os dados do treinamento para salver = True 
     )
 treino()

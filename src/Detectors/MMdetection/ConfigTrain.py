@@ -1,22 +1,40 @@
+import json
+import random
+# Função que ira fazer a configuração do treino
 def configTrain(model, checkpoint, path):
+    JsonData = '../dataset/all/train/_annotations.coco.json'
+    with open(JsonData) as f:
+        data = json.load(f)
+    ann_ids = []
+    for anotation in data["annotations"]:
+        if anotation["category_id"] not in ann_ids:
+            ann_ids.append(anotation["category_id"])
+    Classe = ()
+    for category in data["categories"]:
+        if category["id"] in ann_ids:
+            Classe += (category["name"],)
+    paletaCor = []
+    for i in range(0,len(Classe)):
+        Cor1, Cor2, Cor3 = random.randint(0,255) , random.randint(0,255), random.randint(0,255)
+        cores = (Cor1,Cor2,Cor3)
+        paletaCor.append(cores)
+
     config_Train = f"""
 # Inherit and overwrite part of the config based on this config
 _base_ = './{model}.py'
 
 data_root = '../dataset/all/' # dataset root
 
-train_batch_size_per_gpu = 4
-train_num_workers = 2
+train_batch_size_per_gpu = 4 # Tamanho do lote da imagem
+train_num_workers = 1
 
-max_epochs = 3
-stage2_num_epochs = 1
-base_lr = 0.00008
+max_epochs = 30 # Quantidade de Epocas
+stage2_num_epochs = 2
+base_lr = 0.0001 # Taxa de aprendizagem 
 
 metainfo = {{
-    'classes': ('Peixes', ),
-    'palette': [
-        (220, 20, 60),
-    ]
+    'classes': {Classe},
+    'palette':{paletaCor}
 }}
 
 train_dataloader = dict(
@@ -81,10 +99,11 @@ train_pipeline_stage2 = [
 ]
 
 # optimizer
+# Onde Ira alterar o optmizador (SGD Adam AdamW RMSprop SGDP AdamP LARS LAMB)
 optim_wrapper = dict(
     _delete_=True,
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=base_lr, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=base_lr, weight_decay=0.05), # Troce o type='' Pelo optmizador de sua escolha
     paramwise_cfg=dict(
         norm_decay_mult=0, bias_decay_mult=0, bypass_duplicate=True))
 
@@ -110,5 +129,5 @@ train_cfg = dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval
 visualizer = dict(vis_backends=[dict(type='LocalVisBackend'),dict(type='TensorboardVisBackend')])
 """
 
-    with open(f'Detectors/MMdetection/mmdetection/configs/{path}/train.py', 'w') as f:
+    with open(f'{path}/train.py', 'w') as f:
         f.write(config_Train)

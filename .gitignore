@@ -6,7 +6,15 @@ checkpoints/**
 dataset/**
 __pycache__/**
 data.yaml
+src/__pycache__
 src/Detectors/**/__pycache__
 src/Detectors/MMdetection/checkpoints
 src/Detectors/MMdetection/mmdetection/configs
 src/model_checkpoints
+Results
+dataset
+teste.py
+Redes.json
+dependences.txt
+train
+model_checkpoints
