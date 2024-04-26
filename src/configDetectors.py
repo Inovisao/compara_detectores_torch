@@ -3,8 +3,8 @@ import numpy as np
 from RestultsDetections import criaCSV, printToFile
 from Detectors.MMdetection.CheckPoint import selectmodel
 
-# YOLOV8, FasterRCNN, 'MMdetections/sabl-faster-rcnn_r50_fpn_1x_coco'
-MODELS = ['MMdetections/sabl-faster-rcnn_r50_fpn_1x_coco','MMdetections/detr_r50_8xb2-150e_coco','MMdetections/fovea_r50_fpn_4xb4-1x_coco'] #Variavel para selecionar os modelos
+# YOLOV8, FasterRCNN, 'MMdetections/sabl-faster-rcnn_r50_fpn_1x_coco','MMdetections/detr_r50_8xb2-150e_coco','MMdetections/fovea_r50_fpn_4xb4-1x_coco'
+MODELS = ['YOLOV8','MMdetections/sabl-faster-rcnn_r50_fpn_1x_coco','MMdetections/detr_r50_8xb2-150e_coco','MMdetections/fovea_r50_fpn_4xb4-1x_coco'] #Variavel para selecionar os modelos
 APENAS_TESTE = False # Decide se ira Treinar = False ou so fazer o Teste = True dos modelos 
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
@@ -20,7 +20,7 @@ for model in MODELS:
             if model == 'YOLOV8':
                 from Detectors.YOLOV8.RunYOLOV8 import runYOLOV8
                 runYOLOV8(fold,fold_dir,ROOT_DATA_DIR)
-                model_path = os.path.join(fold_dir,model,'train','weights','best.py')
+                model_path = os.path.join(fold_dir,model,'train','weights','best.pt')
                 model_name2 = model
 
             elif model == 'FasterRCNN':
@@ -33,8 +33,7 @@ for model in MODELS:
                 model_name = model.split('/')[1]
                 model_name2 = model.split('/')[0]
                 modeloTreinado = selectmodel(fold,model_name)
-                model_path = os.path.join(fold_dir,model_name,modeloTreinado)
-                
+                model_path = os.path.join(fold_dir,model_name,modeloTreinado)  
         else:
             if model[0:12] == 'MMdetections':
                 model_name = model.split('/')[1]

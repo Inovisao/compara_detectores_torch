@@ -10,33 +10,32 @@ ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 def CriarLabelsYOLOV8(fold):
     # Abre o arquivo Json onde temos as anotações de cada imagem
     with open(os.path.join(ROOT_DATA_DIR, 'train', '_annotations.coco.json'), 'r') as f:
-        anotacaoGeral = json.load(f)
+        data = json.load(f)
     
-    diretorio = os.path.join(ROOT_DATA_DIR, "YOLO") # Diretorio para onde ira as labels e as imagens
-
-    #Verifica se o diretorio existe e romove ele
-    if os.path.exists(diretorio):  
-        shutil.rmtree(diretorio)         
-    classes = anotacaoGeral['categories']
-    className = []
-    #Ira pegar as classes do datasetz
-    for i in range(len(classes)):
-        className.append(classes[i]['name'])
-
-    # Defina o caminho para o arquivo YAML que você deseja alterar
+    ann_ids = []
+    for anotation in data["annotations"]:
+        if anotation["category_id"] not in ann_ids:
+            ann_ids.append(anotation["category_id"])
+    Classe = []
+    for category in data["categories"]:
+        if category["id"] in ann_ids:
+            Classe.append(category["name"],)
     caminho_arquivo_yaml = os.path.join(ROOT_DATA_DIR, 'data.yaml')
-
+    
     # Carregue o conteúdo do arquivo YAML
     with open(caminho_arquivo_yaml, 'r') as arquivo:
         conteudo = yaml.safe_load(arquivo)
 
     # Altere o conteúdo conforme necessário
-    conteudo['nc'] = len(className)
-    conteudo['names'] = className
+    conteudo['nc'] = len(Classe)
+    conteudo['names'] = Classe
 
     # Salve o conteúdo alterado de volta no arquivo YAML
     with open(caminho_arquivo_yaml, 'w') as arquivo:
         yaml.dump(conteudo, arquivo)
+
+    if os.path.exists(os.path.join(ROOT_DATA_DIR,'YOLO')):
+        shutil.rmtree(os.path.join(ROOT_DATA_DIR, 'YOLO'))
 
     for c1 in ['train', 'test', 'valid']:
         for c2 in ['labels', 'images']:

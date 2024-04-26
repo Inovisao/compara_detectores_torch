@@ -3,7 +3,7 @@ from supervision.draw.color import ColorPalette
 from supervision.tools.detections import Detections, BoxAnnotator
 from ultralytics import YOLO
 import cv2
-
+import json
 
 # Classe Usada para detectar os objetos
 class resultYOLO:
@@ -30,13 +30,20 @@ class resultYOLO:
 
         lista = [] # Lista com todas as detecções da Imagem
         classes_usadas = [] # Salva as classes usadas
-        classes = [0] # Numero de classes 
-        # Loop para fazer a conversão da YOLOV8 para um arry gigante
-        for j in classes:
+        JsonData = '../dataset/all/train/_annotations.coco.json'
+        with open(JsonData) as f:
+            data = json.load(f)
+        ann_ids = []
+        for anotation in data["annotations"]:
+            if anotation["category_id"] not in ann_ids:
+                ann_ids.append(anotation["category_id"])
+
+        for j in ann_ids:
             lista1 = []
+            classes = j - 1
             for i in range(len(detections.xyxy)):
-                if detections.class_id[i] == j:
-                    classes_usadas.append(j)
+                if detections.class_id[i] == classes:
+                    classes_usadas.append(classes)
                     lista1.append([detections.xyxy[i][0],detections.xyxy[i][1],detections.xyxy[i][2],detections.xyxy[i][3],detections.confidence[i]])
             
             lista.append(np.array(lista1,dtype='float32'))

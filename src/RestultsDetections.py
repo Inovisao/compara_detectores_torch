@@ -200,7 +200,7 @@ def convert_detections(detections):
     return converted
 
 def geraResult(root,fold,model,nameModel):
-    save_imgs = True
+    save_imgs = False
     arquivoJson = os.path.join(root,'filesJSON',fold+str('_test.json'))
     cocodataset = pegaDataset(arquivoJson)
     MAX_BOX=1000
@@ -245,6 +245,7 @@ def geraResult(root,fold,model,nameModel):
                 obj = {'x1':int(bb[0]),'x2':int(bb[2]),'y1':int(bb[1]),'y2':int(bb[3]),'score_thr':bb[4],'class':j}
                 if is_max_score_thr(obj,result):
                     bboxes2.append(obj)
+        
             bboxes2 = np.array(bboxes2)
         objetos_preditos=0
         cont_TP=0

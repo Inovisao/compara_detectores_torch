@@ -1,9 +1,0 @@
-#MMdetecitons
-pip install scikit-learn
-pip install funcy
-pip install albumentations
-
-#YOLOV8
-pip install ultralytics
-pip install supervision==0.1.0
-git clone https://github.com/ifzhang/ByteTrack.git

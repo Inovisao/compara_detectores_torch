@@ -26,10 +26,11 @@ _base_ = './{model}.py'
 data_root = '../dataset/all/' # dataset root
 
 train_batch_size_per_gpu = 4 # Tamanho do lote da imagem
+
 train_num_workers = 1
 
-max_epochs = 30 # Quantidade de Epocas
-stage2_num_epochs = 2
+max_epochs = 50 # Quantidade de Epocas
+stage2_num_epochs = 5
 base_lr = 0.0001 # Taxa de aprendizagem 
 
 metainfo = {{
