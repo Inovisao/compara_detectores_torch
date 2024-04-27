@@ -1,7 +1,7 @@
 # Codigo utilizado para treinar redes de detecção
 
 Este código foi desenvolvido com o intuito de facilitar a junção de várias redes neurais para o treino de detecção de objetos.
-## Estrura das Pastas
+## Estrutura das Pastas
 ```
 ├── dataset
 │   └── all

@@ -24,7 +24,7 @@ for model in MODELS:
                 model_name2 = model
 
             elif model == 'FasterRCNN':
-                from Detectors.FasterCNN.RunFaster import runFaster
+                from Detectors.FasterRCNN.RunFaster import runFaster
                 runFaster(fold,fold_dir,ROOT_DATA_DIR)
                 
             elif model[0:12] == 'MMdetections':
