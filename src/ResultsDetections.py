@@ -4,6 +4,7 @@ import cv2
 import os
 from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
 from Detectors.MMdetection.MMdetector import resultMM
+from Detectors.FasterRCNN.inference import resultFaster
 import sys
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
@@ -219,6 +220,9 @@ def geraResult(root,fold,model,nameModel):
         if nameModel == 'YOLOV8':
             imageSaveModel = 'YOLOV8'
             result = resultYOLO.result(frame,model)
+        elif nameModel == 'FasterRCNN':
+            imageSaveModel = 'Faster'
+            result = resultFaster(fold,frame)
         else:
             path = model.split('/')[2]
             imageSaveModel = path

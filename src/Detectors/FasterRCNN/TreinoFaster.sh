@@ -1,4 +1,4 @@
 #!/bin/bash
 
 # Executa o arquivo treino.py
-python Detectors/FasterCNN/ModelFasterCNN.py
+python Detectors/FasterRCNN/modelFasterRCNN.py

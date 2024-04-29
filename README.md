@@ -119,14 +119,20 @@ Para configurar os parâmetros da YOLOv8, você irá entrar no código ModelYOLO
 ```
 src/Detectors/
 └── FasterRCNN
+    ├── config.py
+    ├── custom_utils.py
+    ├── datasets.py
     ├── GeraDobras.py
-    ├── ModelFasterCNN.py
+    ├── inference.py
+    ├── modelFasterRCNN.py
+    ├── model.py
     ├── RunFaster.py
     └── TreinoFaster.sh
 ```
 
 Para configurar os parâmetros da FasterRCNN, você irá entrar no código 
-ModelFasterRCNN.py e alterar os parâmetros de acordo com suas necessidades.
+config.py e alterar os parâmetros de acordo com suas necessidades. Caso queira trocar o optmizador desta rede voce deve trocar a linha optimizer = torch.optim.SGD(params, lr=LR, momentum=0.9, weight_decay=0.0005) do codigo modelFasterRCNN.py
+
 
 ### mmdetection
 

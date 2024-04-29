@@ -80,4 +80,3 @@ def convert_coco_to_voc(fold):
                 f.write('</annotation>')
             image = os.path.join(ROOT_DATA_DIR,'train',file_name)
             shutil.copy(image,output_dir)
-

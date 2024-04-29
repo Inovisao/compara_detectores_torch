@@ -22,6 +22,10 @@ pip install funcy
 
 pip install albumentations
 
+pip install fairscale
+
+pip install transformers
+
 pip install ultralytics
 
 pip install supervision==0.1.0

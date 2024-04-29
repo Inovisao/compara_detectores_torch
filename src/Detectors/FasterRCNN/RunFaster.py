@@ -13,8 +13,7 @@ def runFaster(fold,fold_dir,ROOT_DATA_DIR):
     if os.path.exists(os.path.join(fold_dir,"FasterRCNN")):  
         shutil.rmtree(os.path.join(fold_dir,"FasterRCNN")) 
     convert_coco_to_voc(fold)
-    treino = os.path.join('Detectors','FasterCNN','TreinoFaster.sh')
+    treino = os.path.join('Detectors','FasterRCNN','TreinoFaster.sh')
     subprocess.run([treino]) # Roda o bash para treino
     os.rename("./FasterRCNN", os.path.join(fold_dir,"FasterRCNN"))
     shutil.rmtree(os.path.join(ROOT_DATA_DIR,'faster'))
-    shutil.rmtree('runs')

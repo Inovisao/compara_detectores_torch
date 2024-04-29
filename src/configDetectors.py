@@ -1,10 +1,10 @@
 import os
 import numpy as np
-from RestultsDetections import criaCSV, printToFile
+from ResultsDetections import criaCSV, printToFile
 from Detectors.MMdetection.CheckPoint import selectmodel
 
 # YOLOV8, FasterRCNN, 'MMdetections/sabl-faster-rcnn_r50_fpn_1x_coco','MMdetections/detr_r50_8xb2-150e_coco','MMdetections/fovea_r50_fpn_4xb4-1x_coco'
-MODELS = ['YOLOV8','MMdetections/sabl-faster-rcnn_r50_fpn_1x_coco','MMdetections/detr_r50_8xb2-150e_coco','MMdetections/fovea_r50_fpn_4xb4-1x_coco'] #Variavel para selecionar os modelos
+MODELS = ['FasterRCNN'] #Variavel para selecionar os modelos
 APENAS_TESTE = False # Decide se ira Treinar = False ou so fazer o Teste = True dos modelos 
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
@@ -26,7 +26,9 @@ for model in MODELS:
             elif model == 'FasterRCNN':
                 from Detectors.FasterRCNN.RunFaster import runFaster
                 runFaster(fold,fold_dir,ROOT_DATA_DIR)
-                
+                model_path = os.path.join(fold_dir,model,'best_model.pth')
+                model_name2 = model
+
             elif model[0:12] == 'MMdetections':
                 from Detectors.MMdetection.RunMMdetecion import runMMdetection
                 runMMdetection(model,fold_dir)
@@ -44,5 +46,8 @@ for model in MODELS:
             elif model == 'YOLOV8':
                 model_path = os.path.join(fold_dir,model,'train','weights','best.pt')
                 model_name2 = model
-                
+            else:
+                model_path = os.path.join(fold_dir,model,'best_model.pth')
+                model_name2 = model
         criaCSV(num_dobra=f,root=ROOT_DATA_DIR,fold=fold,selected_model=model_name2,model_path=model_path)
+

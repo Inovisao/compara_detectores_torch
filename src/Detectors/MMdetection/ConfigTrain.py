@@ -29,7 +29,7 @@ train_batch_size_per_gpu = 4 # Tamanho do lote da imagem
 
 train_num_workers = 1
 
-max_epochs = 50 # Quantidade de Epocas
+max_epochs = 10 # Quantidade de Epocas
 stage2_num_epochs = 5
 base_lr = 0.0001 # Taxa de aprendizagem 
 
