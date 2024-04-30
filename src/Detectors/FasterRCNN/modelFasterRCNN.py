@@ -23,7 +23,10 @@ def train(train_data_loader, model):
     global train_loss_list
     
      # initialize tqdm progress bar
-    prog_bar = tqdm(train_data_loader, total=len(train_data_loader))
+    try:
+        prog_bar = tqdm(train_data_loader, total=len(train_data_loader))
+    except:
+        pass
     
     for i, data in enumerate(prog_bar):
         optimizer.zero_grad()
