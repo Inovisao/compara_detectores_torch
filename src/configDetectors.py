@@ -4,7 +4,7 @@ from ResultsDetections import criaCSV, printToFile
 from Detectors.MMdetection.CheckPoint import selectmodel
 
 # YOLOV8, FasterRCNN, 'MMdetections/sabl-faster-rcnn_r50_fpn_1x_coco','MMdetections/detr_r50_8xb2-150e_coco','MMdetections/fovea_r50_fpn_4xb4-1x_coco'
-MODELS = ['FasterRCNN'] #Variavel para selecionar os modelos
+MODELS = ['MMdetections/sabl/sabl-faster-rcnn_r50_fpn_1x_coco','MMdetections/foveabox/fovea_r50_fpn_4xb4-1x_coco','MMdetections/faster_rcnn/faster-rcnn_r50_fpn_1x_coco','YOLOV8','FasterRCNN'] #Variavel para selecionar os modelos
 APENAS_TESTE = False # Decide se ira Treinar = False ou so fazer o Teste = True dos modelos 
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
@@ -32,7 +32,7 @@ for model in MODELS:
             elif model[0:12] == 'MMdetections':
                 from Detectors.MMdetection.RunMMdetecion import runMMdetection
                 runMMdetection(model,fold_dir)
-                model_name = model.split('/')[1]
+                model_name = model.split('/')[-1]
                 model_name2 = model.split('/')[0]
                 modeloTreinado = selectmodel(fold,model_name)
                 model_path = os.path.join(fold_dir,model_name,modeloTreinado)  

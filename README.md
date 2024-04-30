@@ -31,6 +31,9 @@ Esta pasta está sendo utilizada para a organização dos códigos. Dentro de ca
 Nesta pasta, teremos scripts para gerar gráficos, instalação das dependências, entre outros códigos de utilidade.
 
 ## Instalações
+
+### Copie e cole linha por linha no terminal
+
 ```
 $ conda create --name detectores python=3.9.16 -y
 
@@ -58,19 +61,6 @@ $ pip install ultralytics
 
 $ pip install supervision==0.1.0
 
-```
-
-### Caso prefira, você pode executar o script Install.sh
-Que estará em Utils,execute ele da pasta src
-
-```
-Utils/
-├── geraDobras.py
-└── Install.sh
-```
-
-```
-bash ../Utils/Install.sh
 ```
 ## Como Usar
 
@@ -183,7 +173,7 @@ src/Detectors/
 Logo após você ter configurado e escolhido os modelos, você irá abrir o código configDetectores.py. Lá você terá uma variável chamada MODEL. Para treinar os modelos escolhidos, basta modificar essa variável. Por exemplo:
 
 ```
-MODELS = ['YOLOV8','MMdetections/sabl-faster-rcnn_r50_fpn_1x_coco','MMdetections/detr_r50_8xb2-150e_coco','MMdetections/fovea_r50_fpn_4xb4-1x_coco']
+MODELS = ['YOLOV8','MMdetections/sabl/sabl-faster-rcnn_r50_fpn_1x_coco','MMdetections/detr/detr_r50_8xb2-150e_coco','MMdetections/fovea/fovea_r50_fpn_4xb4-1x_coco']
 ```
 Note que para usar os modelos da mmdetection, temos que colocar MMDetections/nome_do_modelo.
 

@@ -6,6 +6,7 @@ import cv2
 import json
 
 # Classe Usada para detectar os objetos
+MOSTRAIMAGE = False
 class resultYOLO:
     # Função do detector da YOLOV8
     def detections2boxes(detections: Detections) -> np.ndarray:
@@ -27,6 +28,20 @@ class resultYOLO:
                 confidence=results[0].boxes.conf.cpu().numpy(),
                 class_id=results[0].boxes.cls.cpu().numpy().astype(int)
             )
+        if MOSTRAIMAGE:
+            CLASS_NAMES_DICT = model.model.names
+            CLASS_ID = [0]
+            box_annotator = BoxAnnotator(color=ColorPalette(), thickness=1, text_thickness=0, text_scale=1)
+            labels = [
+                f"#{tracker_id} {CLASS_NAMES_DICT[class_id]} {confidence:0.2f}"
+                for _, confidence, class_id, tracker_id
+                in detections
+            ]
+            imagem_com_retangulo = box_annotator.annotate(frame=frame, detections=detections, labels=labels)
+
+            cv2.imshow('Quadrados',imagem_com_retangulo)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
 
         lista = [] # Lista com todas as detecções da Imagem
         classes_usadas = [] # Salva as classes usadas

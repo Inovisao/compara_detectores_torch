@@ -3,8 +3,8 @@ import json
 import os
 BATCH_SIZE = 4 # lote de imagens
 RESIZE_TO = 640 # tamanho da imagem
-NUM_EPOCHS = 10 # Numero de epocas
-NUM_WORKERS = 4 # Paciencia
+NUM_EPOCHS = 50 # Numero de epocas
+NUM_WORKERS = 5 # Paciencia
 LR = 0.001 # Taxa de aprendizagem
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')

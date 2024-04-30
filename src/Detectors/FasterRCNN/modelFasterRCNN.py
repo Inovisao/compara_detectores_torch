@@ -49,7 +49,10 @@ def train(train_data_loader, model):
         train_itr += 1
     
         # update the loss value beside the progress bar for each iteration
-        prog_bar.set_description(desc=f"Loss: {loss_value:.4f}")
+        try:
+            prog_bar.set_description(desc=f"Loss: {loss_value:.4f}")
+        except:
+            pass
     return train_loss_list
 
 # function for running validation iterations
@@ -59,8 +62,10 @@ def validate(valid_data_loader, model):
     global val_loss_list
     
     # initialize tqdm progress bar
-    prog_bar = tqdm(valid_data_loader, total=len(valid_data_loader))
-    
+    try:
+        prog_bar = tqdm(valid_data_loader, total=len(valid_data_loader))
+    except:
+        pass
     for i, data in enumerate(prog_bar):
         images, targets = data
         
@@ -79,7 +84,10 @@ def validate(valid_data_loader, model):
         val_itr += 1
 
         # update the loss value beside the progress bar for each iteration
-        prog_bar.set_description(desc=f"Loss: {loss_value:.4f}")
+        try:
+            prog_bar.set_description(desc=f"Loss: {loss_value:.4f}")
+        except:
+            pass
     return val_loss_list
 
 if __name__ == '__main__':

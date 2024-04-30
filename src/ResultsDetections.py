@@ -215,6 +215,7 @@ def geraResult(root,fold,model,nameModel):
 
     for images in cocodataset:
         image = os.path.join(root,'train',images['file_name'])
+        print(image.split('/')[-1])
         frame = cv2.imread(image)
 
         if nameModel == 'YOLOV8':
@@ -243,14 +244,14 @@ def geraResult(root,fold,model,nameModel):
             ground_thruth.append({'x1':x1,'x2':x2,'y1':y1,'y2':y2,'class':classes})
             frame = cv2.rectangle(frame, (x1, y1), (x2, y2), (255,0,0), thickness=1)
         objetos_medidos = len(ground_thruth)
-
         for j in range(len(result)):
             for bb in result[j]:
                 obj = {'x1':int(bb[0]),'x2':int(bb[2]),'y1':int(bb[1]),'y2':int(bb[3]),'score_thr':bb[4],'class':j}
+
                 if is_max_score_thr(obj,result):
                     bboxes2.append(obj)
-        
-            bboxes2 = np.array(bboxes2)
+                    
+        bboxes2 = np.array(bboxes2)
         objetos_preditos=0
         cont_TP=0
         cont_FP=0
