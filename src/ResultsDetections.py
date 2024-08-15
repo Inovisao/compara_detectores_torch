@@ -3,14 +3,15 @@ import numpy as np
 import cv2
 import os
 from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
-from Detectors.MMdetection.MMdetector import resultMM
 from Detectors.FasterRCNN.inference import resultFaster
+from Detectors.Detr.inference_image_detect import resultDetr
 import sys
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_absolute_error
 import math
+import csv
 
 LIMIAR_IOU = 0.5
 LIMIAR_CLASSIFICADOR=0.5
@@ -53,7 +54,7 @@ def calculate_map(results, idImagens,dataset):
 
     return mAP, mAP50, mAP75
 
-def printToFile(linha='',arquivo='../Results/results.csv',modo='a'):
+def printToFile(linha='',arquivo='../results/results.csv',modo='a'):
   original_stdout = sys.stdout # Save a reference to the original standard output
   with open(arquivo, modo) as f:
     sys.stdout = f # Change the standard output to the file we created.
@@ -200,8 +201,27 @@ def convert_detections(detections):
         converted.append(array_format)
     return converted
 
+def gerar_csv(dados):
+    # Definindo o nome do arquivo
+    nome_arquivo = '../results/counting.csv'
+    
+    # Definindo os cabeçalhos do CSV
+    cabecalhos = ['ml', 'fold', 'groundtruth', 'predicted', 'TP', 'FP', 'dif', 'fileName']
+    
+    # Escrevendo os dados no arquivo CSV
+    with open(nome_arquivo, mode='w', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=cabecalhos)
+        
+        # Escreve os cabeçalhos
+        writer.writeheader()
+        
+        # Escreve as linhas de dados
+        for linha in dados:
+            writer.writerow(linha)
+    
+
 def geraResult(root,fold,model,nameModel):
-    save_imgs = False
+    save_imgs = True
     arquivoJson = os.path.join(root,'filesJSON',fold+str('_test.json'))
     cocodataset = pegaDataset(arquivoJson)
     MAX_BOX=1000
@@ -212,10 +232,10 @@ def geraResult(root,fold,model,nameModel):
     all_FP = 0
     all_GT=0
     idImagens = []
-
+    dados = []
     for images in cocodataset:
         image = os.path.join(root,'train',images['file_name'])
-        print(image.split('/')[-1])
+
         frame = cv2.imread(image)
 
         if nameModel == 'YOLOV8':
@@ -225,10 +245,8 @@ def geraResult(root,fold,model,nameModel):
             imageSaveModel = 'Faster'
             result = resultFaster(fold,frame)
         else:
-            path = model.split('/')[2]
-            imageSaveModel = path
-            config  = os.path.join('model_checkpoints',fold,path,'train.py')
-            result = resultMM(image,model,config)
+            imageSaveModel = 'Detr'
+            result = resultDetr(fold,frame)
         
         if images['annotations']['bboxes'] == []:
             continue
@@ -244,6 +262,7 @@ def geraResult(root,fold,model,nameModel):
             ground_thruth.append({'x1':x1,'x2':x2,'y1':y1,'y2':y2,'class':classes})
             frame = cv2.rectangle(frame, (x1, y1), (x2, y2), (255,0,0), thickness=1)
         objetos_medidos = len(ground_thruth)
+
         for j in range(len(result)):
             for bb in result[j]:
                 obj = {'x1':int(bb[0]),'x2':int(bb[2]),'y1':int(bb[1]),'y2':int(bb[3]),'score_thr':bb[4],'class':j}
@@ -273,7 +292,8 @@ def geraResult(root,fold,model,nameModel):
                 else:
                     cont_FP+=1
                     frame=cv2.rectangle(frame, left_top, right_bottom, (0,0,255), thickness=1)    
-
+        dados.append({'ml': model, 'fold': fold, 'groundtruth': objetos_medidos, 'predicted': objetos_preditos, 'TP': cont_TP, 'FP': cont_FP, 'dif': int(objetos_medidos-objetos_preditos), 'fileName': images['file_name']})
+        gerar_csv(dados)
         all_TP+=cont_TP    
         all_FP+=cont_FP
         all_GT+=len(images['annotations']['bboxes'])
@@ -298,7 +318,7 @@ def geraResult(root,fold,model,nameModel):
 
         if save_imgs:
             save_path = '/prediction_'+imageSaveModel
-            save_path = os.path.join('..','Results','prediction',imageSaveModel)
+            save_path = os.path.join('..','results','prediction',imageSaveModel)
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
             img_path = os.path.join(save_path ,images['file_name'])
@@ -307,8 +327,10 @@ def geraResult(root,fold,model,nameModel):
 
         results.append(result)
         diferenca=objetos_preditos-objetos_medidos
-
-    mAP, mAP50, mAP75 = calculate_map(results,idImagens,arquivoJson)
+    try:
+        mAP, mAP50, mAP75 = calculate_map(results,idImagens,arquivoJson)
+    except:
+        mAP, mAP50, mAP75 = 0
     try:  
         MAE=mean_absolute_error(medidos,preditos)
         RMSE=math.sqrt(mean_squared_error(medidos,preditos))
@@ -336,10 +358,6 @@ def geraResult(root,fold,model,nameModel):
     return string_results
 
 def criaCSV(num_dobra,selected_model,fold,root,model_path):
-    save_results = os.path.join('..','Results','results.csv')
+    save_results = os.path.join('..','results','results.csv')
     resAP50 = geraResult(root,fold,nameModel=selected_model,model=model_path)
-    if selected_model == 'MMdetections':
-        path = model_path.split('/')[2]
-        printToFile(str(num_dobra)+'_'+path + ','+fold+','+resAP50,save_results,'a')
-    else:
-        printToFile(str(num_dobra)+'_'+selected_model + ','+fold+','+resAP50,save_results,'a')
+    printToFile(selected_model + ','+fold+','+resAP50,save_results,'a')

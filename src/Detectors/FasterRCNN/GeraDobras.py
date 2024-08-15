@@ -21,12 +21,12 @@ def convert_coco_to_voc(fold):
     foldsUsadas = []
     #Pega o caminho do arquivo coco que esta sendo usada
     for caminho in caminhos:
-        if str(caminho[0:6]) == str(fold):
+        if str(caminho.split('_')[1]) == str(fold).split('_')[1]:
             foldsUsadas.append(caminho)
     # Loop para separar e criar as labels e imagens
     for Caminho in foldsUsadas:
         coco_annotation_file = os.path.join(ROOT_DATA_DIR,'filesJSON',Caminho) # Le o arquivo Json
-        path = Caminho[7:-5]
+        path = Caminho.split('_')[2].split('.')[0]
         # Ira selecionar o diretorio
         if path == 'val':
             output_dir = caminho_valid
