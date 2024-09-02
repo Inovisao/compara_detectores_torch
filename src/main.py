@@ -35,7 +35,7 @@ def test_model(model,fold_dir):
 
 
 # YOLOV8, FasterRCNN, Detr
-MODELS = ['FasterRCNN'] #Variavel para selecionar os modelos
+MODELS = ['Detr'] #Variavel para selecionar os modelos
 APENAS_TESTE = False # True para apenas testar modelos treinados False para Treinar e Testar.
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
