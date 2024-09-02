@@ -216,8 +216,7 @@ def gerar_csv(dados):
         for linha in dados:
             writer.writerow(linha)
 
-def geraResult(root,fold,model,nameModel):
-    save_imgs = True
+def geraResult(root,fold,model,nameModel,save_imgs):
     arquivoJson = os.path.join(root,'filesJSON',fold+str('_test.json'))
     cocodataset = pegaDataset(arquivoJson)
     MAX_BOX=1000
@@ -352,7 +351,7 @@ def geraResult(root,fold,model,nameModel):
     gerar_csv(dados)
     return string_results
 
-def criaCSV(num_dobra,selected_model,fold,root,model_path):
+def criaCSV(num_dobra,selected_model,fold,root,model_path,save_imgs):
     save_results = os.path.join('..','results','results.csv')
-    resAP50 = geraResult(root,fold,nameModel=selected_model,model=model_path)
+    resAP50 = geraResult(root,fold,nameModel=selected_model,model=model_path,save_imgs=save_imgs)
     printToFile(selected_model + ','+fold+','+resAP50,save_results,'a')

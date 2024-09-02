@@ -128,21 +128,21 @@ config.py e alterar os parâmetros de acordo com suas necessidades. Caso queira 
 
 ### Rodar o treino
 
-Logo após você ter configurado e escolhido os modelos, você irá abrir o código configDetectores.py. Lá você terá uma variável chamada MODEL. Para treinar os modelos escolhidos, basta modificar essa variável. Por exemplo:
+Logo após você ter configurado e escolhido os modelos, você irá abrir o código main.py. Lá você terá uma variável chamada MODEL. Para treinar os modelos escolhidos, basta modificar essa variável. Por exemplo:
 
 ```
 MODELS = ['YOLOV8','FasterRCNN']
 ```
 
-Pronto Agora é so rodar o configDetectors.py que está em src
+Pronto Agora é so rodar o main.py que está em src
 
 ```
 src/
-├── configDetectors.py
+├── main.py
 └── RestultsDetections.py
 ```
 
 ```
 cd src
-python configDetectors.py
+python main.py
 ```
