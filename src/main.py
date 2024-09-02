@@ -44,6 +44,8 @@ GeraRult = True # True para gerar Resultados False para não gerar
 save_imgs = True # True para salvar imagens em predictes False para não salvar
 
 if GeraRult:
+    if os.path.exists('../results'):
+        os.makedirs('../results')
     printToFile('ml,fold,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore','../results/results.csv','w')
     printToFile('ml,fold,groundtruth,predicted,TP,FP,dif,fileName','../results/counting.csv','w')# Inicia o arquivo de Results
 # Loop Para o selecionar o Modelo

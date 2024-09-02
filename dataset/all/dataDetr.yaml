@@ -3,7 +3,7 @@ CLASSES:
 - Peixe
 NC: 2
 SAVE_VALID_PREDICTION_IMAGES: true
-TRAIN_DIR_IMAGES: /home/pedroeduardo/Documentos/compara_detectores_torch2/dataset/all/detr/train
-TRAIN_DIR_LABELS: /home/pedroeduardo/Documentos/compara_detectores_torch2/dataset/all/detr/train
-VALID_DIR_IMAGES: /home/pedroeduardo/Documentos/compara_detectores_torch2/dataset/all/detr/valid
-VALID_DIR_LABELS: /home/pedroeduardo/Documentos/compara_detectores_torch2/dataset/all/detr/valid
+TRAIN_DIR_IMAGES: /home/pedroeduardo/Documentos/compara_detectores_torch/dataset/all/detr/train
+TRAIN_DIR_LABELS: /home/pedroeduardo/Documentos/compara_detectores_torch/dataset/all/detr/train
+VALID_DIR_IMAGES: /home/pedroeduardo/Documentos/compara_detectores_torch/dataset/all/detr/valid
+VALID_DIR_LABELS: /home/pedroeduardo/Documentos/compara_detectores_torch/dataset/all/detr/valid
