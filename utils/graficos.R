@@ -14,6 +14,9 @@ options(scipen = 999)
 #
 dados <- read.table('../results/results.csv', sep = ',', header = TRUE)
 
+# Reordena a coluna 'ml' para garantir que o primeiro elemento seja o primeiro boxplot
+dados$ml <- factor(dados$ml, levels = unique(dados$ml))
+
 metricas <- list("mAP50", "mAP75", "mAP", "precision", "recall", "fscore", "MAE", "RMSE", "r")
 graficos <- list()
 i <- 1
@@ -40,6 +43,8 @@ print(g)
 # XY CONTAGEM MANUAL X AUTOMÁTICA - JUNTANDO TODAS AS DOBRAS
 #
 dadosContagem <- read.table('../results/counting.csv', sep = ',', header = TRUE)
+
+dadosContagem$ml <- factor(dadosContagem$ml, levels = unique(dadosContagem$ml))
 
 graficos <- list()
 i <- 1
@@ -86,6 +91,13 @@ output_file <- '../results/anova_all_results.txt'
 # Limpar o arquivo antes de começar
 sink(output_file)
 sink()
+# Instalar pacotes necessários, se ainda não estiverem instalados
+if (!require(multcomp)) install.packages("multcomp", dependencies = TRUE)
+if (!require(multcompView)) install.packages("multcompView", dependencies = TRUE)
+
+# Carregar os pacotes
+library(multcomp)
+library(multcompView)
 
 # -------------------------------------------------------------------
 # Função para realizar ANOVA para cada métrica
@@ -111,6 +123,14 @@ realizar_anova <- function(df, metric, output_file) {
       tukey_result <- TukeyHSD(anova_result)
       cat("\nTukey HSD para", metric, "\n")
       print(tukey_result)
+
+      # Obter os resultados do Tukey HSD
+      tukey_df <- as.data.frame(tukey_result[[1]])
+      
+      # Adicionar o CLD
+      cld_result <- cld(glht(anova_result, linfct = mcp(ml = "Tukey")))
+      cat("\nCLD para", metric, "\n")
+      print(cld_result)
     }
 
     # Fechar a escrita no arquivo

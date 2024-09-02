@@ -205,20 +205,16 @@ def gerar_csv(dados):
     # Definindo o nome do arquivo
     nome_arquivo = '../results/counting.csv'
     
-    # Definindo os cabeçalhos do CSV
+    # Definindo os cabeçalhos do CSV (apenas para garantir que a estrutura dos dados seja consistente)
     cabecalhos = ['ml', 'fold', 'groundtruth', 'predicted', 'TP', 'FP', 'dif', 'fileName']
     
-    # Escrevendo os dados no arquivo CSV
-    with open(nome_arquivo, mode='w', newline='') as file:
+    # Escrevendo os dados no arquivo CSV sem cabeçalho
+    with open(nome_arquivo, mode='a', newline='') as file:
         writer = csv.DictWriter(file, fieldnames=cabecalhos)
         
-        # Escreve os cabeçalhos
-        writer.writeheader()
-        
-        # Escreve as linhas de dados
+        # Escreve apenas as linhas de dados, sem o cabeçalho
         for linha in dados:
             writer.writerow(linha)
-    
 
 def geraResult(root,fold,model,nameModel):
     save_imgs = True
@@ -292,8 +288,7 @@ def geraResult(root,fold,model,nameModel):
                 else:
                     cont_FP+=1
                     frame=cv2.rectangle(frame, left_top, right_bottom, (0,0,255), thickness=1)    
-        dados.append({'ml': model, 'fold': fold, 'groundtruth': objetos_medidos, 'predicted': objetos_preditos, 'TP': cont_TP, 'FP': cont_FP, 'dif': int(objetos_medidos-objetos_preditos), 'fileName': images['file_name']})
-        gerar_csv(dados)
+        dados.append({'ml': nameModel+'x', 'fold': fold, 'groundtruth': objetos_medidos, 'predicted': objetos_preditos, 'TP': cont_TP, 'FP': cont_FP, 'dif': int(objetos_medidos-objetos_preditos), 'fileName': images['file_name']})
         all_TP+=cont_TP    
         all_FP+=cont_FP
         all_GT+=len(images['annotations']['bboxes'])
@@ -354,7 +349,7 @@ def geraResult(root,fold,model,nameModel):
     except ZeroDivisionError:
         fscore=0
     string_results = str(mAP)+','+str(mAP50)+','+str(mAP75)+','+str(MAE)+','+str(RMSE)+','+str(r)+','+str(precision_fold)+','+str(recall_fold)+','+str(fscore)
-
+    gerar_csv(dados)
     return string_results
 
 def criaCSV(num_dobra,selected_model,fold,root,model_path):

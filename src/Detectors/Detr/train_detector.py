@@ -261,7 +261,7 @@ def main(args):
 
     # TODO Check how this works when with model params differently in model.py
     lr_dict = {
-        'backbone': 0.1,
+        'backbone': 1,
         'transformer': 1,
         'embed': 1,
         'final': 5

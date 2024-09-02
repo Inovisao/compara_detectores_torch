@@ -11,13 +11,14 @@ Este código foi desenvolvido com o intuito de facilitar a junção de várias r
 ├── src
 │   └── detectors
 │       ├── FasterRCNN
+│       ├── Detr
 │       └── YOLOV8
 └── utils
 ```
 ### Dataset
 Pasta onde ficarão todas as suas imagens e suas respectivas anotações.
 
-### Results
+### results
 Pasta onde estarão os resultados das redes e seus gráficos.
 
 ### src
@@ -26,7 +27,7 @@ Pasta onde estarão os códigos que irão rodar as redes.
 ### Detectors
 Esta pasta está sendo utilizada para a organização dos códigos. Dentro de cada pasta, há códigos referentes a cada rede.
 
-### Utils
+### utils
 Nesta pasta, teremos scripts para gerar gráficos, instalação das dependências, entre outros códigos de utilidade.
 
 ## Instalações
@@ -49,6 +50,12 @@ $ pip install albumentations
 $ pip install ultralytics
 
 $ pip install supervision==0.1.0
+
+$ pip install pycocotools
+
+$ pip install torchinfo
+
+$ pip install vision-transformers
 
 ```
 ## Como Usar
