@@ -3,7 +3,6 @@
 .Rhistory
 .idea
 __pycache__/**
-data.yaml
 src/__pycache__
 src/Detectors/**/__pycache__
 src/model_checkpoints
