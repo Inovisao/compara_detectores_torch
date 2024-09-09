@@ -101,7 +101,7 @@ src/Detectors/
 └── YOLOV8
     ├── DetectionsYolov8.py
     ├── GeraLabels.py
-    ├── ModelYOLOV8.py
+    ├── config.py
     ├── RunYOLOV8.py
     └── TreinoYOLOV8.sh
 ```

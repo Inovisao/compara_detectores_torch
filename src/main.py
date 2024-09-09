@@ -18,7 +18,10 @@ def train_model(model,fold,fold_dir,ROOT_DATA_DIR):
         from Detectors.Detr.runDetr import runDetr
         runDetr(fold,fold_dir,ROOT_DATA_DIR)
         model_path = os.path.join(fold_dir,model,'training','best_model.pth')
-        
+    elif model == 'Retinanet':
+        from Detectors.Retinanet.RunRetinanet import runRetinanet
+        runRetinanet(fold,fold_dir,ROOT_DATA_DIR)
+        model_path = os.path.join(fold_dir,model,'best_model.pth')
     return model_path
 
 def test_model(model,fold_dir):
@@ -31,20 +34,24 @@ def test_model(model,fold_dir):
     elif model == 'Detr':
         model_path = os.path.join(fold_dir,model,'training','best_model.pth')
 
+    elif model == 'Retinanet':
+        model_path = os.path.join(fold_dir,model,'best_model.pth')
+
     return model_path
 
 
 # YOLOV8, FasterRCNN, Detr
-MODELS = ['Detr'] #Variavel para selecionar os modelos
+MODELS = ['Retinanet'] #Variavel para selecionar os modelos
+
 APENAS_TESTE = False # True para apenas testar modelos treinados False para Treinar e Testar.
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
 DOBRAS = int(len(os.listdir(DIR_PATH))/3)
-GeraRult = True # True para gerar Resultados False para não gerar
-save_imgs = True # True para salvar imagens em predictes False para não salvar
+GeraRult = False # True para gerar Resultados False para não gerar
+save_imgs = False # True para salvar imagens em predictes False para não salvar
 
 if GeraRult:
-    if os.path.exists('../results'):
+    if not os.path.exists('../results'):
         os.makedirs('../results')
     printToFile('ml,fold,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore','../results/results.csv','w')
     printToFile('ml,fold,groundtruth,predicted,TP,FP,dif,fileName','../results/counting.csv','w')# Inicia o arquivo de Results
@@ -58,7 +65,6 @@ for model in MODELS:
            model_path = train_model(model,fold,fold_dir,ROOT_DATA_DIR)
         else:
            model_path =  test_model(model,fold_dir)
-
         if GeraRult:
             try:
                 criaCSV(num_dobra=f,root=ROOT_DATA_DIR,fold=fold,selected_model=model,model_path=model_path,save_imgs=save_imgs)
