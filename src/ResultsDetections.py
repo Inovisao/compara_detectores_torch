@@ -5,6 +5,7 @@ import os
 from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
 from Detectors.FasterRCNN.inference import resultFaster
 from Detectors.Detr.inference_image_detect import resultDetr
+from Detectors.Retinanet.inference import resultRetinanet
 import sys
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
@@ -239,10 +240,12 @@ def geraResult(root,fold,model,nameModel,save_imgs):
         elif nameModel == 'FasterRCNN':
             imageSaveModel = 'Faster'
             result = resultFaster(fold,frame)
-        else:
+        elif nameModel == 'Detr':
             imageSaveModel = 'Detr'
             result = resultDetr(fold,frame)
-        
+        elif nameModel == 'Retinanet':
+            imageSaveModel = 'Retinanet'
+            result = resultRetinanet(fold,frame)
         if images['annotations']['bboxes'] == []:
             continue
 
@@ -256,15 +259,15 @@ def geraResult(root,fold,model,nameModel,save_imgs):
             y1,y2 = int(bbox[1]),int(bbox[1]+bbox[3])
             ground_thruth.append({'x1':x1,'x2':x2,'y1':y1,'y2':y2,'class':classes})
             frame = cv2.rectangle(frame, (x1, y1), (x2, y2), (255,0,0), thickness=1)
+            cv2.putText(frame,str(classes),(x1,y1+5),cv2.FONT_HERSHEY_SIMPLEX,1,(255,0,0),2)
         objetos_medidos = len(ground_thruth)
-
+        
         for j in range(len(result)):
             for bb in result[j]:
                 obj = {'x1':int(bb[0]),'x2':int(bb[2]),'y1':int(bb[1]),'y2':int(bb[3]),'score_thr':bb[4],'class':j}
-
                 if is_max_score_thr(obj,result):
                     bboxes2.append(obj)
-                    
+
         bboxes2 = np.array(bboxes2)
         objetos_preditos=0
         cont_TP=0
@@ -274,7 +277,7 @@ def geraResult(root,fold,model,nameModel,save_imgs):
             if bboxes2[j]['score_thr'] >= LIMIAR_CLASSIFICADOR: #score_thr  ou seja, a confiança
                 objetos_preditos=objetos_preditos+1  # Total de objetos preditos automaticamente (usando IoU > 0.5)
                 left_top = (bboxes2[j]['x1'],bboxes2[j]['y1'])
-                left_top_text = (bboxes2[j]['x1'],bboxes2[j]['y1']-10)
+                left_top_text = (bboxes2[j]['x2']+5,bboxes2[j]['y1'])
                 right_bottom = (bboxes2[j]['x2'],bboxes2[j]['y2'])
                 tp = False
                 for box in ground_thruth:
@@ -284,10 +287,14 @@ def geraResult(root,fold,model,nameModel,save_imgs):
                 if tp == True:
                     cont_TP+=1
                     frame=cv2.rectangle(frame, left_top, right_bottom, (0,255,0), thickness=1) 
+                    cv2.putText(frame,str(classes),left_top_text,cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2)
                 else:
                     cont_FP+=1
-                    frame=cv2.rectangle(frame, left_top, right_bottom, (0,0,255), thickness=1)    
-        dados.append({'ml': nameModel+'x', 'fold': fold, 'groundtruth': objetos_medidos, 'predicted': objetos_preditos, 'TP': cont_TP, 'FP': cont_FP, 'dif': int(objetos_medidos-objetos_preditos), 'fileName': images['file_name']})
+                    frame=cv2.rectangle(frame, left_top, right_bottom, (0,0,255), thickness=1)
+                    cv2.putText(frame,str(classes),left_top_text,cv2.FONT_HERSHEY_SIMPLEX,1,(0,0,255),2)
+ 
+        dados.append({'ml': nameModel, 'fold': fold, 'groundtruth': objetos_medidos, 'predicted': objetos_preditos, 'TP': cont_TP, 'FP': cont_FP, 'dif': int(objetos_medidos-objetos_preditos), 'fileName': images['file_name']})
+
         all_TP+=cont_TP    
         all_FP+=cont_FP
         all_GT+=len(images['annotations']['bboxes'])

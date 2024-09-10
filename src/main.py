@@ -43,12 +43,12 @@ def test_model(model,fold_dir):
 # YOLOV8, FasterRCNN, Detr
 MODELS = ['Retinanet'] #Variavel para selecionar os modelos
 
-APENAS_TESTE = False # True para apenas testar modelos treinados False para Treinar e Testar.
+APENAS_TESTE = True # True para apenas testar modelos treinados False para Treinar e Testar.
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
 DOBRAS = int(len(os.listdir(DIR_PATH))/3)
-GeraRult = False # True para gerar Resultados False para não gerar
-save_imgs = False # True para salvar imagens em predictes False para não salvar
+GeraRult = True # True para gerar Resultados False para não gerar
+save_imgs = True # True para salvar imagens em predictes False para não salvar
 
 if GeraRult:
     if not os.path.exists('../results'):

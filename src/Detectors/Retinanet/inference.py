@@ -6,42 +6,30 @@ import os
 import time
 import argparse
 
-from model import create_model
+from Detectors.Retinanet.model import create_model
 from torchvision import transforms as transforms
 
-from config import (
+from Detectors.Retinanet.config import (
     NUM_CLASSES, DEVICE, CLASSES
 )
 
 np.random.seed(42)
 
-# Construct the argument parser.
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    '--weights',
-    default='outputs/best_model.pth',
-    help='path to the model weights'
-)
-parser.add_argument(
-    '-i', '--input', 
-    help='path to input image directory',
-    required=True
-)
-parser.add_argument(
-    '--imgsz', 
-    default=None,
-    type=int,
-    help='image resize shape'
-)
-parser.add_argument(
-    '--threshold',
-    default=0.25,
-    type=float,
-    help='detection threshold'
-)
-args = parser.parse_args()
-
-os.makedirs('inference_outputs/images', exist_ok=True)
+def parse_opt():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--weights',
+        default='outputs/best_model.pth',
+        help='path to the model weights'
+    )
+    parser.add_argument(
+        '--threshold',
+        default=0.25,
+        type=float,
+        help='detection threshold'
+    )
+    args = parser.parse_args()
+    return args
 
 COLORS = [
     [0, 0, 0],
@@ -51,20 +39,6 @@ COLORS = [
     [255, 255, 255]
 ]
 
-# Load the best model and trained weights.
-model = create_model(num_classes=NUM_CLASSES)
-checkpoint = torch.load(args.weights, map_location=DEVICE)
-model.load_state_dict(checkpoint['model_state_dict'])
-model.to(DEVICE).eval()
-
-# Directory where all the images are present.
-DIR_TEST = args.input
-test_images = glob.glob(f"{DIR_TEST}/*.jpg")
-print(f"Test instances: {len(test_images)}")
-
-frame_count = 0 # To count total frames.
-total_fps = 0 # To get the final frames per second.
-
 def infer_transforms(image):
     # Define the torchvision image transforms.
     transform = transforms.Compose([
@@ -73,31 +47,20 @@ def infer_transforms(image):
     ])
     return transform(image)
 
-for i in range(len(test_images)):
-    # Get the image file name for saving output later on.
-    image_name = test_images[i].split(os.path.sep)[-1].split('.')[0]
-    image = cv2.imread(test_images[i])
-    orig_image = image.copy()
-    if args.imgsz is not None:
-        image = cv2.resize(image, (args.imgsz, args.imgsz))
-    print(image.shape)
-    # BGR to RGB.
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    # Apply transforms
-    image_input = infer_transforms(image)
-    # Add batch dimension.
+
+def main(args,orig_image):
+    model = create_model(num_classes=NUM_CLASSES)
+    checkpoint = torch.load(args.weights, map_location=DEVICE)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    model.to(DEVICE).eval()
+
+
+    image_input = infer_transforms(orig_image)
+
     image_input = torch.unsqueeze(image_input, 0)
-    start_time = time.time()
     # Predictions
     with torch.no_grad():
         outputs = model(image_input.to(DEVICE))
-    end_time = time.time()
-
-    # Get the current fps.
-    fps = 1 / (end_time - start_time)
-    # Total FPS till current frame.
-    total_fps += fps
-    frame_count += 1
 
     # Load all detection to CPU for further operations.
     outputs = [{k: v.to('cpu') for k, v in t.items()} for t in outputs]
@@ -111,37 +74,21 @@ for i in range(len(test_images)):
         # Get all the predicited class names.
         pred_classes = [CLASSES[i] for i in outputs[0]['labels'].cpu().numpy()]
         
-        # Draw the bounding boxes and write the class name on top of it.
-        for j, box in enumerate(draw_boxes):
-            class_name = pred_classes[j]
-            color = COLORS[CLASSES.index(class_name)]
-            # Recale boxes.
-            xmin = int((box[0] / image.shape[1]) * orig_image.shape[1])
-            ymin = int((box[1] / image.shape[0]) * orig_image.shape[0])
-            xmax = int((box[2] / image.shape[1]) * orig_image.shape[1])
-            ymax = int((box[3] / image.shape[0]) * orig_image.shape[0])
-            cv2.rectangle(orig_image,
-                        (xmin, ymin),
-                        (xmax, ymax),
-                        color[::-1], 
-                        3)
-            cv2.putText(orig_image, 
-                        class_name, 
-                        (xmin, ymin-5),
-                        cv2.FONT_HERSHEY_SIMPLEX, 
-                        0.8, 
-                        color[::-1], 
-                        2, 
-                        lineType=cv2.LINE_AA)
+        lista = []
 
-        cv2.imshow('Prediction', orig_image)
-        cv2.waitKey(1)
-        cv2.imwrite(f"inference_outputs/images/{image_name}.jpg", orig_image)
-    print(f"Image {i+1} done...")
-    print('-'*50)
-
-print('TEST PREDICTIONS COMPLETE')
-cv2.destroyAllWindows()
-# Calculate and print the average FPS.
-avg_fps = total_fps / frame_count
-print(f"Average FPS: {avg_fps:.3f}")
+        for j,classe in enumerate(CLASSES):
+            if j > 0:
+                lista1 = []
+                for i,bbox in enumerate(draw_boxes):
+                    if classe == pred_classes[i]:
+                        lista1.append([bbox[0],bbox[1],bbox[2],bbox[3],scores[i]])
+                lista.append(np.array(lista1,dtype='float32'))
+        return lista
+    
+def resultRetinanet(fold,image):
+    weightsPath = os.path.join('model_checkpoints',fold,'Retinanet','best_model.pth')
+    args = parse_opt()
+    args.weights = weightsPath
+    lista = main(args,image)
+    return lista
+            
