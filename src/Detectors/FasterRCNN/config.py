@@ -1,24 +1,25 @@
 import torch
 import json
 import os
-BATCH_SIZE = 4 # lote de imagens
+BATCH_SIZE = 8 # lote de imagens
 RESIZE_TO = 640 # tamanho da imagem
-NUM_EPOCHS = 20 # Numero de epocas
+NUM_EPOCHS = 10 # Numero de epocas
 NUM_WORKERS = 5 # Paciencia
-LR = 0.001 # Taxa de aprendizagem
+LR = 0.0001 # Taxa de aprendizagem
+PATIENCE = 5
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 ROOT_DATA_DIR = os.path.join('..','dataset','all')
-# training images and XML files directory
-TRAIN_DIR = os.path.join(ROOT_DATA_DIR,'faster','train')
-# validation images and XML files directory
-VALID_DIR = os.path.join(ROOT_DATA_DIR,'faster','valid')
+
+TRAIN_DIR = os.path.join(ROOT_DATA_DIR,'Faster','train')
+
+VALID_DIR = os.path.join(ROOT_DATA_DIR,'Faster','val')
 
 # classes: 0 index is reserved for background
 CLASSES = [
-    '__background__'
+    'Background'
 ]
-with open(os.path.join(ROOT_DATA_DIR, 'train', '_annotations.coco.json'), 'r') as f:
+with open(os.path.join(ROOT_DATA_DIR,'train', '_annotations.coco.json'), 'r') as f:
     data = json.load(f)
 
 ann_ids = []
@@ -32,8 +33,5 @@ for category in data["categories"]:
 
 NUM_CLASSES = len(CLASSES)
 
-# whether to visualize images after crearing the data loaders
-VISUALIZE_TRANSFORMED_IMAGES = True
-
 # location to save model and plots
-OUT_DIR = 'FasterRCNN'
+OUT_DIR = './Faster'

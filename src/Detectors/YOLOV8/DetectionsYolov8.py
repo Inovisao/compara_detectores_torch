@@ -7,8 +7,25 @@ import json
 
 # Classe Usada para detectar os objetos
 MOSTRAIMAGE = False
-class resultYOLO:
     # Função do detector da YOLOV8
+def xyxy_to_xywh(boxes):
+    """
+    Converte caixas delimitadoras no formato xyxy para xywh.
+
+    :param boxes: Lista ou array de caixas no formato [x_min, y_min, x_max, y_max, conf, class].
+    :return: Lista de caixas no formato [x, y, w, h, conf, class].
+    """
+    coco_boxes = []
+
+    for box in boxes:
+        x_min, y_min, x_max, y_max, conf, cls = box
+        w = x_max - x_min
+        h = y_max - y_min
+        coco_boxes.append([x_min, y_min, w, h, conf, cls])
+    return coco_boxes
+    
+class resultYOLO:
+
     def detections2boxes(detections: Detections) -> np.ndarray:
         return np.hstack((
             detections.xyxy,
@@ -16,7 +33,7 @@ class resultYOLO:
         ))
     # Função onde passamos a imagem e o modelo treinado
     def result(frame,modelName):
-        
+        yolo_box = []
         MODEL=modelName 
         model = YOLO(MODEL) # Lendo o modelo Treinado
         model.fuse()
@@ -43,24 +60,11 @@ class resultYOLO:
             cv2.waitKey(0)
             cv2.destroyAllWindows()
 
-        lista = [] # Lista com todas as detecções da Imagem
-        classes_usadas = [] # Salva as classes usadas
-        JsonData = '../dataset/all/train/_annotations.coco.json'
-        with open(JsonData) as f:
-            data = json.load(f)
-        ann_ids = []
-        for anotation in data["annotations"]:
-            if anotation["category_id"] not in ann_ids:
-                ann_ids.append(anotation["category_id"])
+        for i,bbox in enumerate(detections.xyxy):
+            yolo_box.append([int(bbox[0]),int(bbox[1]),int(bbox[2]),int(bbox[3]),int(detections.class_id[i]+1),detections.confidence[i]])
 
-        for j in ann_ids:
-            lista1 = []
-            classes = j - 1
-            for i in range(len(detections.xyxy)):
-                if detections.class_id[i] == classes:
-                    classes_usadas.append(classes)
-                    lista1.append([detections.xyxy[i][0],detections.xyxy[i][1],detections.xyxy[i][2],detections.xyxy[i][3],detections.confidence[i]])
-            
-            lista.append(np.array(lista1,dtype='float32'))
 
-        return lista
+        coco_boxes = xyxy_to_xywh(yolo_box)
+
+        return coco_boxes
+
