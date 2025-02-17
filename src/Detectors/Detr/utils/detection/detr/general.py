@@ -240,8 +240,7 @@ def load_weights(
         model = torch.hub.load(
             'facebookresearch/detr', 
             args.model, 
-            pretrained=True,
-            verbose=False
+            pretrained=True
         )
     if args.weights is not None:
         ckpt = torch.load(args.weights, map_location=device)

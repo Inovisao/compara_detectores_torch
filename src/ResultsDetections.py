@@ -15,7 +15,7 @@ import csv
 # Importações dos modelos de detecção
 from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
 from Detectors.FasterRCNN.inference import ResultFaster
-
+from Detectors.Detr.inference_image_detect import resultDetr
 # Constantes
 IOU_THRESHOLD = 0.50
 RESULTS_PATH = os.path.join("..", "results", "prediction")
@@ -227,9 +227,12 @@ def generate_results(root, fold, model, model_name, save_imgs):
 
         if model_name == "YOLOV8":
             result = resultYOLO.result(frame, model)
-        if model_name == "Faster":
-             result = ResultFaster.resultFaster(frame,model)
-        print(result)
+        elif model_name == "Faster":
+            print(image_path)
+            result = ResultFaster.resultFaster(frame,model)
+        elif model_name == "Detr":
+            print(image_path)
+            result =   resultDetr(fold,frame)
         predictions[image['file_name']] = result
 
 

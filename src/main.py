@@ -16,15 +16,11 @@ def train_model(model,fold,fold_dir,ROOT_DATA_DIR):
         from Detectors.FasterRCNN.runFaster import runFaster
         runFaster(fold,fold_dir,ROOT_DATA_DIR)
         model_path = os.path.join(fold_dir,model,'best.pth')
-
+    
     elif model == 'Detr':
-        from Detectors.Detr.run_deter import run_deter
-        run_deter(fold,fold_dir,ROOT_DATA_DIR)
-        model_path = os.path.join(fold_dir,model,'training','best_model.pth')
-    elif model == 'Retinanet':
-        from Detectors.Retinanet.RunRetinanet import runRetinanet
-        runRetinanet(fold,fold_dir,ROOT_DATA_DIR)
-        model_path = os.path.join(fold_dir,model,'best_model.pth')
+        from Detectors.Detr.runDetr import runDetr
+        runDetr(fold,fold_dir,ROOT_DATA_DIR)
+        
     return model_path
 
 def test_model(model,fold_dir):
@@ -33,20 +29,15 @@ def test_model(model,fold_dir):
 
     elif model == 'Faster':
         model_path = os.path.join(fold_dir,model,'best.pth')
-
     elif model == 'Detr':
         model_path = os.path.join(fold_dir,model,'training','best_model.pth')
-
-    elif model == 'Retinanet':
-        model_path = os.path.join(fold_dir,model,'best_model.pth')
-
     return model_path
 
 
 # YOLOV8, Faster, Detr
-MODELS = ['Retinanet'] #Variavel para selecionar os modelos
+MODELS = ['Detr'] #Variavel para selecionar os modelos
 
-APENAS_TESTE = False # True para apenas testar modelos treinados False para Treinar e Testar.
+APENAS_TESTE = True # True para apenas testar modelos treinados False para Treinar e Testar.
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
 DOBRAS = int(len(os.listdir(DIR_PATH))/3)
