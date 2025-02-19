@@ -8,3 +8,6 @@ src/Detectors/**/__pycache__
 src/model_checkpoints
 model_checkpoints
 dataset
+results
+*.pt
+Faster

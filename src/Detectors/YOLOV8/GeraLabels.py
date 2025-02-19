@@ -45,11 +45,14 @@ def CriarLabelsYOLOV8(fold):
     foldsUsadas = []
     #Pega o caminho do arquivo coco que esta sendo usada
     for caminho in caminhos:
-        if str(caminho[0:6]) == str(fold):
+
+        fold_check = caminho.split("_")[0] + "_" +caminho.split("_")[1]
+
+        if str(fold_check) == str(fold):
             foldsUsadas.append(caminho)
 
     for Caminho in foldsUsadas:
-        path = Caminho[7:-5]
+        path = Caminho.split('_')[-1][0:-5]
 
         caminho = os.path.join(ROOT_DATA_DIR,'filesJSON',Caminho)
         # Lendo o arquivo JSON
@@ -99,7 +102,7 @@ def CriarLabelsYOLOV8(fold):
 
                 width = abs(anotacao[id][i][2])
                 height = abs(anotacao[id][i][3])
-                linhas.append(str(idAnotcao[id][i])+' '+str(x_center/640)+' '+str(y_center/640)+' '+str(width/640)+' '+str(height/640)+"\n")
+                linhas.append(str(abs(idAnotcao[id][i]))+' '+str(x_center/640)+' '+str(y_center/640)+' '+str(width/640)+' '+str(height/640)+"\n")
 
             image = os.path.join(ROOT_DATA_DIR,'train',NameFile[slectImage])
             arq = NameFile[slectImage][0:-4]+'.txt'

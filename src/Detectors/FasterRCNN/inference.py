@@ -1,66 +1,72 @@
-import numpy as np
-import cv2
 import torch
-import glob as glob
-import os
-import time
-import json
+import torchvision
+from torch.utils.data import DataLoader
+from torchvision.models.detection import FasterRCNN
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+import cv2
+import numpy as np
+from Detectors.FasterRCNN.config import (DEVICE,NUM_CLASSES,CLASSES)
+# Load Faster R-CNN with ResNet-50 backbone
+def get_model(num_classes):
+    # Load pre-trained Faster R-CNN
+    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+    # Get the number of input features for the classifier
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
+    # Replace the pre-trained head with a new one
+    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+    return model
 
-from Detectors.FasterRCNN.model import create_model
+def prepare_image(frame):
+    # Load the image using OpenCV (in BGR format)
+    # Convert BGR to RGB (since OpenCV loads images in BGR by default)
+    image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    # Convert to tensor and normalize
+    image_tensor = torch.from_numpy(image_rgb).float() / 255.0  # Normalize the image
+    image_tensor = image_tensor.permute(2, 0, 1).unsqueeze(0)  # Change to CxHxW and add batch dimension
+    return image_tensor.to(DEVICE)
 
-from Detectors.FasterRCNN.config import (
-    NUM_CLASSES, DEVICE, CLASSES
-)
-def resultFaster(fold,image):
-    # this will help us create a different color for each class
-    COLORS = np.random.uniform(0, 255, size=(len(CLASSES), 3))
+def xyxy_to_xywh(boxes):
+    """
+    Converte caixas delimitadoras no formato xyxy para xywh.
 
-    # load the best model and trained weights
-    model = create_model(num_classes=NUM_CLASSES)
+    :param boxes: Lista ou array de caixas no formato [x_min, y_min, x_max, y_max, conf, class].
+    :return: Lista de caixas no formato [x, y, w, h, conf, class].
+    """
+    coco_boxes = []
 
-    checkpoint = torch.load(f'model_checkpoints/{fold}/FasterRCNN/best_model.pth', map_location=DEVICE)
+    for box in boxes:
+        x_min, y_min, x_max, y_max, conf, cls = box
+        w = x_max - x_min
+        h = y_max - y_min
+        coco_boxes.append([x_min, y_min, w, h, conf, cls])
+    return coco_boxes
 
-    model.load_state_dict(checkpoint['model_state_dict'])
-    model.to(DEVICE).eval()
-    detection_threshold = 0.8
+# Load the trained model
 
+class ResultFaster:
+    def resultFaster(frame,modelName,LIMIAR_THRESHOLD):
+        model = get_model(NUM_CLASSES)
+        model.load_state_dict(torch.load(modelName))
+        model.to(DEVICE)
+        model.eval()  # Set the model to evaluation mode
 
-    # BGR to RGB
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
-    # make the pixel range between 0 and 1
-    image /= 255.0
-    # bring color channels to front
-    image = np.transpose(image, (2, 0, 1)).astype(np.float32)
-    # convert to tensor
-    image = torch.tensor(image, dtype=torch.float).cuda()
-    # add batch dimension
-    image = torch.unsqueeze(image, 0)
+        # Load the unseen image
+        image_tensor = prepare_image(frame)
 
-    with torch.no_grad():
-        results = model(image.to(DEVICE))
+        with torch.no_grad():  # Disable gradient computation for inference
+            prediction = model(image_tensor)
+        bbox = prediction[0]['boxes'].cpu().tolist()
+        labels = prediction[0]['labels'].cpu().tolist()
+        scores = prediction[0]['scores'].cpu().tolist()
+        faster_box = []
+        for i,box in enumerate(bbox):
+            if scores[i] > LIMIAR_THRESHOLD:
+                if labels[i] == 4:
+                    print(prediction)
+                    input()
+                faster_box.append([int(box[0]),int(box[1]),int(box[2]),int(box[3]),int(labels[i]),scores[i]])
+        #box = prediction['box']
 
-    # load all detection to CPU for further operations
-    results = [{k: v.to('cpu') for k, v in t.items()} for t in results]
-    # carry further only if there are detected boxes
+        coco_boxes = xyxy_to_xywh(faster_box)
 
-    lista = [] 
-    classes_usadas = []
-    JsonData = '../dataset/all/train/_annotations.coco.json'
-    with open(JsonData) as f:
-        data = json.load(f)
-    ann_ids = []
-    for anotation in data["annotations"]:
-        if anotation["category_id"] not in ann_ids:
-            ann_ids.append(anotation["category_id"])
-    for j in ann_ids:
-        lista1 = []
-        classe = j - 1
-        for result in results:
-            for i in range(len(result['labels'])):
-                if result['labels'][i]-1 == classe:
-                    score = result['scores'][i]
-                    bbox = result['boxes'][i]
-                    classes_usadas.append(classe)
-                    lista1.append([bbox[0],bbox[1],bbox[2],bbox[3],score])
-        lista.append(np.array(lista1,dtype='float32'))
-    return lista
+        return coco_boxes

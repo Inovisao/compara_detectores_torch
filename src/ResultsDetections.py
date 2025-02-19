@@ -1,364 +1,314 @@
+import os
 import json
 import numpy as np
 import cv2
-import os
-from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
-from Detectors.FasterRCNN.inference import resultFaster
-from Detectors.Detr.inference_image_detect import resultDetr
-from Detectors.Retinanet.inference import resultRetinanet
+import torch
+import torchmetrics
+from torchmetrics.detection.mean_ap import MeanAveragePrecision
+from torchmetrics.regression import MeanAbsoluteError, MeanSquaredError
+from torchmetrics.classification import MulticlassPrecision, MulticlassRecall, MulticlassF1Score, MulticlassAccuracy
+from torchmetrics.classification import BinaryPrecision, BinaryRecall, BinaryF1Score, BinaryAccuracy
+import shutil
 import sys
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
-from sklearn.metrics import mean_squared_error
-from sklearn.metrics import mean_absolute_error
-import math
 import csv
 
-LIMIAR_IOU = 0.5
-LIMIAR_CLASSIFICADOR=0.5
+# Importações dos modelos de detecção
+from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
+from Detectors.FasterRCNN.inference import ResultFaster
+from Detectors.Detr.inference_image_detect import resultDetr
+# Constantes
+LIMIAR_THRESHOLD = 0.50
+IOU_THRESHOLD = 0.50
+RESULTS_PATH = os.path.join("..", "results", "prediction")
+os.makedirs(RESULTS_PATH, exist_ok=True)  # Garante que a pasta existe
 
-def convert_to_coco_format(results,idImagens):
-    coco_results = []
-    image_id = 0
-    for j in range(len(results)):
-        for boxes in results[j]:
-            if boxes.size == 0:
-                continue
-            for bb in boxes:
-                bbox_coco = [float(bb[0]), float(bb[1]), 
-                            float(bb[2] - bb[0]), 
-                            float(bb[3] - bb[1])]
-                coco_results.append({
-                        'image_id': idImagens[image_id],
-                        'category_id': 1,  # assuming there is only one class
-                        'bbox': bbox_coco,
-                        'score': float(bb[4])
-                    })
-        image_id += 1
-    return coco_results
+def print_to_file(line='', file_path='../results/results.csv', mode='a'):
+    """Função para escrever uma linha em um arquivo."""
+    original_stdout = sys.stdout  # Salva a referência para a saída padrão original
+    with open(file_path, mode) as f:
+        sys.stdout = f  # Altera a saída padrão para o arquivo criado
+        print(line)
+        sys.stdout = original_stdout  # Restaura a saída padrão para o valor original
 
-def calculate_map(results, idImagens,dataset):
-    if not results:
-        print("Nenhum resultado fornecido.")
-        return None, None, None
-    coco_gt = COCO(dataset)
-    coco_dt = coco_gt.loadRes(convert_to_coco_format(results,idImagens))
+def generate_csv(data):
+    """Gera um arquivo CSV com os dados fornecidos."""
+    file_name = '../results/counting.csv'
+    headers = ['ml', 'fold', 'groundtruth', 'predicted', 'TP', 'FP', 'dif', 'fileName']
+    
+    with open(file_name, mode='a', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=headers)
+        for row in data:
+            writer.writerow(row)
 
-    coco_eval = COCOeval(coco_gt, coco_dt, 'bbox')
-    coco_eval.evaluate()
-    coco_eval.accumulate()
-    coco_eval.summarize()
+def get_classes(json_path):
+    """Extrai as classes de um arquivo JSON no formato COCO."""
+    with open(json_path, 'r', encoding='utf-8') as file:
+        data = json.load(file)
+    return {category["id"]: category["name"] for category in data["categories"]}
 
-    mAP = coco_eval.stats[0] if coco_eval.stats is not None else None  # mAP@0.5
-    mAP50 = coco_eval.stats[1] if coco_eval.stats is not None else None  # mAP@0.75
-    mAP75 = coco_eval.stats[2] if coco_eval.stats is not None else None  # mAP (mAP@0.5:0.95)
+def load_dataset(fold_path):
+    """Carrega o dataset a partir de um arquivo JSON."""
+    with open(fold_path, 'r') as f:
+        data = json.load(f)
 
-    return mAP, mAP50, mAP75
+    image_info_list = []
+    for image in data['images']:
+        image_id = image['id']
+        file_name = image['file_name']
+        annotations = [annotation for annotation in data['annotations'] if annotation['image_id'] == image_id]
+        
+        bboxes = [annotation['bbox'] for annotation in annotations]
+        labels = [annotation['category_id'] for annotation in annotations]
+        
+        annotation_info = {
+            'bboxes': bboxes,
+            'labels': labels,
+            'bboxes_ignore': np.array([]),
+            'masks': [[]],
+            'seg_map': file_name
+        }
+        
+        image_info = {
+            'image_id': image_id,
+            'file_name': file_name,
+            'annotations': annotation_info
+        }
+        image_info_list.append(image_info)
 
-def printToFile(linha='',arquivo='../results/results.csv',modo='a'):
-  original_stdout = sys.stdout # Save a reference to the original standard output
-  with open(arquivo, modo) as f:
-    sys.stdout = f # Change the standard output to the file we created.
-    print(linha)
-    sys.stdout = original_stdout # Reset the standard output to its original value
+    return image_info_list
 
-def get_iou(bb1, bb2):
-    """
-    Calculate the Intersection over Union (IoU) of two bounding boxes.
+def xywh_to_xyxy(bbox):
+    """Converte bbox de formato (x, y, w, h) para (x_min, y_min, x_max, y_max)."""
+    x, y, w, h = bbox
+    return [x, y, x + w, y + h]
 
-    Parameters
-    ----------
-    bb1 : dict
-        Keys: {'x1', 'x2', 'y1', 'y2', 'score_thr'}
-        The (x1, y1) position is at the top left corner,
-        the (x2, y2) position is at the bottom right corner
-    bb2 : dict
-        Keys: {'x1', 'x2', 'y1', 'y2', 'score_thr'}
-        The (x, y) position is at the top left corner,
-        the (x2, y2) position is at the bottom right corner
+def calculate_iou(box1, box2):
+    """Calcula a interseção sobre união (IoU) entre duas bboxes."""
+    x1, y1, w1, h1 = box1
+    x2, y2, w2, h2 = box2
 
-    Returns
-    -------
-    float
-        in [0, 1]
-    """
+    x1_min, y1_min, x1_max, y1_max = x1, y1, x1 + w1, y1 + h1
+    x2_min, y2_min, x2_max, y2_max = x2, y2, x2 + w2, y2 + h2
 
-    if bb1['x1'] >= bb1['x2'] or bb1['y1'] >= bb1['y2'] or bb2['x1'] >= bb2['x2'] or bb2['y1'] >= bb2['y2']:
-        return 0.0
+    inter_x_min = max(x1_min, x2_min)
+    inter_y_min = max(y1_min, y2_min)
+    inter_x_max = min(x1_max, x2_max)
+    inter_y_max = min(y1_max, y2_max)
 
-    # determine the coordinates of the intersection rectangle
-    x_left = max(bb1['x1'], bb2['x1'])
-    y_top = max(bb1['y1'], bb2['y1'])
-    x_right = min(bb1['x2'], bb2['x2'])
-    y_bottom = min(bb1['y2'], bb2['y2'])
+    inter_width = max(0, inter_x_max - inter_x_min)
+    inter_height = max(0, inter_y_max - inter_y_min)
+    inter_area = inter_width * inter_height
 
-    if x_right < x_left or y_bottom < y_top:
-        return 0.0
+    area1 = w1 * h1
+    area2 = w2 * h2
 
-    # The intersection of two axis-aligned bounding boxes is always an
-    # axis-aligned bounding box
-    intersection_area = (x_right - x_left) * (y_bottom - y_top)
-
-    # compute the area of both AABBs
-    bb1_area = (bb1['x2'] - bb1['x1']) * (bb1['y2'] - bb1['y1'])
-    bb2_area = (bb2['x2'] - bb2['x1']) * (bb2['y2'] - bb2['y1'])
-
-    # compute the intersection over union by taking the intersection
-    # area and dividing it by the sum of prediction + ground-truth
-    # areas - the interesection area
-    iou = intersection_area / float(bb1_area + bb2_area - intersection_area)
-    assert iou >= 0.0
-    assert iou <= 1.0
+    union_area = area1 + area2 - inter_area
+    iou = inter_area / union_area if union_area > 0 else 0
 
     return iou
 
-def is_max_score_thr(bb1, pred_array):
-  """
-    Compares if given bounding box is the one with the highest score_thr inside the array of predicted bounding boxes.
+def process_predictions(ground_truth, predictions, classes, save_img, root, fold, model_name):
+    """Processa as previsões e calcula métricas como TP, FP, precisão e recall."""
+    ground_truth_list = []
+    predict_list = []
+    data = []
+    for key in predictions:
+        img_path = os.path.join(root, "train", key)
+        image = cv2.imread(img_path)
 
-    Parameters
-    ----------
-    bb1 : dict
-        Keys: {'x1', 'x2', 'y1', 'y2', 'score_thr'}
-        The (x1, y1) position is at the top left corner,
-        the (x2, y2) position is at the bottom right corner
-    pred_array : array of predicted objects
-        Keys of dicts: {'x1', 'x2', 'y1', 'y2', 'score_thr'}
-        The (x, y) position is at the top left corner,
-        the (x2, y2) position is at the bottom right corner
+        gt_count = len(ground_truth[key])
+        pred_count = len(predictions[key])
 
-    Returns
-    -------
-    boolean
-  """
-  is_max = True
-  for cls in pred_array:
-    for bb2 in cls:
-      bbd={'x1':int(bb2[0]),'x2':int(bb2[2]),'y1':int(bb2[1]),'y2':int(bb2[3])}
-      if is_max and bb2[4] > bb1['score_thr'] and get_iou(bb1,bbd) > LIMIAR_IOU:
-        is_max = False
-  return is_max
+        cv2.putText(image, f"GT: {gt_count}", (5, 30), cv2.FONT_HERSHEY_TRIPLEX, 1, (255, 0, 0), 1)
+        cv2.putText(image, f"PRED: {pred_count}", (5, 60), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 255, 0), 1)
 
-def pegaDataset(fold):
-  # Carrega o arquivo JSON
-  with open(fold, 'r') as f:
-      data = json.load(f)
+        true_positives = 0
+        false_positives = 0
+        matched_gt = set()
 
-  # Lista para armazenar as informações de cada imagem
-  image_info_list = []
+        for bbox_pred in predictions[key]:
+            x1_max, y1_max = int(bbox_pred[0] + bbox_pred[2]), int(bbox_pred[1] + bbox_pred[3])
+            best_iou = 0
+            best_gt = None
 
-  # Itera sobre as imagens e suas anotações
-  for image in data['images']:
-      image_id = image['id']
-      file_name = image['file_name']
-      
-      # Procura pelas anotações correspondentes à imagem atual
-      annotations = [annotation for annotation in data['annotations'] if annotation['image_id'] == image_id]
-      
-      # Lista para armazenar as informações de anotação da imagem atual
-      annotations_info = []
-      category_id = []
-      bbox = []
-      imageid = []
-      for annotation in annotations:
-          category_id.append(annotation['category_id'])
-          bbox.append(annotation['bbox'])
-          # Cria o dicionário de informações da anotação
-      annotation_info = {
-          'bboxes': bbox,
-          'labels': category_id,
-          'bboxes_ignore': np.array([]),
-          'masks': [[]],
-          'seg_map': file_name
-      }
-          
-      # Adiciona as informações da anotação à lista de informações de anotação
-      
-      # Cria o dicionário de informações da imagem
-      image_info = {
-          'image_id' : image_id,
-          'file_name': file_name,
-          'annotations': annotation_info
-      }
-      
-      # Adiciona as informações da imagem à lista de informações de imagem
-      image_info_list.append(image_info)
+            for i, bbox_gt in enumerate(ground_truth[key]):
+                x2_max, y2_max = int(bbox_gt[0] + bbox_gt[2]), int(bbox_gt[1] + bbox_gt[3])
+                iou = calculate_iou(bbox_pred[:4], bbox_gt[:4])
 
-  # Imprime a lista de informações de imagem
-  return image_info_list
+                if iou >= IOU_THRESHOLD and iou > best_iou and i not in matched_gt:
+                    best_iou = iou
+                    best_gt = i
 
-def convert_detections(detections):
-    converted = []
-    for detection in detections:
-        # Extraia os valores na ordem x1, y1, x2, y2, score_thr
-        x1 = detection['x1']
-        y1 = detection['y1']
-        x2 = detection['x2']
-        y2 = detection['y2']
-        score = detection['score_thr']
-        
-        # Forme um array numpy para cada detecção
-        array_format = np.array([[x1, y1, x2, y2, score]], dtype=np.float32)
-        converted.append(array_format)
-    return converted
+            if best_gt is not None:
+                matched_gt.add(best_gt)
+                gt_class = ground_truth[key][best_gt][-1]
 
-def gerar_csv(dados):
-    # Definindo o nome do arquivo
-    nome_arquivo = '../results/counting.csv'
-    
-    # Definindo os cabeçalhos do CSV (apenas para garantir que a estrutura dos dados seja consistente)
-    cabecalhos = ['ml', 'fold', 'groundtruth', 'predicted', 'TP', 'FP', 'dif', 'fileName']
-    
-    # Escrevendo os dados no arquivo CSV sem cabeçalho
-    with open(nome_arquivo, mode='a', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=cabecalhos)
-        
-        # Escreve apenas as linhas de dados, sem o cabeçalho
-        for linha in dados:
-            writer.writerow(linha)
+                ground_truth_list.append(gt_class)
+                predict_list.append(bbox_pred[4])
 
-def geraResult(root,fold,model,nameModel,save_imgs):
-    arquivoJson = os.path.join(root,'filesJSON',fold+str('_test.json'))
-    cocodataset = pegaDataset(arquivoJson)
-    MAX_BOX=1000
-    results=[]
-    medidos=[]
-    preditos=[]
-    all_TP = 0
-    all_FP = 0
-    all_GT=0
-    idImagens = []
-    dados = []
-    for images in cocodataset:
-        image = os.path.join(root,'train',images['file_name'])
+                color = (0, 255, 0) if gt_class == bbox_pred[4] else (0, 0, 255)
+                cv2.rectangle(image, (int(bbox_pred[0]), int(bbox_pred[1])), (x1_max, y1_max), color, thickness=2)
+                cv2.putText(image, str(classes[bbox_pred[4]]), (int(bbox_pred[0]), y1_max), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
 
-        frame = cv2.imread(image)
-
-        if nameModel == 'YOLOV8':
-            imageSaveModel = 'YOLOV8'
-            result = resultYOLO.result(frame,model)
-        elif nameModel == 'FasterRCNN':
-            imageSaveModel = 'Faster'
-            result = resultFaster(fold,frame)
-        elif nameModel == 'Detr':
-            imageSaveModel = 'Detr'
-            result = resultDetr(fold,frame)
-        elif nameModel == 'Retinanet':
-            imageSaveModel = 'Retinanet'
-            result = resultRetinanet(fold,frame)
-        if images['annotations']['bboxes'] == []:
-            continue
-
-        idImagens.append(images['image_id'])
-        bboxes = np.insert(images['annotations']['bboxes'],4,0.91,axis=1)
-        ground_thruth = []
-        bboxes2 = []
-        for i,bbox in enumerate(images['annotations']['bboxes']):
-            classes = (images['annotations']['labels'][i] - 1)
-            x1,x2 = int(bbox[0]),int(bbox[0]+bbox[2])
-            y1,y2 = int(bbox[1]),int(bbox[1]+bbox[3])
-            ground_thruth.append({'x1':x1,'x2':x2,'y1':y1,'y2':y2,'class':classes})
-            frame = cv2.rectangle(frame, (x1, y1), (x2, y2), (255,0,0), thickness=1)
-            cv2.putText(frame,str(classes),(x1,y1+5),cv2.FONT_HERSHEY_SIMPLEX,1,(255,0,0),2)
-        objetos_medidos = len(ground_thruth)
-        
-        for j in range(len(result)):
-            for bb in result[j]:
-                obj = {'x1':int(bb[0]),'x2':int(bb[2]),'y1':int(bb[1]),'y2':int(bb[3]),'score_thr':bb[4],'class':j}
-                if is_max_score_thr(obj,result):
-                    bboxes2.append(obj)
-
-        bboxes2 = np.array(bboxes2)
-        objetos_preditos=0
-        cont_TP=0
-        cont_FP=0
-
-        for j in range(min(MAX_BOX, bboxes2.shape[0])): 
-            if bboxes2[j]['score_thr'] >= LIMIAR_CLASSIFICADOR: #score_thr  ou seja, a confiança
-                objetos_preditos=objetos_preditos+1  # Total de objetos preditos automaticamente (usando IoU > 0.5)
-                left_top = (bboxes2[j]['x1'],bboxes2[j]['y1'])
-                left_top_text = (bboxes2[j]['x2']+5,bboxes2[j]['y1'])
-                right_bottom = (bboxes2[j]['x2'],bboxes2[j]['y2'])
-                tp = False
-                for box in ground_thruth:
-                    if get_iou(box,bboxes2[j]) > LIMIAR_IOU: # IOU > 0.3
-                        if(bboxes2[j]['class'] == box['class']):
-                            tp = True
-                if tp == True:
-                    cont_TP+=1
-                    frame=cv2.rectangle(frame, left_top, right_bottom, (0,255,0), thickness=1) 
-                    cv2.putText(frame,str(classes),left_top_text,cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2)
+                if gt_class == bbox_pred[4]:
+                    true_positives += 1
                 else:
-                    cont_FP+=1
-                    frame=cv2.rectangle(frame, left_top, right_bottom, (0,0,255), thickness=1)
-                    cv2.putText(frame,str(classes),left_top_text,cv2.FONT_HERSHEY_SIMPLEX,1,(0,0,255),2)
- 
-        dados.append({'ml': nameModel, 'fold': fold, 'groundtruth': objetos_medidos, 'predicted': objetos_preditos, 'TP': cont_TP, 'FP': cont_FP, 'dif': int(objetos_medidos-objetos_preditos), 'fileName': images['file_name']})
+                    false_positives += 1
+            else:
+                cv2.rectangle(image, (int(bbox_pred[0]), int(bbox_pred[1])), (x1_max, y1_max), (0, 0, 255), thickness=2)
+                cv2.putText(image, str(classes[bbox_pred[4]]), (int(bbox_pred[0]), y1_max), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
 
-        all_TP+=cont_TP    
-        all_FP+=cont_FP
-        all_GT+=len(images['annotations']['bboxes'])
+                ground_truth_list.append(0)  # Falso Positivo
+                predict_list.append(bbox_pred[4])
+                false_positives += 1
 
-        medidos.append(len(ground_thruth))
-        preditos.append(objetos_preditos)
+        for i, bbox_gt in enumerate(ground_truth[key]):
+            if i not in matched_gt:
+                x2_max, y2_max = int(bbox_gt[0] + bbox_gt[2]), int(bbox_gt[1] + bbox_gt[3])
+                cv2.rectangle(image, (int(bbox_gt[0]), int(bbox_gt[1])), (x2_max, y2_max), (255, 0, 0), thickness=2)
+                cv2.putText(image, str(classes[bbox_gt[-1]]), (x2_max, y2_max), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
 
-        frame=cv2.putText(frame, str(objetos_medidos),(5,30), cv2.FONT_HERSHEY_TRIPLEX, 1, (255,0,0), 1)
-        frame=cv2.putText(frame, str(objetos_preditos),(5,60), cv2.FONT_HERSHEY_TRIPLEX, 1, (0,255,0), 1)
+                ground_truth_list.append(bbox_gt[-1])
+                predict_list.append(0)  # Falso Negativo
 
-        try:
-            precision = round(cont_TP/(cont_TP+cont_FP),3)
-        except ZeroDivisionError:
-            precision = 0
-        try:
-            recall = round(cont_TP/len(bboxes),3)
-        except ZeroDivisionError:
-            recall = 0
+        precision = round(true_positives / (true_positives + false_positives), 3) if (true_positives + false_positives) > 0 else 0
+        recall = round(true_positives / gt_count, 3) if gt_count > 0 else 0
 
-        frame=cv2.putText(frame, "P:"+str(precision),(5,90), cv2.FONT_HERSHEY_TRIPLEX, 1, (0,255,255), 1)
-        frame=cv2.putText(frame, "R:"+str(recall),(5,120), cv2.FONT_HERSHEY_TRIPLEX, 1, (0,255,255), 1)
+        cv2.putText(image, f"P: {precision}", (5, 90), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 255, 255), 1)
+        cv2.putText(image, f"R: {recall}", (5, 120), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 255, 255), 1)
 
-        if save_imgs:
-            save_path = '/prediction_'+imageSaveModel
-            save_path = os.path.join('..','results','prediction',imageSaveModel)
-            if not os.path.exists(save_path):
-                os.makedirs(save_path)
-            img_path = os.path.join(save_path ,images['file_name'])
-            cv2.imwrite(img_path,frame)
-        result2 = convert_detections(bboxes2)
+        save_path = os.path.join(RESULTS_PATH, fold)
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        save_path = os.path.join(save_path, key)
 
-        results.append(result)
-        diferenca=objetos_preditos-objetos_medidos
-    try:
-        mAP, mAP50, mAP75 = calculate_map(results,idImagens,arquivoJson)
-    except:
-        mAP, mAP50, mAP75 = 0
-    try:  
-        MAE=mean_absolute_error(medidos,preditos)
-        RMSE=math.sqrt(mean_squared_error(medidos,preditos))
-    except:
-        MAE=0
-        RMSE=0    
-    try:
-        r=np.corrcoef(medidos,preditos)[0,1]
-    except ZeroDivisionError:
-        r = 0
-    try:
-        precision_fold = round(all_TP/(all_TP+all_FP),3)
-    except ZeroDivisionError:
-        precision_fold = 0
-    try:
-        recall_fold = round(all_TP/all_GT,3)
-    except ZeroDivisionError:
-        recall_fold = 0
-    try: 
-        fscore=round((2*precision_fold*recall_fold)/(precision_fold+recall_fold),3)
-    except ZeroDivisionError:
-        fscore=0
-    string_results = str(mAP)+','+str(mAP50)+','+str(mAP75)+','+str(MAE)+','+str(RMSE)+','+str(r)+','+str(precision_fold)+','+str(recall_fold)+','+str(fscore)
-    gerar_csv(dados)
-    return string_results
+        if save_img:
+            cv2.imwrite(save_path, image)
+        data.append({'ml': model_name, 'fold': fold, 'groundtruth': gt_count, 'predicted': pred_count, 'TP': true_positives, 'FP': false_positives, 'dif': int(gt_count - pred_count), 'fileName': key})
+    generate_csv(data)
+    return ground_truth_list, predict_list
 
-def criaCSV(num_dobra,selected_model,fold,root,model_path,save_imgs):
-    save_results = os.path.join('..','results','results.csv')
-    resAP50 = geraResult(root,fold,nameModel=selected_model,model=model_path,save_imgs=save_imgs)
-    printToFile(selected_model + ','+fold+','+resAP50,save_results,'a')
+def compute_metrics(preds, targets, num_classes=1):
+    """Calcula métricas de classificação como precisão, recall, F1-score e acurácia."""
+    preds = torch.tensor(preds)
+    targets = torch.tensor(targets)
+    
+    if num_classes <= 2:
+        precision = BinaryPrecision()(preds, targets)
+        recall = BinaryRecall()(preds, targets)
+        fscore = BinaryF1Score()(preds, targets)
+        accuracy = BinaryAccuracy()(preds, targets)
+    else:
+        precision = MulticlassPrecision(num_classes=num_classes, average='macro')(preds, targets)
+        recall = MulticlassRecall(num_classes=num_classes, average='macro')(preds, targets)
+        fscore = MulticlassF1Score(num_classes=num_classes, average='macro')(preds, targets)
+        accuracy = MulticlassAccuracy(num_classes=num_classes, average='macro')(preds, targets)
+    
+    return precision.item(), recall.item(), fscore.item(), accuracy.item()
+
+def generate_results(root, fold, model, model_name, save_imgs):
+    """Gera resultados para um modelo específico e salva as métricas."""
+    test_json_path = os.path.join(root, 'filesJSON', fold + '_test.json')
+    annotations_path = os.path.join(root, 'train', '_annotations.coco.json')
+
+    classes_dict = get_classes(annotations_path)
+    coco_test = load_dataset(test_json_path)
+    predictions = {}
+    ground_truth = {}
+    for image in coco_test:
+        ground_truth_list = []
+        for i, bbox in enumerate(image['annotations']['bboxes']):
+            x1, y1, width, height = bbox
+            label = image["annotations"]['labels'][i]
+            ground_truth_list.append([x1, y1, width, height, label])
+        ground_truth[image['file_name']] = ground_truth_list
+        image_path = os.path.join(root, 'train', image['file_name'])
+
+        frame = cv2.imread(image_path)
+
+        if model_name == "YOLOV8":
+            result = resultYOLO.result(frame, model,LIMIAR_THRESHOLD)
+        elif model_name == "Faster":
+            print(image_path)
+            result = ResultFaster.resultFaster(frame,model,LIMIAR_THRESHOLD)
+        elif model_name == "Detr":
+            print(image_path)
+            result =   resultDetr(fold,frame,LIMIAR_THRESHOLD)
+        predictions[image['file_name']] = result
+
+
+    ground_truth_map = []
+    predictions_map = []
+
+    for key in ground_truth:
+        bbox_list = []
+        label_list = []
+        for values in ground_truth[key]:
+            bbox = xywh_to_xyxy(values[:4])
+            bbox_list.append(bbox)
+            label_list.append(values[-1])
+        ground_truth_map.append({"boxes": torch.tensor(bbox_list), "labels": torch.tensor(label_list)})
+        
+    for key in predictions:
+        bbox_list = []
+        label_list = []
+        score_list = []
+        for values in predictions[key]:
+            bbox = xywh_to_xyxy(values[:4])
+            bbox_list.append(bbox)
+            label_list.append(values[4])
+            score_list.append(values[5])
+        predictions_map.append({"boxes": torch.tensor(bbox_list), "scores": torch.tensor(score_list), "labels": torch.tensor(label_list)})
+
+    metric = MeanAveragePrecision()
+    metric.update(predictions_map, ground_truth_map)
+    result_map = metric.compute()
+
+    ground_truth_counts = []
+    for key in ground_truth:
+        count_classes = [0] * len(classes_dict)
+        for bbox in ground_truth[key]:
+            count_classes[bbox[-1]] += 1
+        ground_truth_counts.append(count_classes)
+    ground_truth_counts = torch.tensor(ground_truth_counts)
+
+    prediction_counts = []
+    for key in predictions:
+        count_classes = [0] * len(classes_dict)
+        for bbox in predictions[key]:
+            for gt_bbox in ground_truth[key]:
+                iou = calculate_iou(bbox[:4], gt_bbox[:4])
+                if bbox[4] == gt_bbox[-1] and iou >= IOU_THRESHOLD:
+                    count_classes[bbox[4]] += 1
+        prediction_counts.append(count_classes)
+    prediction_counts = torch.tensor(prediction_counts)
+
+    pred_counts = prediction_counts.sum(dim=1)
+    gt_counts = ground_truth_counts.sum(dim=1)
+
+    mae = MeanAbsoluteError()(pred_counts, gt_counts)
+    rmse = MeanSquaredError(squared=False)(pred_counts, gt_counts)
+
+    mAP = result_map["map"]
+    mAP50 = result_map["map_50"]
+    mAP75 = result_map["map_75"]
+
+    ground_truth_list, predict_list = process_predictions(ground_truth, predictions, classes_dict, save_imgs, root, fold, model_name)
+
+    num_classes = len(classes_dict)
+    precision, recall, fscore, accuracy = compute_metrics(predict_list, ground_truth_list, num_classes=num_classes)
+
+    return mAP.item(), mAP50.item(), mAP75.item(), mae.item(), rmse.item(), precision, recall, fscore, accuracy
+
+def create_csv(selected_model, fold, root, model_path, save_imgs):
+    """Cria um arquivo CSV com os resultados das métricas."""
+    mAP, mAP50, mAP75, MAE, RMSE, precision, recall, fscore, accuracy = generate_results(root, fold, model_path, selected_model, save_imgs)
+
+    results_path = os.path.join('..', 'results', 'results.csv')
+    file_exists = os.path.isfile(results_path)
+
+    with open(results_path, mode="a", newline="") as file:
+        writer = csv.writer(file)
+        if not file_exists:
+            writer.writerow(["ml", "fold", "mAP", "mAP50", "mAP75", "MAE", "RMSE", "accuracy", "precision", "recall", "fscore"])
+        writer.writerow([selected_model, fold, mAP, mAP50, mAP75, MAE, RMSE, accuracy, precision, recall, fscore])

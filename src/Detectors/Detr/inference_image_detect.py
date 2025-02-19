@@ -2,12 +2,9 @@ import torch
 import cv2
 import numpy as np
 import argparse
-import yaml
-import glob
 import os
 import time
 import torchinfo
-
 from vision_transformers.detection.detr.model import DETRModel
 from utils.detection.detr.general import (
     set_infer_dir,
@@ -21,6 +18,18 @@ from utils.detection.detr.annotations import (
 from utils.detection.detr.viz_attention import visualize_attention
 
 np.random.seed(2023)
+
+def xyxy_to_xywh(boxes):
+    """
+    Converte caixas delimitadoras do formato [x_min, y_min, x_max, y_max, conf, class] para [x, y, w, h, conf, class].
+    """
+    coco_boxes = []
+    for box in boxes:
+        x_min, y_min, x_max, y_max, conf, cls = box
+        w = x_max - x_min
+        h = y_max - y_min
+        coco_boxes.append([x_min, y_min, w, h, conf, cls])
+    return coco_boxes
 
 def parse_opt():
     parser = argparse.ArgumentParser()
@@ -72,7 +81,7 @@ def parse_opt():
     args = parser.parse_args()
     return args
 
-def main(args,orig_image):
+def main(args,orig_image,LIMIAR_THRESHOLD):
     NUM_CLASSES = None
     CLASSES = None
     data_configs = None
@@ -86,45 +95,31 @@ def main(args,orig_image):
         torchinfo.summary(
             model, 
             device=DEVICE, 
-            input_size=(1, 3, args.imgsz, args.imgsz),
+            input_size=(1, 3, 640, 640),
             row_settings=["var_names"]
         )
     except:
-        # Total parameters and trainable parameters.
         total_params = sum(p.numel() for p in model.parameters())
         total_trainable_params = sum(
             p.numel() for p in model.parameters() if p.requires_grad)
     NUM_CLASSES = len(CLASSES)
 
-    # Colors for visualization.
-    COLORS = np.random.uniform(0, 255, size=(len(CLASSES), 3))
-
-    frame_count = 0
-    # To keep adding the frames' FPS.
-    total_fps = 0
-    RESIZE_TO = 640
-
     frame_height, frame_width, _ = orig_image.shape
     
-    image_resized = resize(orig_image, RESIZE_TO, square=True)
+    image_resized = resize(orig_image, 640, square=True)
     image = cv2.cvtColor(image_resized, cv2.COLOR_BGR2RGB)
     image = image / 255.0
     image = infer_transforms(image)
     input_tensor = torch.tensor(image, dtype=torch.float32)
     input_tensor = torch.permute(input_tensor, (2, 0, 1))
     input_tensor = input_tensor.unsqueeze(0)
-    h, w, _ = orig_image.shape
 
     start_time = time.time()
     with torch.no_grad():
         outputs = model(input_tensor.to(DEVICE))
     end_time = time.time()
-    # Get the current fps.
+    
     fps = 1 / (end_time - start_time)
-    # Add `fps` to `total_fps`.
-    total_fps += fps
-    # Increment frame count.
-    frame_count += 1
 
     if len(outputs['pred_boxes'][0]) != 0:
         draw_boxes, pred_classes, scores = convert_detections(
@@ -135,20 +130,28 @@ def main(args,orig_image):
             args 
         )
 
-    lista = []
-    for j,classe in enumerate(CLASSES):
-        if j > 0:
-            lista1 = []
-            for i,bbox in enumerate(draw_boxes):
-                if classe == pred_classes[i]:
-                    lista1.append([bbox[0],bbox[1],bbox[2],bbox[3],scores[i]])
-            lista.append(np.array(lista1,dtype='float32'))
-    return lista
+    class_dict = {}
+    class_list = []
+    for i,Cls in enumerate(CLASSES):
+        class_dict[i] = Cls
 
+    for pred in pred_classes:
+        for key in class_dict:
+            if pred == class_dict[key]:
+                class_list.append(int(key)-1)
 
-def resultDetr(fold,image):
+    inferencebox = [] 
+    for i,bbox in enumerate(draw_boxes):
+        if scores[i] > LIMIAR_THRESHOLD:
+            inferencebox.append([int(bbox[0]),int(bbox[1]),int(bbox[2]),int(bbox[3]),int(class_list[i]),scores[i]])
+
+    coco_box = xyxy_to_xywh(inferencebox)
+
+    return coco_box
+
+def resultDetr(fold,image,LIMIAR_THRESHOLD):
     weightsPath = os.path.join('model_checkpoints',fold,'Detr','training','best_model.pth')
     args = parse_opt()
     args.weights = weightsPath
-    lista = main(args,image)
+    lista = main(args,image,LIMIAR_THRESHOLD)
     return lista

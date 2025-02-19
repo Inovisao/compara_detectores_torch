@@ -1,9 +1,0 @@
-CLASSES:
-- __background__
-- Peixe
-NC: 2
-SAVE_VALID_PREDICTION_IMAGES: true
-TRAIN_DIR_IMAGES: ../dataset/all/detr/train
-TRAIN_DIR_LABELS: ../dataset/all/detr/train
-VALID_DIR_IMAGES: ../dataset/all/detr/valid
-VALID_DIR_LABELS: ../dataset/all/detr/valid
