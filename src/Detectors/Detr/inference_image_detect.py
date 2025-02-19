@@ -5,7 +5,6 @@ import argparse
 import os
 import time
 import torchinfo
-
 from vision_transformers.detection.detr.model import DETRModel
 from utils.detection.detr.general import (
     set_infer_dir,
@@ -82,7 +81,7 @@ def parse_opt():
     args = parser.parse_args()
     return args
 
-def main(args,orig_image):
+def main(args,orig_image,LIMIAR_THRESHOLD):
     NUM_CLASSES = None
     CLASSES = None
     data_configs = None
@@ -143,15 +142,16 @@ def main(args,orig_image):
 
     inferencebox = [] 
     for i,bbox in enumerate(draw_boxes):
-        inferencebox.append([int(bbox[0]),int(bbox[1]),int(bbox[2]),int(bbox[3]),int(class_list[i]),scores[i]])
+        if scores[i] > LIMIAR_THRESHOLD:
+            inferencebox.append([int(bbox[0]),int(bbox[1]),int(bbox[2]),int(bbox[3]),int(class_list[i]),scores[i]])
 
     coco_box = xyxy_to_xywh(inferencebox)
 
     return coco_box
 
-def resultDetr(fold,image):
+def resultDetr(fold,image,LIMIAR_THRESHOLD):
     weightsPath = os.path.join('model_checkpoints',fold,'Detr','training','best_model.pth')
     args = parse_opt()
     args.weights = weightsPath
-    lista = main(args,image)
+    lista = main(args,image,LIMIAR_THRESHOLD)
     return lista

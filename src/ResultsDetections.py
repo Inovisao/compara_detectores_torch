@@ -17,6 +17,7 @@ from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
 from Detectors.FasterRCNN.inference import ResultFaster
 from Detectors.Detr.inference_image_detect import resultDetr
 # Constantes
+LIMIAR_THRESHOLD = 0.50
 IOU_THRESHOLD = 0.50
 RESULTS_PATH = os.path.join("..", "results", "prediction")
 os.makedirs(RESULTS_PATH, exist_ok=True)  # Garante que a pasta existe
@@ -226,13 +227,13 @@ def generate_results(root, fold, model, model_name, save_imgs):
         frame = cv2.imread(image_path)
 
         if model_name == "YOLOV8":
-            result = resultYOLO.result(frame, model)
+            result = resultYOLO.result(frame, model,LIMIAR_THRESHOLD)
         elif model_name == "Faster":
             print(image_path)
-            result = ResultFaster.resultFaster(frame,model)
+            result = ResultFaster.resultFaster(frame,model,LIMIAR_THRESHOLD)
         elif model_name == "Detr":
             print(image_path)
-            result =   resultDetr(fold,frame)
+            result =   resultDetr(fold,frame,LIMIAR_THRESHOLD)
         predictions[image['file_name']] = result
 
 

@@ -1,91 +1,61 @@
-# Codigo utilizado para treinar redes de detecção
+# Código para Treinamento de Redes de Detecção
 
-Este código foi desenvolvido com o intuito de facilitar a junção de várias redes neurais para o treino de detecção de objetos.
-## Estrutura das Pastas
+Este repositório foi desenvolvido para facilitar a junção de múltiplas redes neurais no treinamento de modelos de detecção de objetos.
+
+## Estrutura de Pastas
 ```
 ├── dataset
-│   └── all
-│       ├── filesJSON
-│       └── train
+│   └── all
+│       ├── filesJSON
+│       └── train
 ├── results
 ├── src
-│   └── detectors
-│       ├── FasterRCNN
+│   └── Detectors
+│       ├── FasterRCNN
 │       ├── Detr
-│       └── YOLOV8
+│       └── YOLOV8
 └── utils
 ```
-### Dataset
-Pasta onde ficarão todas as suas imagens e suas respectivas anotações.
+### Diretórios
+- **dataset/**: Contém as imagens e anotações no formato COCO. As imagens devem ter resolução de 640x640 e estar na pasta `train`, junto ao arquivo `coco.json`.
+- **results/**: Armazena os resultados das redes e seus gráficos.
+- **src/**: Contém os códigos das redes.
+- **Detectors/**: Diretório para organização dos modelos de detecção.
+- **utils/**: Scripts auxiliares para geração de gráficos, instalação de dependências e outras utilidades.
 
-### results
-Pasta onde estarão os resultados das redes e seus gráficos.
+## Instalação
 
-### src
-Pasta onde estarão os códigos que irão rodar as redes.
+Execute os seguintes comandos no terminal para configurar o ambiente:
 
-### Detectors
-Esta pasta está sendo utilizada para a organização dos códigos. Dentro de cada pasta, há códigos referentes a cada rede.
+```sh
+conda create --name detectores python=3.9.16 -y
+conda activate detectores
+conda install pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia
+pip install scikit-learn funcy albumentations==1.4.4 ultralytics==8.2.87 supervision==0.1.0 pycocotools torchinfo vision-transformers torchmetrics
 
-### utils
-Nesta pasta, teremos scripts para gerar gráficos, instalação das dependências, entre outros códigos de utilidade.
-
-## Instalações
-
-### Copie e cole linha por linha no terminal
-
+obs : todas as bibliotecas utilzadas estão no arquivo Bibliotecas.yml
 ```
-$ conda create --name detectores python=3.9.16 -y
 
-$ conda activate detectores
-
-$ conda install pytorch==2.0.0 torchvision==0.15.0 torchaudio==2.0.0 pytorch-cuda=11.8 -c pytorch -c nvidia
-
-$ pip install scikit-learn
-
-$ pip install funcy
-
-$ pip install albumentations
-
-$ pip install ultralytics
-
-$ pip install supervision==0.1.0
-
-$ pip install pycocotools
-
-$ pip install torchinfo
-
-$ pip install vision-transformers
-
-```
 ## Como Usar
 
-Primeiro, você deve baixar um dataset no formato COCO e colocá-lo na pasta "dataset/all", conforme mostrado no exemplo abaixo.
-
+### 1. Preparando o Dataset
+Baixe um dataset no formato COCO e coloque-o na pasta `dataset/all` conforme a estrutura abaixo:
 ```
 dataset/
 └── all
     └── train
 ```
 
-Em seguida, execute o script geraDobras.py que está na pasta Utils.
-
-```
-utils/
-├── geraDobras.py
-└── Install.sh
-temos os seguintes argumentos -folds e -valperc
--folds determina a quantidade de dobras a ser criada o por padrão é 5 dobras
--valperc determina o percentual de imagens a ser usado para validação por padrão é 0.3
-```
-
-```
+Em seguida, execute o script `geraDobras.py` na pasta `utils/` para dividir os dados em dobras:
+```sh
 cd utils
-python geraDobras.py
+python geraDobras.py --folds 5 --valperc 0.3
 ```
+*Parâmetros:*  
+- `--folds`: Define a quantidade de dobras (padrão: 5).
+- `--valperc`: Percentual de imagens para validação (padrão: 0.3).
 
-Após isso, a sua estrutura deverá ficar assim:
-
+Após a execução, a estrutura será:
 ```
 dataset/
 └── all
@@ -93,9 +63,10 @@ dataset/
     └── train
 ```
 
-Segundo voce ira escolher os seus modelos de treinamento temos os segintes modelos YOLOV8 e FasterRCNN.
+### 2. Escolhendo e Configurando os Modelos
+Os modelos disponíveis para treinamento são **YOLOV8** e **FasterRCNN**.
 
-### YOLOV8
+#### YOLOV8
 ```
 src/Detectors/
 └── YOLOV8
@@ -105,44 +76,73 @@ src/Detectors/
     ├── RunYOLOV8.py
     └── TreinoYOLOV8.sh
 ```
+Altere os parâmetros do modelo no arquivo `config.py`.
 
-Para configurar os parâmetros da YOLOv8, você irá entrar no código ModelYOLOV8.py e alterar os parâmetros de acordo com suas necessidades.
-
-### FasterRCNN
+#### FasterRCNN
 ```
-src/Detectors/
-└── FasterRCNN
-    ├── config.py
-    ├── custom_utils.py
-    ├── datasets.py
-    ├── GeraDobras.py
-    ├── inference.py
-    ├── modelFasterRCNN.py
-    ├── model.py
-    ├── RunFaster.py
-    └── TreinoFaster.sh
+src/Detectors/FasterRCNN
+├── config.py
+├── geradataset.py
+├── inference.py
+├── runFaster.py
+├── train.py
+└── TreinoFaster.sh
 ```
-
-Para configurar os parâmetros da FasterRCNN, você irá entrar no código 
-config.py e alterar os parâmetros de acordo com suas necessidades. Caso queira trocar o optmizador desta rede voce deve trocar a linha optimizer = torch.optim.SGD(params, lr=LR, momentum=0.9, weight_decay=0.0005) do codigo trainFasterRCNN.py
-
-### Rodar o treino
-
-Logo após você ter configurado e escolhido os modelos, você irá abrir o código main.py. Lá você terá uma variável chamada MODEL. Para treinar os modelos escolhidos, basta modificar essa variável. Por exemplo:
-
-```
-MODELS = ['YOLOV8','FasterRCNN']
+Os parâmetros podem ser ajustados em `config.py`. Para alterar o otimizador, modifique a linha no arquivo `train.py`:
+```python
+optimizer = torch.optim.SGD(params, lr=LR, momentum=0.9, weight_decay=0.0005)
 ```
 
-Pronto Agora é so rodar o main.py que está em src
-
-```
-src/
-├── main.py
-└── RestultsDetections.py
+### 3. Executando o Treinamento
+No arquivo `main.py`, edite a variável `MODELS` para selecionar os modelos desejados:
+```python
+MODELS = ['YOLOV8', 'FasterRCNN']
 ```
 
-```
+Agora, execute o treinamento:
+```sh
 cd src
 python main.py
 ```
+
+Os resultados serão salvos na pasta `results/`.
+
+## Adição de Novos Modelos
+
+### 1. Estrutura de Pastas
+
+```plaintext
+src/Detectors
+├── Detr
+├── FasterRCNN
+└── YOLOV8
+```
+
+### 2. Estrutura das Redes
+
+```plaintext
+YOLOV8
+├── config.py
+├── DetectionsYolov8.py
+├── GeraLabels.py
+├── RunYOLOV8.py
+└── TreinoYOLOV8.sh
+```
+
+Em todas as pastas das redes há três arquivos principais: `config.py`, `GeraLabels.py` e `Treino.sh`.
+
+- **config.py**: Neste arquivo, o usuário define os hiperparâmetros da rede, como taxa de aprendizado (`lr`), número de épocas, paciência, entre outros.
+- **GeraLabels.py**: Este código verifica as pastas de anotação e gera os arquivos no formato adequado para a rede específica. Por exemplo, o YOLOV8 utiliza o formato:
+  
+  ```plaintext
+  <class_id> <x_center> <y_center> <width> <height>
+  ```
+  
+  Portanto, este script manipula os arquivos JSON para gerar essas anotações corretamente.
+- **TreinoYOLOV8.sh**: Este script automatiza o processo de treinamento da rede, chamando recursivamente o código de treino correspondente.
+
+### 3. Verificação de Dependências
+
+Antes de rodar um novo modelo, é essencial verificar se todas as dependências necessárias estão instaladas e compatíveis com os modelos já existentes. Certifique-se de que bibliotecas como `torch`, `numpy`, `opencv`, entre outras, estejam na versão correta para evitar conflitos entre os modelos.
+
+

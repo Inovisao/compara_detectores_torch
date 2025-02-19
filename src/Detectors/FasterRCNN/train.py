@@ -1,3 +1,6 @@
+# Baseado no código de Aarohi
+# Disponível aqui: https://github.com/AarohiSingla/Faster-R-CNN-on-custom-dataset-Using-Pytorch
+
 import torch
 import torchvision
 from torch.utils.data import DataLoader

@@ -10,3 +10,4 @@ model_checkpoints
 dataset
 results
 *.pt
+Faster

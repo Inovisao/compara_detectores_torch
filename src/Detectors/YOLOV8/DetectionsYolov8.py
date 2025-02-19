@@ -32,7 +32,7 @@ class resultYOLO:
             detections.confidence[:, np.newaxis]
         ))
     # Função onde passamos a imagem e o modelo treinado
-    def result(frame,modelName):
+    def result(frame,modelName,LIMIAR_THRESHOLD):
         yolo_box = []
         MODEL=modelName 
         model = YOLO(MODEL) # Lendo o modelo Treinado
@@ -61,7 +61,8 @@ class resultYOLO:
             cv2.destroyAllWindows()
 
         for i,bbox in enumerate(detections.xyxy):
-            yolo_box.append([int(bbox[0]),int(bbox[1]),int(bbox[2]),int(bbox[3]),int(detections.class_id[i]+1),detections.confidence[i]])
+            if detections.confidence[i] > LIMIAR_THRESHOLD:
+                yolo_box.append([int(bbox[0]),int(bbox[1]),int(bbox[2]),int(bbox[3]),int(detections.class_id[i]+1),detections.confidence[i]])
 
 
         coco_boxes = xyxy_to_xywh(yolo_box)

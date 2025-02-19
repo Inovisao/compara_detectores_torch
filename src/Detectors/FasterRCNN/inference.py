@@ -44,7 +44,7 @@ def xyxy_to_xywh(boxes):
 # Load the trained model
 
 class ResultFaster:
-    def resultFaster(frame,modelName):
+    def resultFaster(frame,modelName,LIMIAR_THRESHOLD):
         model = get_model(NUM_CLASSES)
         model.load_state_dict(torch.load(modelName))
         model.to(DEVICE)
@@ -60,7 +60,11 @@ class ResultFaster:
         scores = prediction[0]['scores'].cpu().tolist()
         faster_box = []
         for i,box in enumerate(bbox):
-            faster_box.append([int(box[0]),int(box[1]),int(box[2]),int(box[3]),int(labels[i]),scores[i]])
+            if scores[i] > LIMIAR_THRESHOLD:
+                if labels[i] == 4:
+                    print(prediction)
+                    input()
+                faster_box.append([int(box[0]),int(box[1]),int(box[2]),int(box[3]),int(labels[i]),scores[i]])
         #box = prediction['box']
 
         coco_boxes = xyxy_to_xywh(faster_box)

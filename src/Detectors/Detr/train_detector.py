@@ -1,3 +1,6 @@
+# Baseado no código de Sovit Ranjan Rath
+# Disponível aqui: https://debuggercafe.com/train-detr-on-custom-dataset/
+
 import torch
 import argparse
 import numpy as np
