@@ -11,3 +11,4 @@ dataset
 results
 *.pt
 Faster
+*.pdf

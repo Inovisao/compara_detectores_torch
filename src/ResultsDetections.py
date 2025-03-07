@@ -176,13 +176,12 @@ def process_predictions(ground_truth, predictions, classes, save_img, root, fold
 
         cv2.putText(image, f"P: {precision}", (5, 90), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 255, 255), 1)
         cv2.putText(image, f"R: {recall}", (5, 120), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 255, 255), 1)
-
-        save_path = os.path.join(RESULTS_PATH, fold)
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
-        save_path = os.path.join(save_path, key)
-
+        
         if save_img:
+            save_path = os.path.join(RESULTS_PATH, fold,model_name)
+            if not os.path.exists(save_path):
+                os.makedirs(save_path)
+            save_path = os.path.join(save_path, key)
             cv2.imwrite(save_path, image)
         data.append({'ml': model_name, 'fold': fold, 'groundtruth': gt_count, 'predicted': pred_count, 'TP': true_positives, 'FP': false_positives, 'dif': int(gt_count - pred_count), 'fileName': key})
     generate_csv(data)

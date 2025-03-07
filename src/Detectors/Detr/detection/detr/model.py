@@ -8,7 +8,6 @@ class DETRModel(nn.Module):
         self.model = torch.hub.load(
             'facebookresearch/detr', 
             model, 
-            pretrained=True,
         )
         self.out = nn.Linear(
             in_features=self.model.class_embed.out_features, 
