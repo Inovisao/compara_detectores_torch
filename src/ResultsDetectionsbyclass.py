@@ -16,7 +16,6 @@ import csv
 from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
 from Detectors.FasterRCNN.inference import ResultFaster
 from Detectors.Detr.inference_image_detect import resultDetr
-from Detectors.mminference.inference import runMMdetection
 # Constantes
 LIMIAR_THRESHOLD = 0.50
 IOU_THRESHOLD = 0.50
@@ -108,7 +107,7 @@ def calculate_iou(box1, box2):
 
     return iou
 
-def process_predictions(ground_truth, predictions, classes, save_img, root, fold, model_name):
+def process_predictions(ground_truth, predictions, classes, save_img, root, fold, model_name,cls,class_dict):
     """Processa as previsões e calcula métricas como TP, FP, precisão e recall."""
     ground_truth_list = []
     predict_list = []
@@ -117,8 +116,8 @@ def process_predictions(ground_truth, predictions, classes, save_img, root, fold
         img_path = os.path.join(root, "train", key)
         image = cv2.imread(img_path)
 
-        gt_count = len(ground_truth[key])
-        pred_count = len(predictions[key])
+        gt_count = len(ground_truth[key][cls])
+        pred_count = len(predictions[key][cls])
 
         cv2.putText(image, f"GT: {gt_count}", (5, 30), cv2.FONT_HERSHEY_TRIPLEX, 1, (255, 0, 0), 1)
         cv2.putText(image, f"PRED: {pred_count}", (5, 60), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 255, 0), 1)
@@ -127,12 +126,12 @@ def process_predictions(ground_truth, predictions, classes, save_img, root, fold
         false_positives = 0
         matched_gt = set()
 
-        for bbox_pred in predictions[key]:
+        for bbox_pred in predictions[key][cls]:
             x1_max, y1_max = int(bbox_pred[0] + bbox_pred[2]), int(bbox_pred[1] + bbox_pred[3])
             best_iou = 0
             best_gt = None
 
-            for i, bbox_gt in enumerate(ground_truth[key]):
+            for i, bbox_gt in enumerate(ground_truth[key][cls]):
                 x2_max, y2_max = int(bbox_gt[0] + bbox_gt[2]), int(bbox_gt[1] + bbox_gt[3])
                 iou = calculate_iou(bbox_pred[:4], bbox_gt[:4])
 
@@ -142,10 +141,10 @@ def process_predictions(ground_truth, predictions, classes, save_img, root, fold
 
             if best_gt is not None:
                 matched_gt.add(best_gt)
-                gt_class = ground_truth[key][best_gt][-1]
+                gt_class = ground_truth[key][cls][best_gt][-1]
 
-                ground_truth_list.append(gt_class)
-                predict_list.append(bbox_pred[4])
+                ground_truth_list.append(1)
+                predict_list.append(1)
 
                 color = (0, 255, 0) if gt_class == bbox_pred[4] else (0, 0, 255)
                 cv2.rectangle(image, (int(bbox_pred[0]), int(bbox_pred[1])), (x1_max, y1_max), color, thickness=2)
@@ -160,16 +159,16 @@ def process_predictions(ground_truth, predictions, classes, save_img, root, fold
                 cv2.putText(image, str(classes[bbox_pred[4]]), (int(bbox_pred[0]), y1_max), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
 
                 ground_truth_list.append(0)  # Falso Positivo
-                predict_list.append(bbox_pred[4])
+                predict_list.append(1)
                 false_positives += 1
 
-        for i, bbox_gt in enumerate(ground_truth[key]):
+        for i, bbox_gt in enumerate(ground_truth[key][cls]):
             if i not in matched_gt:
                 x2_max, y2_max = int(bbox_gt[0] + bbox_gt[2]), int(bbox_gt[1] + bbox_gt[3])
                 cv2.rectangle(image, (int(bbox_gt[0]), int(bbox_gt[1])), (x2_max, y2_max), (255, 0, 0), thickness=2)
                 cv2.putText(image, str(classes[bbox_gt[-1]]), (x2_max, y2_max), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
 
-                ground_truth_list.append(bbox_gt[-1])
+                ground_truth_list.append(1)
                 predict_list.append(0)  # Falso Negativo
 
         precision = round(true_positives / (true_positives + false_positives), 3) if (true_positives + false_positives) > 0 else 0
@@ -179,7 +178,7 @@ def process_predictions(ground_truth, predictions, classes, save_img, root, fold
         cv2.putText(image, f"R: {recall}", (5, 120), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 255, 255), 1)
         
         if save_img:
-            save_path = os.path.join(RESULTS_PATH, fold,model_name)
+            save_path = os.path.join(RESULTS_PATH, fold,model_name,class_dict[cls])
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
             save_path = os.path.join(save_path, key)
@@ -192,17 +191,12 @@ def compute_metrics(preds, targets, num_classes=1):
     """Calcula métricas de classificação como precisão, recall, F1-score e acurácia."""
     preds = torch.tensor(preds)
     targets = torch.tensor(targets)
-    
-    if num_classes <= 2:
-        precision = BinaryPrecision()(preds, targets)
-        recall = BinaryRecall()(preds, targets)
-        fscore = BinaryF1Score()(preds, targets)
-        accuracy = BinaryAccuracy()(preds, targets)
-    else:
-        precision = MulticlassPrecision(num_classes=num_classes, average='macro')(preds, targets)
-        recall = MulticlassRecall(num_classes=num_classes, average='macro')(preds, targets)
-        fscore = MulticlassF1Score(num_classes=num_classes, average='macro')(preds, targets)
-        accuracy = MulticlassAccuracy(num_classes=num_classes, average='macro')(preds, targets)
+
+    precision = BinaryPrecision()(preds, targets)
+    recall = BinaryRecall()(preds, targets)
+    fscore = BinaryF1Score()(preds, targets)
+    accuracy = BinaryAccuracy()(preds, targets)
+
     
     return precision.item(), recall.item(), fscore.item(), accuracy.item()
 
@@ -216,16 +210,23 @@ def generate_results(root, fold, model, model_name, save_imgs):
     predictions = {}
     ground_truth = {}
     for image in coco_test:
-        ground_truth_list = []
-        for i, bbox in enumerate(image['annotations']['bboxes']):
-            x1, y1, width, height = bbox
-            label = image["annotations"]['labels'][i]
-            ground_truth_list.append([x1, y1, width, height, label])
-        ground_truth[image['file_name']] = ground_truth_list
+        ground_truth_list_class = []
+        for cls in classes_dict:
+            ground_truth_list = []
+
+            for i, bbox in enumerate(image['annotations']['bboxes']):
+                x1, y1, width, height = bbox
+                label = image["annotations"]['labels'][i]
+                if label == cls:
+                    ground_truth_list.append([x1, y1, width, height, label])
+            ground_truth_list_class.append(ground_truth_list)
+
+        ground_truth[image['file_name']] = ground_truth_list_class
         image_path = os.path.join(root, 'train', image['file_name'])
 
+    
         frame = cv2.imread(image_path)
-
+        result_list_classe = []
         if model_name == "YOLOV8":
             result = resultYOLO.result(frame, model,LIMIAR_THRESHOLD)
         elif model_name == "Faster":
@@ -233,85 +234,92 @@ def generate_results(root, fold, model, model_name, save_imgs):
             result = ResultFaster.resultFaster(frame,model,LIMIAR_THRESHOLD)
         elif model_name == "Detr":
             print(image_path)
-            result = resultDetr(fold,frame,LIMIAR_THRESHOLD)
-        else:
-            print(image_path)
-            result = runMMdetection(model,frame,LIMIAR_THRESHOLD)
-        predictions[image['file_name']] = result
+            result =   resultDetr(fold,frame,LIMIAR_THRESHOLD)
+        for cls in classes_dict:
+            result_list = []
+            for bbox in result:
+                if bbox[4] == cls:
+                    result_list.append(bbox)
+            result_list_classe.append(result_list)
+        predictions[image['file_name']] = result_list_classe
 
 
-    ground_truth_map = []
-    predictions_map = []
+    for cls in classes_dict:
+        if cls == 0:
+            continue
+        ground_truth_map = []
+        predictions_map = []
 
-    for key in ground_truth:
-        bbox_list = []
-        label_list = []
-        for values in ground_truth[key]:
-            bbox = xywh_to_xyxy(values[:4])
-            bbox_list.append(bbox)
-            label_list.append(values[-1])
-        ground_truth_map.append({"boxes": torch.tensor(bbox_list), "labels": torch.tensor(label_list)})
+        for key in ground_truth:
+            bbox_list = []
+            label_list = []
+            for values in ground_truth[key][cls]:
+                bbox = xywh_to_xyxy(values[:4])
+                bbox_list.append(bbox)
+                label_list.append(values[-1])
+            ground_truth_map.append({"boxes": torch.tensor(bbox_list), "labels": torch.tensor(label_list)})
+ 
+        for key in predictions:
+            bbox_list = []
+            label_list = []
+            score_list = []
+            for values in predictions[key][cls]:
+                bbox = xywh_to_xyxy(values[:4])
+                bbox_list.append(bbox)
+                label_list.append(values[4])
+                score_list.append(values[5])
+            predictions_map.append({"boxes": torch.tensor(bbox_list), "scores": torch.tensor(score_list), "labels": torch.tensor(label_list)})
+
+        metric = MeanAveragePrecision()
+        metric.update(predictions_map, ground_truth_map)
+        result_map = metric.compute()
+
+        mAP = result_map["map"]
+        mAP50 = result_map["map_50"]
+        mAP75 = result_map["map_75"]
+
+        ground_truth_counts = []
+        for key in ground_truth: 
+            ground_truth_counts.append(len(ground_truth[key][cls]))
+        ground_truth_counts = torch.tensor(ground_truth_counts)
+
+        prediction_counts = []
+        for key in predictions:
+            prediction_counts.append(len(predictions[key][cls]))
+        prediction_counts = torch.tensor(prediction_counts)
+
+        mae = MeanAbsoluteError()(prediction_counts, ground_truth_counts)
+        rmse = MeanSquaredError(squared=False)(prediction_counts, ground_truth_counts)
         
-    for key in predictions:
-        bbox_list = []
-        label_list = []
-        score_list = []
-        for values in predictions[key]:
-            bbox = xywh_to_xyxy(values[:4])
-            bbox_list.append(bbox)
-            label_list.append(values[4])
-            score_list.append(values[5])
-        predictions_map.append({"boxes": torch.tensor(bbox_list), "scores": torch.tensor(score_list), "labels": torch.tensor(label_list)})
+   
+        ground_truth_list, predict_list = process_predictions(ground_truth, predictions, classes_dict, save_imgs, root, fold, model_name,cls,classes_dict)
 
-    metric = MeanAveragePrecision()
-    metric.update(predictions_map, ground_truth_map)
-    result_map = metric.compute()
+        # num_classes = len(classes_dict)
+        precision, recall, fscore, accuracy = compute_metrics(predict_list, ground_truth_list)
+        print("_"*30)
+        print(classes_dict[cls])
+        print("_"*30)
+        print('mAP:',mAP)
+        print("mAP50:",mAP50)
+        print("mAP75:",mAP75)
+        print("mae:",mae)
+        print("rmse:",rmse)
+        print("precision:",precision)
+        print("recall:",recall)
+        print("fscore:",fscore)
+        print("accuracy:",accuracy)
+        print("_"*30)
+generate_results(os.path.join('..', 'dataset','all'), 'fold_1', '/home/pedroeduardo/Documentos/compara_detectores_torch/src/model_checkpoints/fold_1/YOLOV8/train/weights/best.pt', 'YOLOV8', True)
 
-    ground_truth_counts = []
-    for key in ground_truth:
-        count_classes = [0] * len(classes_dict)
-        for bbox in ground_truth[key]:
-            count_classes[bbox[-1]] += 1
-        ground_truth_counts.append(count_classes)
-    ground_truth_counts = torch.tensor(ground_truth_counts)
+# def create_csv(selected_model, fold, root, model_path, save_imgs):
+#     """Cria um arquivo CSV com os resultados das métricas."""
+#     mAP, mAP50, mAP75, MAE, RMSE, precision, recall, fscore, accuracy = generate_results(root, fold, model_path, selected_model, save_imgs)
 
-    prediction_counts = []
-    for key in predictions:
-        count_classes = [0] * len(classes_dict)
-        for bbox in predictions[key]:
-            for gt_bbox in ground_truth[key]:
-                iou = calculate_iou(bbox[:4], gt_bbox[:4])
-                if bbox[4] == gt_bbox[-1] and iou >= IOU_THRESHOLD:
-                    count_classes[bbox[4]] += 1
-        prediction_counts.append(count_classes)
-    prediction_counts = torch.tensor(prediction_counts)
+#     results_path = os.path.join('..', 'results', 'results.csv')
+#     file_exists = os.path.isfile(results_path)
 
-    pred_counts = prediction_counts.sum(dim=1)
-    gt_counts = ground_truth_counts.sum(dim=1)
-
-    mae = MeanAbsoluteError()(pred_counts, gt_counts)
-    rmse = MeanSquaredError(squared=False)(pred_counts, gt_counts)
-
-    mAP = result_map["map"]
-    mAP50 = result_map["map_50"]
-    mAP75 = result_map["map_75"]
-
-    ground_truth_list, predict_list = process_predictions(ground_truth, predictions, classes_dict, save_imgs, root, fold, model_name)
-
-    num_classes = len(classes_dict)
-    precision, recall, fscore, accuracy = compute_metrics(predict_list, ground_truth_list, num_classes=num_classes)
-
-    return mAP.item(), mAP50.item(), mAP75.item(), mae.item(), rmse.item(), precision, recall, fscore, accuracy
-
-def create_csv(selected_model, fold, root, model_path, save_imgs):
-    """Cria um arquivo CSV com os resultados das métricas."""
-    mAP, mAP50, mAP75, MAE, RMSE, precision, recall, fscore, accuracy = generate_results(root, fold, model_path, selected_model, save_imgs)
-
-    results_path = os.path.join('..', 'results', 'results.csv')
-    file_exists = os.path.isfile(results_path)
-
-    with open(results_path, mode="a", newline="") as file:
-        writer = csv.writer(file)
-        if not file_exists:
-            writer.writerow(["ml", "fold", "mAP", "mAP50", "mAP75", "MAE", "RMSE", "accuracy", "precision", "recall", "fscore"])
-        writer.writerow([selected_model, fold, mAP, mAP50, mAP75, MAE, RMSE, accuracy, precision, recall, fscore])
+#     with open(results_path, mode="a", newline="") as file:
+#         writer = csv.writer(file)
+#         if not file_exists:
+#             writer.writerow(["ml", "fold", "mAP", "mAP50", "mAP75", "MAE", "RMSE", "accuracy", "precision", "recall", "fscore"])
+#         writer.writerow([selected_model, fold, mAP, mAP50, mAP75, MAE, RMSE, accuracy, precision, recall, fscore])

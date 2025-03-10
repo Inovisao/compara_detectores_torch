@@ -39,17 +39,19 @@ def test_model(model,fold_dir):
         model_path = os.path.join(fold_dir,model,'best.pth')
     elif model == 'Detr':
         model_path = os.path.join(fold_dir,model,'training','best_model.pth')
+    else:
+        model_path = os.path.join(fold_dir,model,'latest.pth')
     return model_path
 
 # YOLOV8, Faster, Detr
-MODELS = ['Detr','Faster','YOLOV8'] #Variavel para selecionar os modelos
+MODELS = ['sabl','YOLOV8','Faster','Detr'] #Variavel para selecionar os modelos
 
 APENAS_TESTE = True # True para apenas testar modelos treinados False para Treinar e Testar.
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
 DOBRAS = int(len(os.listdir(DIR_PATH))/3)
 GeraRult = True # True para gerar Resultados False para não gerar
-save_imgs = False # True para salvar imagens em predictes False para não salvar
+save_imgs = True # True para salvar imagens em predictes False para não salvar
 
 resetar_pasta(os.path.join("..","results","prediction"))
 
