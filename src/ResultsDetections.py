@@ -5,7 +5,7 @@ import cv2
 import torch
 import torchmetrics
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
-from torchmetrics.regression import MeanAbsoluteError, MeanSquaredError
+from torchmetrics.regression import MeanAbsoluteError, MeanSquaredError, PearsonCorrCoef
 from torchmetrics.classification import MulticlassPrecision, MulticlassRecall, MulticlassF1Score, MulticlassAccuracy
 from torchmetrics.classification import BinaryPrecision, BinaryRecall, BinaryF1Score, BinaryAccuracy
 import shutil
@@ -17,6 +17,7 @@ from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
 from Detectors.FasterRCNN.inference import ResultFaster
 from Detectors.Detr.inference_image_detect import resultDetr
 from Detectors.mminference.inference import runMMdetection
+
 # Constantes
 LIMIAR_THRESHOLD = 0.50
 IOU_THRESHOLD = 0.50
@@ -112,6 +113,8 @@ def process_predictions(ground_truth, predictions, classes, save_img, root, fold
     """Processa as previsões e calcula métricas como TP, FP, precisão e recall."""
     ground_truth_list = []
     predict_list = []
+    ground_truth_list_count = []
+    predict_list_count = []
     data = []
     for key in predictions:
         img_path = os.path.join(root, "train", key)
@@ -119,7 +122,8 @@ def process_predictions(ground_truth, predictions, classes, save_img, root, fold
 
         gt_count = len(ground_truth[key])
         pred_count = len(predictions[key])
-
+        ground_truth_list_count.append(gt_count)
+        predict_list_count.append(pred_count)
         cv2.putText(image, f"GT: {gt_count}", (5, 30), cv2.FONT_HERSHEY_TRIPLEX, 1, (255, 0, 0), 1)
         cv2.putText(image, f"PRED: {pred_count}", (5, 60), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 255, 0), 1)
 
@@ -135,6 +139,7 @@ def process_predictions(ground_truth, predictions, classes, save_img, root, fold
             for i, bbox_gt in enumerate(ground_truth[key]):
                 x2_max, y2_max = int(bbox_gt[0] + bbox_gt[2]), int(bbox_gt[1] + bbox_gt[3])
                 iou = calculate_iou(bbox_pred[:4], bbox_gt[:4])
+                cv2.putText(image, str(classes[bbox_gt[-1]]), (int(bbox_gt[0]), int(bbox_gt[1]+5)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
 
                 if iou >= IOU_THRESHOLD and iou > best_iou and i not in matched_gt:
                     best_iou = iou
@@ -179,14 +184,19 @@ def process_predictions(ground_truth, predictions, classes, save_img, root, fold
         cv2.putText(image, f"R: {recall}", (5, 120), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 255, 255), 1)
         
         if save_img:
-            save_path = os.path.join(RESULTS_PATH, fold,model_name)
+            save_path = os.path.join(RESULTS_PATH, fold,model_name,'all_classes')
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
             save_path = os.path.join(save_path, key)
             cv2.imwrite(save_path, image)
         data.append({'ml': model_name, 'fold': fold, 'groundtruth': gt_count, 'predicted': pred_count, 'TP': true_positives, 'FP': false_positives, 'dif': int(gt_count - pred_count), 'fileName': key})
     generate_csv(data)
-    return ground_truth_list, predict_list
+    ground_truth_list_count = torch.tensor(ground_truth_list_count)
+    predict_list_count = torch.tensor(predict_list_count)
+
+    pearson = PearsonCorrCoef()
+    r = pearson(predict_list_count.float(), ground_truth_list_count.float())
+    return ground_truth_list, predict_list,r
 
 def compute_metrics(preds, targets, num_classes=1):
     """Calcula métricas de classificação como precisão, recall, F1-score e acurácia."""
@@ -204,7 +214,11 @@ def compute_metrics(preds, targets, num_classes=1):
         fscore = MulticlassF1Score(num_classes=num_classes, average='macro')(preds, targets)
         accuracy = MulticlassAccuracy(num_classes=num_classes, average='macro')(preds, targets)
     
-    return precision.item(), recall.item(), fscore.item(), accuracy.item()
+
+            # Para multiclasse, converter logits para probabilidades com softmax
+        #preds_prob = preds.float().softmax(dim=1).argmax(dim=1)  # Pegando a classe mais provável
+
+    return precision.item(), recall.item(), fscore.item()
 
 def generate_results(root, fold, model, model_name, save_imgs):
     """Gera resultados para um modelo específico e salva as métricas."""
@@ -216,6 +230,7 @@ def generate_results(root, fold, model, model_name, save_imgs):
     predictions = {}
     ground_truth = {}
     for image in coco_test:
+
         ground_truth_list = []
         for i, bbox in enumerate(image['annotations']['bboxes']):
             x1, y1, width, height = bbox
@@ -238,7 +253,6 @@ def generate_results(root, fold, model, model_name, save_imgs):
             print(image_path)
             result = runMMdetection(model,frame,LIMIAR_THRESHOLD)
         predictions[image['file_name']] = result
-
 
     ground_truth_map = []
     predictions_map = []
@@ -296,16 +310,16 @@ def generate_results(root, fold, model, model_name, save_imgs):
     mAP50 = result_map["map_50"]
     mAP75 = result_map["map_75"]
 
-    ground_truth_list, predict_list = process_predictions(ground_truth, predictions, classes_dict, save_imgs, root, fold, model_name)
+    ground_truth_list, predict_list, r = process_predictions(ground_truth, predictions, classes_dict, save_imgs, root, fold, model_name)
 
     num_classes = len(classes_dict)
-    precision, recall, fscore, accuracy = compute_metrics(predict_list, ground_truth_list, num_classes=num_classes)
+    precision, recall, fscore = compute_metrics(predict_list, ground_truth_list, num_classes=num_classes)
 
-    return mAP.item(), mAP50.item(), mAP75.item(), mae.item(), rmse.item(), precision, recall, fscore, accuracy
+    return mAP.item(), mAP50.item(), mAP75.item(), mae.item(), rmse.item(), precision, recall, fscore, r.item()
 
 def create_csv(selected_model, fold, root, model_path, save_imgs):
     """Cria um arquivo CSV com os resultados das métricas."""
-    mAP, mAP50, mAP75, MAE, RMSE, precision, recall, fscore, accuracy = generate_results(root, fold, model_path, selected_model, save_imgs)
+    mAP, mAP50, mAP75, MAE, RMSE, precision, recall, fscore, r = generate_results(root, fold, model_path, selected_model, save_imgs)
 
     results_path = os.path.join('..', 'results', 'results.csv')
     file_exists = os.path.isfile(results_path)
@@ -314,4 +328,4 @@ def create_csv(selected_model, fold, root, model_path, save_imgs):
         writer = csv.writer(file)
         if not file_exists:
             writer.writerow(["ml", "fold", "mAP", "mAP50", "mAP75", "MAE", "RMSE", "accuracy", "precision", "recall", "fscore"])
-        writer.writerow([selected_model, fold, mAP, mAP50, mAP75, MAE, RMSE, accuracy, precision, recall, fscore])
+        writer.writerow([selected_model, fold, mAP, mAP50, mAP75, MAE, RMSE, r, precision, recall, fscore])

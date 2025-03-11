@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from ResultsDetections import create_csv, print_to_file
+from ResultsDetectionsbyclass import generate_results
 import shutil
 # Remove todos os resultados presentes dos outros treinamentos
 def resetar_pasta(caminho):
@@ -44,7 +45,7 @@ def test_model(model,fold_dir):
     return model_path
 
 # YOLOV8, Faster, Detr
-MODELS = ['sabl','YOLOV8','Faster','Detr'] #Variavel para selecionar os modelos
+MODELS = ['YOLOV8','Faster','Detr','sabl'] #Variavel para selecionar os modelos
 
 APENAS_TESTE = True # True para apenas testar modelos treinados False para Treinar e Testar.
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
@@ -52,6 +53,7 @@ DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
 DOBRAS = int(len(os.listdir(DIR_PATH))/3)
 GeraRult = True # True para gerar Resultados False para não gerar
 save_imgs = True # True para salvar imagens em predictes False para não salvar
+GeraResultByClass = True
 
 resetar_pasta(os.path.join("..","results","prediction"))
 
@@ -60,6 +62,12 @@ if GeraRult:
         os.makedirs('../results')
     print_to_file('ml,fold,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore','../results/results.csv','w')
     print_to_file('ml,fold,groundtruth,predicted,TP,FP,dif,fileName','../results/counting.csv','w')# Inicia o arquivo de Results
+
+if GeraResultByClass:
+    if not os.path.exists('../results'):
+        os.makedirs('../results')
+    print_to_file('ml,fold,classes,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore','../results/resultsbyclass.csv','w')
+
 # Loop Para o selecionar o Modelo
 for model in MODELS:
     # Loop Para Treinar o Modelo na referente a Dobra
@@ -70,5 +78,8 @@ for model in MODELS:
             model_path = train_model(model,fold,fold_dir,ROOT_DATA_DIR)
         else:
             model_path =  test_model(model,fold_dir)
+
         if GeraRult:
             create_csv(root=ROOT_DATA_DIR,fold=fold,selected_model=model,model_path=model_path,save_imgs=save_imgs)
+        if GeraResultByClass:
+            generate_results(root=ROOT_DATA_DIR,fold=fold,model=model_path,model_name=model,save_imgs=save_imgs)
