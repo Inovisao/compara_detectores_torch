@@ -233,8 +233,12 @@ def main(args):
     model = DETRModel(num_classes=NUM_CLASSES, model=args.model)
     if args.weights is not None:
         print(f"Loading weights from {args.weights}...")
-        ckpt = torch.load(args.weights)
-        model.load_state_dict(ckpt['model_state_dict'])
+        ckpt = torch.load("bestDetr.pth", map_location="cpu")
+        model_dict = model.state_dict()
+        filtered_dict = {k: v for k, v in ckpt['model_state_dict'].items() if k in model_dict and v.shape == model_dict[k].shape}
+        model_dict.update(filtered_dict)
+        model.load_state_dict(model_dict, strict=False)  # strict=False para ignorar camadas incompatíveis
+
     model = model.to(DEVICE)
     try:
         torchinfo.summary(

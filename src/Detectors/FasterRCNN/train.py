@@ -65,6 +65,8 @@ def get_model(num_classes):
     
     # Replace the pre-trained head with a new one
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+    #Caso queira Utilizar um peso Pre treinado colocar o caminho no 'bestFaster.pth'
+    #model.load_state_dict(torch.load('bestFaster.pth', map_location=torch.device("cpu")))
     return model
 
 # Initialize the model

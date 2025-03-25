@@ -153,16 +153,16 @@ def process_predictions(ground_truth, predictions, classes, save_img, root, fold
                 predict_list.append(bbox_pred[4])
 
                 color = (0, 255, 0) if gt_class == bbox_pred[4] else (0, 0, 255)
-                cv2.rectangle(image, (int(bbox_pred[0]), int(bbox_pred[1])), (x1_max, y1_max), color, thickness=2)
-                cv2.putText(image, str(classes[bbox_pred[4]]), (int(bbox_pred[0]), y1_max), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+                cv2.rectangle(image, (int(bbox_pred[0]), int(bbox_pred[1])), (int(x1_max), int(y1_max)), color, thickness=2)
+                cv2.putText(image, str(classes[bbox_pred[4]]), (int(bbox_pred[0]), int(y1_max)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
 
                 if gt_class == bbox_pred[4]:
                     true_positives += 1
                 else:
                     false_positives += 1
             else:
-                cv2.rectangle(image, (int(bbox_pred[0]), int(bbox_pred[1])), (x1_max, y1_max), (0, 0, 255), thickness=2)
-                cv2.putText(image, str(classes[bbox_pred[4]]), (int(bbox_pred[0]), y1_max), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
+                cv2.rectangle(image, (int(bbox_pred[0]), int(bbox_pred[1])), (int(x1_max), int(y1_max)), (0, 0, 255), thickness=2)
+                cv2.putText(image, str(classes[bbox_pred[4]]), (int(bbox_pred[0]), int(y1_max)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
 
                 ground_truth_list.append(0)  # Falso Positivo
                 predict_list.append(bbox_pred[4])
