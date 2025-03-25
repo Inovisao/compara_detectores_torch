@@ -61,9 +61,6 @@ class ResultFaster:
         faster_box = []
         for i,box in enumerate(bbox):
             if scores[i] > LIMIAR_THRESHOLD:
-                if labels[i] == 4:
-                    print(prediction)
-                    input()
                 faster_box.append([int(box[0]),int(box[1]),int(box[2]),int(box[3]),int(labels[i]),scores[i]])
         #box = prediction['box']
 

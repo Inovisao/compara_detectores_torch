@@ -7,7 +7,8 @@ src/**/__pycache__/**
 src/Detectors/**/__pycache__
 src/model_checkpoints
 model_checkpoints
-dataset
+*dataset
 results
 *.pt
 Faster
+*.pdf

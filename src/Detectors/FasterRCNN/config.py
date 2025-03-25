@@ -31,7 +31,7 @@ for category in data["categories"]:
     if category["id"] in ann_ids:
         CLASSES.append(category["name"],)
 
-NUM_CLASSES = len(CLASSES)
+NUM_CLASSES = 5
 
 # location to save model and plots
 OUT_DIR = './Faster'

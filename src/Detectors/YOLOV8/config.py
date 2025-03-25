@@ -14,12 +14,12 @@ def treino():
                 batch = 64, # Tamanho do lote da GPU
                 project = 'YOLOV8', # Nome do Projeto
                 exist_ok = True, # Caso o arquivo ja exista ele sobre escreve
-                optimizer = 'AdamW', # Optimizador do modelo (SGD, Adam, AdamW, NAdam, RAdam, RMSPro) Talvez tenha mais
+                optimizer = 'SGD', # Optimizador do modelo (SGD, Adam, AdamW, NAdam, RAdam, RMSPro) Talvez tenha mais
                 single_cls = False, # Se o dataset é multiclasses = False ou Com uma classe so = True
                 rect = False,
                 cos_lr = True,
                 lr0 = 0.0001, # Taxa De Aprendizado Inicial
                 lrf = 0.01,# Taxa de Aprendizado Final
-                plots = False, # Usado para salvar os dados do treinamento para salver = True 
+                plots = True, # Usado para salvar os dados do treinamento para salver = True 
     )
 treino()

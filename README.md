@@ -32,7 +32,12 @@ conda create --name detectores python=3.9.16 -y
 conda activate detectores
 conda install pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia
 pip install scikit-learn funcy albumentations==1.4.4 ultralytics==8.2.87 supervision==0.1.0 pycocotools torchinfo vision-transformers torchmetrics
-
+pip install openmim==0.3.9
+pip install yapf==0.40.1
+mim install mmengine=="0.10.7"
+mim install mmcv=="1.3.17"
+mim install mmcv-full=="1.7.2"
+mim install mmdet=="2.28.2"
 obs : todas as bibliotecas utilzadas estão no arquivo Bibliotecas.yml
 ```
 
