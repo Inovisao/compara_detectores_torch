@@ -17,7 +17,6 @@ def train_model(model,fold,fold_dir,ROOT_DATA_DIR):
         if CONTINUE:
             return None
         shutil.rmtree(check_save_path)
-
     if model == 'YOLOV8':
         from Detectors.YOLOV8.RunYOLOV8 import runYOLOV8
         runYOLOV8(fold,fold_dir,ROOT_DATA_DIR)
@@ -46,16 +45,16 @@ def test_model(model,fold_dir):
     return model_path
 
 # YOLOV8, Faster, Detr
-MODELS = ['YOLOV8'] #Variavel para selecionar os modelos
+MODELS = ['Faster'] #Variavel para selecionar os modelos
 
-APENAS_TESTE = False # True para apenas testar modelos treinados False para Treinar e Testar.
+APENAS_TESTE = True # True para apenas testar modelos treinados False para Treinar e Testar.
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
 DOBRAS = int(len(os.listdir(DIR_PATH))/3)
 GeraRult = True # True para gerar Resultados False para não gerar
 save_imgs = True # True para salvar imagens em predictes False para não salvar
-GeraResultByClass = True # True para Salvar Resultados Por classes
-CONTINUE = False # True para Continuar sem apagar os pesos ja treinados
+GeraResultByClass = False # True para Salvar Resultados Por classes
+CONTINUE = True # True para Continuar sem apagar os pesos ja treinados
 resetar_pasta(os.path.join("..","results","prediction"))
 
 if GeraRult:
