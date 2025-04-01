@@ -1,20 +1,31 @@
 # Código para Treinamento de Redes de Detecção
 
 Este repositório foi desenvolvido para facilitar a junção de múltiplas redes neurais no treinamento de modelos de detecção de objetos.
+## Link dos codigos utilizados como base
+### YOLOV8
+- **https://docs.ultralytics.com/pt/modes/train/#resuming-interrupted-trainings**:
+### FasterRCNN
+- **https://github.com/AarohiSingla/Faster-R-CNN-on-custom-dataset-Using-Pytorch**
+### Detr
+- **https://debuggercafe.com/train-detr-on-custom-dataset/**
+### MMdetections
+- **https://mmdetection.readthedocs.io/en/latest/**
 
 ## Estrutura de Pastas
 ```
 ├── dataset
-│   └── all
-│       ├── filesJSON
-│       └── train
+│   └── all
+│       ├── filesJSON
+│       └── train
 ├── results
 ├── src
-│   └── Detectors
-│       ├── FasterRCNN
-│       ├── Detr
-│       └── YOLOV8
+│   └── Detectors
+│      ├── Detr
+│      ├── FasterRCNN
+│      ├── mminference
+│      └── YOLOV8
 └── utils
+
 ```
 ### Diretórios
 - **dataset/**: Contém as imagens e anotações no formato COCO. As imagens devem ter resolução de 640x640 e estar na pasta `train`, junto ao arquivo `coco.json`.
@@ -22,7 +33,7 @@ Este repositório foi desenvolvido para facilitar a junção de múltiplas redes
 - **src/**: Contém os códigos das redes.
 - **Detectors/**: Diretório para organização dos modelos de detecção.
 - **utils/**: Scripts auxiliares para geração de gráficos, instalação de dependências e outras utilidades.
-
+- **src/Detectors/mminference**: Este código foi adicionado exclusivamente para a geração de resultados e não realizará o treinamento de redes da MMDetection.
 ## Instalação
 
 Execute os seguintes comandos no terminal para configurar o ambiente:

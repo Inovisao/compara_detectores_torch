@@ -8,7 +8,7 @@ import json
 # Classe Usada para detectar os objetos
 MOSTRAIMAGE = False
     # Função do detector da YOLOV8
-def xyxy_to_xywh(boxes):
+def xyxy_to_xywh(boxes: list)-> list:
     """
     Converte caixas delimitadoras no formato xyxy para xywh.
 
