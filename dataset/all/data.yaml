@@ -1,0 +1,12 @@
+names:
+- CAR
+nc: 1
+roboflow:
+  license: Public Domain
+  project: deteccao-de-pintados
+  url: https://universe.roboflow.com/peixes/deteccao-de-pintados/dataset/1
+  version: 1
+  workspace: train
+test: ./YOLO/test/images
+train: ./YOLO/train/images
+val: ./YOLO/valid/images
