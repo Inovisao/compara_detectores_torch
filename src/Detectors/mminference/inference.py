@@ -61,7 +61,7 @@ def runMMdetection(model_name, frame, LIMIAR_THRESHOLD=0.8, NMS_THRESHOLD=0.5):
             if score > LIMIAR_THRESHOLD:  
                 boxes.append([int(x1), int(y1), int(x2), int(y2)])
                 scores.append(float(score))
-                classes.append(class_id+1)  # Guarda a classe correspondente
+                classes.append(class_id)  # Guarda a classe correspondente
     # Converte para formato esperado pelo OpenCV
     boxes = np.array(boxes)
     scores = np.array(scores)

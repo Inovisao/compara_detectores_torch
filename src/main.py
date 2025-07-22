@@ -3,6 +3,7 @@ import numpy as np
 from ResultsDetections import create_csv, print_to_file
 from ResultsDetectionsbyclass import generate_results
 import shutil
+import time
 # Remove todos os resultados presentes dos outros treinamentos
 def resetar_pasta(caminho):
     shutil.rmtree(caminho, ignore_errors=True)  # Remove a pasta inteira
@@ -45,16 +46,16 @@ def test_model(model,fold_dir):
     return model_path
 
 # YOLOV8, Faster, Detr
-MODELS = ['Faster'] #Variavel para selecionar os modelos
+MODELS = ['YOLOV8', 'Detr'] #Variavel para selecionar os modelos
 
-APENAS_TESTE = True # True para apenas testar modelos treinados False para Treinar e Testar.
+APENAS_TESTE = False # True para apenas testar modelos treinados False para Treinar e Testar.
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
 DOBRAS = int(len(os.listdir(DIR_PATH))/3)
 GeraRult = True # True para gerar Resultados False para não gerar
 save_imgs = True # True para salvar imagens em predictes False para não salvar
 GeraResultByClass = False # True para Salvar Resultados Por classes
-CONTINUE = True # True para Continuar sem apagar os pesos ja treinados
+CONTINUE = False # True para Continuar sem apagar os pesos ja treinados
 resetar_pasta(os.path.join("..","results","prediction"))
 
 if GeraRult:
@@ -70,6 +71,7 @@ if GeraResultByClass:
 
 # Loop Para o selecionar o Modelo
 for model in MODELS:
+    inicio = time.time()
     # Loop Para Treinar o Modelo na referente a Dobra
     for f in np.arange(1,DOBRAS+1):
         fold = 'fold_'+str(f) # Selecione a Pasta referente a dobra
@@ -85,3 +87,7 @@ for model in MODELS:
             create_csv(root=ROOT_DATA_DIR,fold=fold,selected_model=model,model_path=model_path,save_imgs=save_imgs)
         if GeraResultByClass:
             generate_results(root=ROOT_DATA_DIR,fold=fold,model=model_path,model_name=model,save_imgs=save_imgs)
+        break
+    fim = time.time()
+    print(f"Tempo de execução: {fim - inicio:.4f} segundos do modelo{model}")
+    input()

@@ -30,6 +30,7 @@ from utils.detection.detr.general import (
     show_tranformed_image
 )
 from utils.detection.detr.logging import set_log, coco_log
+import sys
 
 RANK = int(os.getenv('RANK', -1))
 
@@ -161,176 +162,192 @@ def parse_opt():
     return args
 
 def main(args):
-
-    with open(args.data) as file:
-        data_configs = yaml.safe_load(file)
-
-    init_seeds(args.seed + 1 + RANK, deterministic=True)
-    
-    # Settings/parameters/constants.
-    TRAIN_DIR_IMAGES = os.path.normpath(data_configs['TRAIN_DIR_IMAGES'])
-    TRAIN_DIR_LABELS = os.path.normpath(data_configs['TRAIN_DIR_LABELS'])
-    VALID_DIR_IMAGES = os.path.normpath(data_configs['VALID_DIR_IMAGES'])
-    VALID_DIR_LABELS = os.path.normpath(data_configs['VALID_DIR_LABELS'])
-    CLASSES = data_configs['CLASSES']
-    NUM_CLASSES = data_configs['NC']
-    LR = args.learning_rate
-    EPOCHS = args.epochs
-    DEVICE = args.device
-    NUM_CLASSES = len(CLASSES)
-    IMAGE_SIZE = args.imgsz
-    BATCH_SIZE = args.batch
-    IS_DISTRIBUTED = False
-    NUM_WORKERS = args.workers
-    VISUALIZE_TRANSFORMED_IMAGES = args.vis_transformed
-    OUT_DIR = set_training_dir(args.name)
-    COLORS = np.random.uniform(0, 1, size=(len(CLASSES), 3))
-    set_log(OUT_DIR)
-    train_dataset = create_train_dataset(
-        TRAIN_DIR_IMAGES, 
-        TRAIN_DIR_LABELS,
-        IMAGE_SIZE, 
-        CLASSES,
-        use_train_aug=args.use_train_aug,
-        mosaic=args.mosaic,
-        square_training=True
-    )
-
-    valid_dataset = create_valid_dataset(
-        VALID_DIR_IMAGES, 
-        VALID_DIR_LABELS, 
-        IMAGE_SIZE, 
-        CLASSES,
-        square_training=True
-    )
-
-    if IS_DISTRIBUTED:
-        train_sampler = distributed.DistributedSampler(
-            train_dataset
-        )
-        valid_sampler = distributed.DistributedSampler(
-            valid_dataset, shuffle=False
-        )
-    else:
-        train_sampler = RandomSampler(train_dataset)
-        valid_sampler = SequentialSampler(valid_dataset)
-
-    # train_batch_sampler = BatchSampler(train_sampler, BATCH_SIZE, drop_last=False)
-    # valid_batch_sampler = BatchSampler(valid_sampler, BATCH_SIZE, drop_last=False)
-    train_loader = create_train_loader(
-        train_dataset, BATCH_SIZE, NUM_WORKERS, batch_sampler=train_sampler
-    )
-    valid_loader = create_valid_loader(
-        valid_dataset, BATCH_SIZE, NUM_WORKERS, batch_sampler=valid_sampler
-    )
-
-    if VISUALIZE_TRANSFORMED_IMAGES:
-        show_tranformed_image(train_loader, DEVICE, CLASSES, COLORS)
-
-    matcher = HungarianMatcher(cost_giou=2,cost_class=1,cost_bbox=5)
-    weight_dict = {'loss_ce': 1, 'loss_bbox': 5, 'loss_giou': 2}
-    losses = ['labels', 'boxes', 'cardinality']
-    model = DETRModel(num_classes=NUM_CLASSES, model=args.model)
-    if args.weights is not None:
-        print(f"Loading weights from {args.weights}...")
-        ckpt = torch.load("bestDetr.pth", map_location="cpu")
-        model_dict = model.state_dict()
-        filtered_dict = {k: v for k, v in ckpt['model_state_dict'].items() if k in model_dict and v.shape == model_dict[k].shape}
-        model_dict.update(filtered_dict)
-        model.load_state_dict(model_dict, strict=False)  # strict=False para ignorar camadas incompatíveis
-
-    model = model.to(DEVICE)
     try:
-        torchinfo.summary(
-            model, 
-            device=DEVICE, 
-            input_size=(BATCH_SIZE, 3, IMAGE_SIZE, IMAGE_SIZE),
-            row_settings=["var_names"],
-            col_names=["input_size", "output_size", "num_params"],
+        with open(args.data) as file:
+            data_configs = yaml.safe_load(file)
+
+        init_seeds(args.seed + 1 + RANK, deterministic=True)
+        
+        # Settings/parameters/constants.
+        TRAIN_DIR_IMAGES = os.path.normpath(data_configs['TRAIN_DIR_IMAGES'])
+        TRAIN_DIR_LABELS = os.path.normpath(data_configs['TRAIN_DIR_LABELS'])
+        VALID_DIR_IMAGES = os.path.normpath(data_configs['VALID_DIR_IMAGES'])
+        VALID_DIR_LABELS = os.path.normpath(data_configs['VALID_DIR_LABELS'])
+        CLASSES = data_configs['CLASSES']
+        NUM_CLASSES = data_configs['NC']
+        LR = args.learning_rate
+        EPOCHS = args.epochs
+        DEVICE = args.device
+        NUM_CLASSES = len(CLASSES)
+        IMAGE_SIZE = args.imgsz
+        BATCH_SIZE = args.batch
+        IS_DISTRIBUTED = False
+        NUM_WORKERS = args.workers
+        VISUALIZE_TRANSFORMED_IMAGES = args.vis_transformed
+        OUT_DIR = set_training_dir(args.name)
+        COLORS = np.random.uniform(0, 1, size=(len(CLASSES), 3))
+        set_log(OUT_DIR)
+        train_dataset = create_train_dataset(
+            TRAIN_DIR_IMAGES, 
+            TRAIN_DIR_LABELS,
+            IMAGE_SIZE, 
+            CLASSES,
+            use_train_aug=args.use_train_aug,
+            mosaic=args.mosaic,
+            square_training=True
         )
-    except:
-        print(model)
-        # Total parameters and trainable parameters.
-        total_params = sum(p.numel() for p in model.parameters())
-        print(f"{total_params:,} total parameters.")
-        total_trainable_params = sum(
-            p.numel() for p in model.parameters() if p.requires_grad)
-        print(f"{total_trainable_params:,} training parameters.")
 
-    criterion = SetCriterion(
-        NUM_CLASSES-1, 
-        matcher, 
-        weight_dict, 
-        eos_coef=args.eos_coef, 
-        losses=losses
-    )
-    criterion = criterion.to(DEVICE)
-
-    # TODO Check how this works when with model params differently in model.py
-    lr_dict = {
-        'backbone': 1,
-        'transformer': 1,
-        'embed': 1,
-        'final': 5
-    }
-    optimizer = torch.optim.AdamW([{
-        'params': v,
-        'lr': lr_dict.get(k,1)*LR
-    } for k,v in model.parameter_groups().items()], 
-        weight_decay=args.weight_decay
-    )
-    
-    save_best_model = SaveBestModel()
-
-    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, [EPOCHS // 2, EPOCHS // 1.333], gamma=0.5
-    )
-
-    val_map_05 = []
-    val_map = []
-
-    # if torch.__version__ >= '2.0.0':
-    #     model = torch.compile(model)
-
-    for epoch in range(EPOCHS):
-        train_loss = train(
-            train_loader, 
-            model, 
-            criterion, 
-            optimizer, 
-            DEVICE, 
-            epoch=epoch
+        valid_dataset = create_valid_dataset(
+            VALID_DIR_IMAGES, 
+            VALID_DIR_LABELS, 
+            IMAGE_SIZE, 
+            CLASSES,
+            square_training=True
         )
-        # if not args.no_lrs:
-        #     lr_scheduler.step()
-        stats, coco_evaluator = evaluate(
-            model=model,
-            criterion=criterion,
-            postprocessors={'bbox': PostProcess()},
-            data_loader=valid_loader,
-            device=DEVICE, 
-            output_dir='outputs'
+
+        if IS_DISTRIBUTED:
+            train_sampler = distributed.DistributedSampler(
+                train_dataset
+            )
+            valid_sampler = distributed.DistributedSampler(
+                valid_dataset, shuffle=False
+            )
+        else:
+            train_sampler = RandomSampler(train_dataset)
+            valid_sampler = SequentialSampler(valid_dataset)
+
+        # train_batch_sampler = BatchSampler(train_sampler, BATCH_SIZE, drop_last=False)
+        # valid_batch_sampler = BatchSampler(valid_sampler, BATCH_SIZE, drop_last=False)
+        train_loader = create_train_loader(
+            train_dataset, BATCH_SIZE, NUM_WORKERS, batch_sampler=train_sampler
+        )
+        valid_loader = create_valid_loader(
+            valid_dataset, BATCH_SIZE, NUM_WORKERS, batch_sampler=valid_sampler
+        )
+
+        if VISUALIZE_TRANSFORMED_IMAGES:
+            show_tranformed_image(train_loader, DEVICE, CLASSES, COLORS)
+
+        matcher = HungarianMatcher(cost_giou=2,cost_class=1,cost_bbox=5)
+        weight_dict = {'loss_ce': 1, 'loss_bbox': 5, 'loss_giou': 2}
+        losses = ['labels', 'boxes', 'cardinality']
+        model = DETRModel(num_classes=NUM_CLASSES, model=args.model)
+        if args.weights is not None:
+            print(f"Loading weights from {args.weights}...")
+            ckpt = torch.load("bestDetr.pth", map_location="cpu")
+            model_dict = model.state_dict()
+            filtered_dict = {k: v for k, v in ckpt['model_state_dict'].items() if k in model_dict and v.shape == model_dict[k].shape}
+            model_dict.update(filtered_dict)
+            model.load_state_dict(model_dict, strict=False)  # strict=False para ignorar camadas incompatíveis
+
+        model = model.to(DEVICE)
+        try:
+            torchinfo.summary(
+                model, 
+                device=DEVICE, 
+                input_size=(BATCH_SIZE, 3, IMAGE_SIZE, IMAGE_SIZE),
+                row_settings=["var_names"],
+                col_names=["input_size", "output_size", "num_params"],
+            )
+        except:
+            print(model)
+            # Total parameters and trainable parameters.
+            total_params = sum(p.numel() for p in model.parameters())
+            print(f"{total_params:,} total parameters.")
+            total_trainable_params = sum(
+                p.numel() for p in model.parameters() if p.requires_grad)
+            print(f"{total_trainable_params:,} training parameters.")
+
+        criterion = SetCriterion(
+            NUM_CLASSES-1, 
+            matcher, 
+            weight_dict, 
+            eos_coef=args.eos_coef, 
+            losses=losses
+        )
+        criterion = criterion.to(DEVICE)
+
+        # TODO Check how this works when with model params differently in model.py
+        lr_dict = {
+            'backbone': 1,
+            'transformer': 1,
+            'embed': 1,
+            'final': 5
+        }
+        optimizer = torch.optim.AdamW([{
+            'params': v,
+            'lr': lr_dict.get(k,1)*LR
+        } for k,v in model.parameter_groups().items()], 
+            weight_decay=args.weight_decay
         )
         
-        # COCO log to train log file.
-        coco_log(OUT_DIR, stats)
+        save_best_model = SaveBestModel()
 
-        val_map_05.append(stats['coco_eval_bbox'][1])
-        val_map.append(stats['coco_eval_bbox'][0])
-
-        # Save mAP plots.
-        save_mAP(OUT_DIR, val_map_05, val_map)
-        # Save the model dictionary only for the current epoch.
-        save_model_state(model, OUT_DIR, data_configs, args.model)
-        save_best_model(
-            model, 
-            val_map[-1], 
-            epoch, 
-            OUT_DIR,
-            data_configs,
-            args.model
+        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+            optimizer, [EPOCHS // 2, EPOCHS // 1.333], gamma=0.5
         )
 
+        val_map_05 = []
+        val_map = []
+
+        # if torch.__version__ >= '2.0.0':
+        #     model = torch.compile(model)
+
+        for epoch in range(EPOCHS):
+            try:
+                train_loss = train(
+                    train_loader, 
+                    model, 
+                    criterion, 
+                    optimizer, 
+                    DEVICE, 
+                    epoch=epoch
+                )
+                # if not args.no_lrs:
+                #     lr_scheduler.step()
+                stats, coco_evaluator = evaluate(
+                    model=model,
+                    criterion=criterion,
+                    postprocessors={'bbox': PostProcess()},
+                    data_loader=valid_loader,
+                    device=DEVICE, 
+                    output_dir='outputs'
+                )
+                
+                # COCO log to train log file.
+                coco_log(OUT_DIR, stats)
+
+                val_map_05.append(stats['coco_eval_bbox'][1])
+                val_map.append(stats['coco_eval_bbox'][0])
+
+                # Save mAP plots.
+                save_mAP(OUT_DIR, val_map_05, val_map)
+                # Save the model dictionary only for the current epoch.
+                save_model_state(model, OUT_DIR, data_configs, args.model)
+                save_best_model(
+                    model, 
+                    val_map[-1], 
+                    epoch, 
+                    OUT_DIR,
+                    data_configs,
+                    args.model
+                )
+                print(f"[INFO] Época {epoch+1}/{EPOCHS} finalizada com sucesso.")
+            except Exception as e:
+                print(f"[ERRO] Falha durante a época {epoch+1}: {e}")
+                continue
+        print("Treinamento DETR finalizado com sucesso!")
+    except FileNotFoundError as e:
+        print(f"[ERRO] Arquivo não encontrado: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"[ERRO FATAL] Falha no treinamento DETR: {e}")
+        sys.exit(1)
+
 if __name__ == '__main__':
-    args = parse_opt()
-    main(args)
+    try:
+        args = parse_opt()
+        main(args)
+    except Exception as e:
+        print(f"[ERRO FATAL] Erro inesperado ao rodar o script de treino DETR: {e}")
+        sys.exit(1)

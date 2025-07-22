@@ -25,21 +25,32 @@ os.makedirs(RESULTS_PATH, exist_ok=True)  # Garante que a pasta existe
 
 def print_to_file(line='', file_path='../results/results.csv', mode='a'):
     """Função para escrever uma linha em um arquivo."""
-    original_stdout = sys.stdout  # Salva a referência para a saída padrão original
-    with open(file_path, mode) as f:
-        sys.stdout = f  # Altera a saída padrão para o arquivo criado
-        print(line)
-        sys.stdout = original_stdout  # Restaura a saída padrão para o valor original
+    try:
+        dir_path = os.path.dirname(file_path)
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path, exist_ok=True)
+        original_stdout = sys.stdout  # Salva a referência para a saída padrão original
+        with open(file_path, mode) as f:
+            sys.stdout = f  # Altera a saída padrão para o arquivo criado
+            print(line)
+            sys.stdout = original_stdout  # Restaura a saída padrão para o valor original
+    except Exception as e:
+        print(f"[ERRO] Falha ao escrever no arquivo {file_path}: {e}")
 
 def generate_csv(data):
     """Gera um arquivo CSV com os dados fornecidos."""
     file_name = '../results/counting.csv'
     headers = ['ml', 'fold', 'groundtruth', 'predicted', 'TP', 'FP', 'dif', 'fileName']
-    
-    with open(file_name, mode='a', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=headers)
-        for row in data:
-            writer.writerow(row)
+    try:
+        dir_path = os.path.dirname(file_name)
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path, exist_ok=True)
+        with open(file_name, mode='a', newline='') as file:
+            writer = csv.DictWriter(file, fieldnames=headers)
+            for row in data:
+                writer.writerow(row)
+    except Exception as e:
+        print(f"[ERRO] Falha ao salvar CSV de contagem em {file_name}: {e}")
 
 def get_classes(json_path):
     """Extrai as classes de um arquivo JSON no formato COCO."""
@@ -183,11 +194,14 @@ def process_predictions(ground_truth, predictions, classes, save_img, root, fold
         cv2.putText(image, f"R: {recall}", (5, 120), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 255, 255), 1)
         if gt_count > 0 or pred_count > 0:
             if save_img:
-                save_path = os.path.join(RESULTS_PATH, fold,model_name,class_dict[cls])
-                if not os.path.exists(save_path):
-                    os.makedirs(save_path)
-                save_path = os.path.join(save_path, key)
-                cv2.imwrite(save_path, image)
+                try:
+                    save_path = os.path.join(RESULTS_PATH, fold,model_name,class_dict[cls])
+                    if not os.path.exists(save_path):
+                        os.makedirs(save_path)
+                    save_path = os.path.join(save_path, key)
+                    cv2.imwrite(save_path, image)
+                except Exception as e:
+                    print(f"[ERRO] Falha ao salvar imagem de predição em {save_path}: {e}")
         data.append({'ml': model_name, 'fold': fold, 'groundtruth': gt_count, 'predicted': pred_count, 'TP': true_positives, 'FP': false_positives, 'dif': int(gt_count - pred_count), 'fileName': key})
     generate_csv(data)
     ground_truth_list_count = torch.tensor(ground_truth_list_count)
@@ -313,12 +327,17 @@ def generate_results(root, fold, model, model_name, save_imgs):
         
 def create_csv(selected_model, fold,classes_dict,cls,mAP, mAP50, mAP75, MAE, RMSE, precision, recall, fscore, r ):
     """Cria um arquivo CSV com os resultados das métricas."""
-
     results_path = os.path.join('..', 'results', 'resultsbyclass.csv')
-    file_exists = os.path.isfile(results_path)
-
-    with open(results_path, mode="a", newline="") as file:
-        writer = csv.writer(file)
-        if not file_exists:
-            writer.writerow(["ml", "fold", 'classes',"mAP", "mAP50", "mAP75", "MAE", "RMSE",'r',"precision", "recall", "fscore"])
-        writer.writerow([selected_model, fold, classes_dict[cls] ,mAP, mAP50, mAP75, MAE, RMSE, r, precision, recall, fscore])
+    try:
+        file_exists = os.path.isfile(results_path)
+        dir_path = os.path.dirname(results_path)
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path, exist_ok=True)
+        with open(results_path, mode="a", newline="") as file:
+            writer = csv.writer(file)
+            if not file_exists:
+                writer.writerow(["ml", "fold", 'classes',"mAP", "mAP50", "mAP75", "MAE", "RMSE",'r',"precision", "recall", "fscore"])
+            writer.writerow([selected_model, fold, classes_dict[cls] ,mAP, mAP50, mAP75, MAE, RMSE, r, precision, recall, fscore])
+        print(f"[INFO] Resultados por classe salvos com sucesso em {results_path}")
+    except Exception as e:
+        print(f"[ERRO] Falha ao salvar resultados por classe em {results_path}: {e}")

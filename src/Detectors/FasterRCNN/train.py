@@ -18,6 +18,7 @@ from config import (
     OUT_DIR,
     PATIENCE,
 )
+import sys
 
 # Define transformations
 class CocoTransform:
@@ -120,23 +121,36 @@ if not os.path.exists(OUT_DIR):
 best_loss = float("inf")
 patience_counter = 0
 
-for epoch in range(NUM_EPOCHS):
-    loss = train_one_epoch(model, optimizer, train_loader, DEVICE, epoch)
-    lr_scheduler.step()
+try:
+    for epoch in range(NUM_EPOCHS):
+        try:
+            loss = train_one_epoch(model, optimizer, train_loader, DEVICE, epoch)
+            lr_scheduler.step()
 
-    if loss < best_loss:
-        best_loss = loss
-        patience_counter = 0
-        best_model_path = os.path.join(OUT_DIR, 'best.pth')
-        torch.save(model.state_dict(), best_model_path)
-        print(f"Melhor modelo salvo: {best_model_path} com loss {best_loss:.4f}")
-    else:
-        patience_counter += 1
+            if loss < best_loss:
+                best_loss = loss
+                patience_counter = 0
+                best_model_path = os.path.join(OUT_DIR, 'best.pth')
+                torch.save(model.state_dict(), best_model_path)
+                print(f"Melhor modelo salvo: {best_model_path} com loss {best_loss:.4f}")
+            else:
+                patience_counter += 1
 
-    last_model_path = os.path.join(OUT_DIR, 'last_checkpoint.pth')
-    torch.save(model.state_dict(), last_model_path)
-    print(f"Modelo salvo: {last_model_path}")
+            last_model_path = os.path.join(OUT_DIR, 'last_checkpoint.pth')
+            torch.save(model.state_dict(), last_model_path)
+            print(f"Modelo salvo: {last_model_path}")
 
-    if patience_counter == PATIENCE:
-        print("Parando o treinamento por falta de melhoria.")
-        break
+            if patience_counter == PATIENCE:
+                print("Parando o treinamento por falta de melhoria.")
+                break
+            print(f"[INFO] Época {epoch+1}/{NUM_EPOCHS} finalizada com sucesso.")
+        except Exception as e:
+            print(f"[ERRO] Falha durante a época {epoch+1}: {e}")
+            continue
+    print("Treinamento FasterRCNN finalizado com sucesso!")
+except FileNotFoundError as e:
+    print(f"[ERRO] Arquivo não encontrado: {e}")
+    sys.exit(1)
+except Exception as e:
+    print(f"[ERRO FATAL] Falha no treinamento FasterRCNN: {e}")
+    sys.exit(1)
