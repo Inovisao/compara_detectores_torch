@@ -44,26 +44,29 @@ def xyxy_to_xywh(boxes):
 # Load the trained model
 
 class ResultFaster:
-    def resultFaster(frame,modelName,LIMIAR_THRESHOLD):
+    def resultFaster(frame, modelName, LIMIAR_THRESHOLD):
         model = get_model(NUM_CLASSES)
         model.load_state_dict(torch.load(modelName))
         model.to(DEVICE)
-        model.eval()  # Set the model to evaluation mode
+        model.eval()
 
-        # Load the unseen image
         image_tensor = prepare_image(frame)
 
-        with torch.no_grad():  # Disable gradient computation for inference
+        with torch.no_grad():
             prediction = model(image_tensor)
+
         bbox = prediction[0]['boxes'].cpu().tolist()
         labels = prediction[0]['labels'].cpu().tolist()
         scores = prediction[0]['scores'].cpu().tolist()
-        faster_box = []
-        for i,box in enumerate(bbox):
-            if scores[i] > LIMIAR_THRESHOLD:
-                faster_box.append([int(box[0]),int(box[1]),int(box[2]),int(box[3]),int(labels[i]),scores[i]])
-        #box = prediction['box']
 
-        coco_boxes = xyxy_to_xywh(faster_box)
+        faster_box = []
+        for i, box in enumerate(bbox):
+            if scores[i] > LIMIAR_THRESHOLD:
+                faster_box.append([int(box[0]), int(box[1]), int(box[2]), int(box[3]), int(labels[i]), scores[i]])
+
+        coco_boxes = []
+        for box in faster_box:
+            x1, y1, x2, y2, cls_id, score = box
+            coco_boxes.append([x1, y1, x2 - x1, y2 - y1, cls_id, score])
 
         return coco_boxes

@@ -52,7 +52,18 @@ def test_model(model,fold_dir):
     return model_path
 
 # YOLOV8, YOLOV5_TPH, Faster, Detr
-MODELS = ['YOLOV5_TPH', 'YOLOV8'] 
+DEFAULT_MODELS = ['Faster', 'YOLOV5_TPH', 'YOLOV8']
+
+
+def _get_models_to_run():
+    raw = os.getenv('MODELS_TO_RUN')
+    if not raw:
+        return DEFAULT_MODELS
+    parsed = [model.strip() for model in raw.split(',') if model.strip()]
+    return parsed if parsed else DEFAULT_MODELS
+
+
+MODELS = _get_models_to_run()
 APENAS_TESTE = False # True para apenas testar modelos treinados False para Treinar e Testar.
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
