@@ -11,7 +11,7 @@ def treino():
                 epochs=500, # Epocas que o Modelo ira Rodar
                 imgsz=640, # Dimeção das imagens
                 patience = 50, # paciencia para o modelo parar o treinamento geral mente se usa 10% das epocas
-                batch = 64, # Tamanho do lote da GPU
+                batch = 16, # Tamanho do lote da GPU
                 project = 'YOLOV8', # Nome do Projeto
                 exist_ok = True, # Caso o arquivo ja exista ele sobre escreve
                 optimizer = 'SGD', # Optimizador do modelo (SGD, Adam, AdamW, NAdam, RAdam, RMSPro) Talvez tenha mais

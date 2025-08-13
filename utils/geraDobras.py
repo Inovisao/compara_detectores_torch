@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser(description='Divide o conjunto de anotações p
 parser.add_argument('-annotations', default='../dataset/all/train/_annotations.coco.json',metavar='coco_annotations', type=str,
                     help='Caminho para o arquivo com as anotações',required=False)
 parser.add_argument('-json', default='../dataset/all/filesJSON/',type=str, help='Pasta para os arquivos resultantes',required=False)
-parser.add_argument('-folds', default='1',dest='folds', type=int,
+parser.add_argument('-folds', default='10',dest='folds', type=int,
                     help="Número de dobras a ser usado",required=False)
 parser.add_argument('-valperc', default='0.3',dest='valperc', type=float,
                     help="Percentual a ser usado para validação durante o treinamento",required=False)

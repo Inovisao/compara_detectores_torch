@@ -284,8 +284,11 @@ def generate_results(root, fold, model, model_name, save_imgs):
     ground_truth_counts = []
     for key in ground_truth:
         count_classes = [0] * len(classes_dict)
+        id_to_index = {cat_id: idx for idx, cat_id in enumerate(sorted(classes_dict.keys()))}
+
         for bbox in ground_truth[key]:
-            count_classes[bbox[-1]] += 1
+            cls_idx = id_to_index[bbox[-1]]
+            count_classes[cls_idx] += 1
         ground_truth_counts.append(count_classes)
     ground_truth_counts = torch.tensor(ground_truth_counts)
 

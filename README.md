@@ -39,16 +39,9 @@ Este repositório foi desenvolvido para facilitar a junção de múltiplas redes
 Execute os seguintes comandos no terminal para configurar o ambiente:
 
 ```sh
-conda create --name detectores python=3.9.16 -y
-conda activate detectores
-conda install pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia
-pip install scikit-learn funcy albumentations==1.4.4 ultralytics==8.2.87 supervision==0.1.0 pycocotools torchinfo vision-transformers torchmetrics
-pip install openmim==0.3.9
-pip install yapf==0.40.1
-mim install mmengine=="0.10.7"
-mim install mmcv=="1.3.17"
-mim install mmcv-full=="1.7.2"
-mim install mmdet=="2.28.2"
+cd compara_detectores_torch
+chmod +x install.sh
+./install.sh
 obs : todas as bibliotecas utilzadas estão no arquivo Bibliotecas.yml
 ```
 
@@ -65,11 +58,11 @@ dataset/
 Em seguida, execute o script `geraDobras.py` na pasta `utils/` para dividir os dados em dobras:
 ```sh
 cd utils
-python geraDobras.py --folds 5 --valperc 0.3
+python geraDobras.py -folds 5 -valperc 0.3
 ```
 *Parâmetros:*  
-- `--folds`: Define a quantidade de dobras (padrão: 5).
-- `--valperc`: Percentual de imagens para validação (padrão: 0.3).
+- `-folds`: Define a quantidade de dobras (padrão: 5).
+- `-valperc`: Percentual de imagens para validação (padrão: 0.3).
 
 Após a execução, a estrutura será:
 ```

@@ -10,7 +10,7 @@ def resetar_pasta(caminho):
 
 # Função que ira verificar qual modelo sera utilizado para o treinamento
 def train_model(model,fold,fold_dir,ROOT_DATA_DIR):
-
+    model_path = None
     check_save_path = os.path.join(fold_dir,model)
 
     if os.path.exists(check_save_path):
@@ -31,6 +31,9 @@ def train_model(model,fold,fold_dir,ROOT_DATA_DIR):
         from Detectors.Detr.runDetr import runDetr
         runDetr(fold,fold_dir,ROOT_DATA_DIR)
         model_path = os.path.join(fold_dir,model,'training','best_model.pth')
+
+    else:
+        raise ValueError(f'Modelo {model} not suported')
     return model_path
 # Função que server para selecionar os modelos que ja foram treinados
 def test_model(model,fold_dir):
@@ -45,9 +48,9 @@ def test_model(model,fold_dir):
     return model_path
 
 # YOLOV8, Faster, Detr
-MODELS = ['Faster'] #Variavel para selecionar os modelos
+MODELS = ['YOLOV8', 'Faster', 'Dert'] #Variavel para selecionar os modelos
 
-APENAS_TESTE = True # True para apenas testar modelos treinados False para Treinar e Testar.
+APENAS_TESTE = False # True para apenas testar modelos treinados False para Treinar e Testar.
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
 DOBRAS = int(len(os.listdir(DIR_PATH))/3)
