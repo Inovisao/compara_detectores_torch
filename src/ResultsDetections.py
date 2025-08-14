@@ -293,14 +293,21 @@ def generate_results(root, fold, model, model_name, save_imgs):
     ground_truth_counts = torch.tensor(ground_truth_counts)
 
     prediction_counts = []
+
+    # Mapeia IDs reais para índices válidos
+    id_to_index = {cat_id: idx for idx, cat_id in enumerate(sorted(classes_dict.keys()))}
+
     for key in predictions:
         count_classes = [0] * len(classes_dict)
         for bbox in predictions[key]:
             for gt_bbox in ground_truth[key]:
                 iou = calculate_iou(bbox[:4], gt_bbox[:4])
                 if bbox[4] == gt_bbox[-1] and iou >= IOU_THRESHOLD:
-                    count_classes[bbox[4]] += 1
+                    cls_idx = id_to_index.get(bbox[4])
+                    if cls_idx is not None:
+                        count_classes[cls_idx] += 1
         prediction_counts.append(count_classes)
+
     prediction_counts = torch.tensor(prediction_counts)
 
     pred_counts = prediction_counts.sum(dim=1)
