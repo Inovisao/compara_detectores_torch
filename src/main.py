@@ -48,7 +48,7 @@ def test_model(model,fold_dir):
     return model_path
 
 # YOLOV8, Faster, Detr
-MODELS = ['YOLOV8', 'Faster', 'Dert'] #Variavel para selecionar os modelos
+MODELS = ['Detr'] #Variavel para selecionar os modelos
 
 APENAS_TESTE = False # True para apenas testar modelos treinados False para Treinar e Testar.
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
