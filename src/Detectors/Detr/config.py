@@ -1,10 +1,10 @@
 import torch
 import json
 import os
-BATCH_SIZE = 16 # lote de imagens
+BATCH_SIZE = 8 # lote de imagens
 RESIZE_TO = 640 # tamanho da imagem
 NUM_EPOCHS = 30 # Numero de epocas
-NUM_WORKERS = 5 # Paciencia
+NUM_WORKERS = 5 # Numero de workers
 LR = 0.0001 # Taxa de aprendizagem
 DATA_PATH = os.path.join('..','dataset','all','dataDetr.yaml')
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')

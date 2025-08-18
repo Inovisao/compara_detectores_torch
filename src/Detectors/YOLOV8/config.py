@@ -8,13 +8,13 @@ def treino():
 
     model.train(
                 data = '../dataset/all/data.yaml',
-                epochs=500, # Epocas que o Modelo ira Rodar
+                epochs=1000, # Epocas que o Modelo ira Rodar
                 imgsz=640, # Dimeção das imagens
-                patience = 50, # paciencia para o modelo parar o treinamento geral mente se usa 10% das epocas
+                patience = 100, # paciencia para o modelo parar o treinamento geral mente se usa 10% das epocas
                 batch = 64, # Tamanho do lote da GPU
                 project = 'YOLOV8', # Nome do Projeto
                 exist_ok = True, # Caso o arquivo ja exista ele sobre escreve
-                optimizer = 'SGD', # Optimizador do modelo (SGD, Adam, AdamW, NAdam, RAdam, RMSPro) Talvez tenha mais
+                optimizer = 'AdamW', # Optimizador do modelo (SGD, Adam, AdamW, NAdam, RAdam, RMSPro) Talvez tenha mais
                 single_cls = False, # Se o dataset é multiclasses = False ou Com uma classe so = True
                 rect = False,
                 cos_lr = True,
