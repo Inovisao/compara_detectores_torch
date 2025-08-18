@@ -91,17 +91,7 @@ def main(args,orig_image,LIMIAR_THRESHOLD):
         args, DEVICE, DETRModel, data_configs, NUM_CLASSES, CLASSES
     )
     _ = model.to(DEVICE).eval()
-    try:
-        torchinfo.summary(
-            model, 
-            device=DEVICE, 
-            input_size=(1, 3, 640, 640),
-            row_settings=["var_names"]
-        )
-    except:
-        total_params = sum(p.numel() for p in model.parameters())
-        total_trainable_params = sum(
-            p.numel() for p in model.parameters() if p.requires_grad)
+
     NUM_CLASSES = len(CLASSES)
 
     frame_height, frame_width, _ = orig_image.shape
@@ -143,7 +133,7 @@ def main(args,orig_image,LIMIAR_THRESHOLD):
     inferencebox = [] 
     for i,bbox in enumerate(draw_boxes):
         if scores[i] > LIMIAR_THRESHOLD:
-            inferencebox.append([int(bbox[0]),int(bbox[1]),int(bbox[2]),int(bbox[3]),int(class_list[i]),scores[i]])
+            inferencebox.append([int(bbox[0]),int(bbox[1]),int(bbox[2]),int(bbox[3]),int(class_list[i])+1,scores[i]])
 
     coco_box = xyxy_to_xywh(inferencebox)
 
