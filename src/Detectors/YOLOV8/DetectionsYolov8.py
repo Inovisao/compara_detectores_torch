@@ -68,4 +68,3 @@ class resultYOLO:
         coco_boxes = xyxy_to_xywh(yolo_box)
 
         return coco_boxes
-

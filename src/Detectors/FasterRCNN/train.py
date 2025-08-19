@@ -120,7 +120,7 @@ if not os.path.exists(OUT_DIR):
 best_loss = float("inf")
 patience_counter = 0
 
-for epoch in range(NUM_EPOCHS):
+for epoch in range(1, NUM_EPOCHS+1):
     loss = train_one_epoch(model, optimizer, train_loader, DEVICE, epoch)
     lr_scheduler.step()
 
@@ -133,9 +133,10 @@ for epoch in range(NUM_EPOCHS):
     else:
         patience_counter += 1
 
-    last_model_path = os.path.join(OUT_DIR, 'last_checkpoint.pth')
-    torch.save(model.state_dict(), last_model_path)
-    print(f"Modelo salvo: {last_model_path}")
+    if epoch % PATIENCE == 0:
+        last_model_path = os.path.join(OUT_DIR, 'last_checkpoint.pth')
+        torch.save(model.state_dict(), last_model_path)
+        print(f"Modelo salvo: {last_model_path}")
 
     if patience_counter == PATIENCE:
         print("Parando o treinamento por falta de melhoria.")
