@@ -9,8 +9,6 @@ def Settings():
     # O novo valor que você quer para datasets_dir
 
     new_datasets_dir = diretorio_de_execucao[0:-3]+'dataset'
-    print(new_datasets_dir)
-    input()
     # 1. Ler o arquivo YAML
     try:
         with open(file_path, 'r') as f:
@@ -28,7 +26,6 @@ def Settings():
             yaml.dump(settings_data, f, default_flow_style=False, sort_keys=False)
         
         print(f"\n✅ Arquivo '{file_path}' atualizado com sucesso!")
-        input()
     except FileNotFoundError:
         print(f"❌ Erro: O arquivo '{file_path}' não foi encontrado.")
     except Exception as e:
