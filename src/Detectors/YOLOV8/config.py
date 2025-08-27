@@ -2,7 +2,7 @@ from ultralytics import YOLO
 
 #https://docs.ultralytics.com/pt/modes/train/#resuming-interrupted-trainings Link para os parametros de treiono
 
-model = YOLO('yolov8n.pt')  # load a pretrained model (recommended for training)
+model = YOLO('yolov8s.pt')  # load a pretrained model (recommended for training)
 # Função para Rodar o Treino da YOLOV8
 def treino():
 
