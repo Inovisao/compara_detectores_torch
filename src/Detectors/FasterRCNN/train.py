@@ -53,14 +53,6 @@ def get_model(num_classes):
     model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights="DEFAULT")
     in_features = model.roi_heads.box_predictor.cls_score.in_features
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-    
-    checkpoint_path = 'bestFaster.pth'
-    if os.path.exists(checkpoint_path):
-        checkpoint = torch.load(checkpoint_path, map_location=torch.device("cpu"))
-        filtered_checkpoint = {k: v for k, v in checkpoint.items() if "roi_heads.box_predictor" not in k}
-        model.load_state_dict(filtered_checkpoint, strict=False)
-        print("Pesos parciais carregados com sucesso!")
-    
     return model
 
 # Initialize the model
@@ -69,13 +61,31 @@ model.to(DEVICE)
 
 # Define optimizer and scheduler
 params = [p for p in model.parameters() if p.requires_grad]
-optimizer = torch.optim.AdamW(params, lr=LR, momentum=0.9, weight_decay=0.0005)
+optimizer = torch.optim.AdamW(params, lr=LR, weight_decay=0.0005)
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
+
+# === Retomar do checkpoint se existir ===
+if not os.path.exists(OUT_DIR):
+    os.makedirs(OUT_DIR)
+
+resume_path = os.path.join(OUT_DIR, "last_checkpoint.pth")
+start_epoch = 1
+best_loss = float("inf")
+
+if os.path.exists(resume_path):
+    print(f"Carregando checkpoint de {resume_path}")
+    checkpoint = torch.load(resume_path, map_location=DEVICE)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    lr_scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+    best_loss = checkpoint.get('best_loss', float("inf"))
+    start_epoch = checkpoint['epoch'] + 1
+    print(f"Retomando treino a partir da época {start_epoch} (melhor loss {best_loss:.4f})")
 
 def train_one_epoch(model, optimizer, data_loader, device, epoch):
     model.train()
     epoch_loss = 0.0
-    progress_bar = tqdm(data_loader, desc=f"Epoch {epoch+1}", leave=True)
+    progress_bar = tqdm(data_loader, desc=f"Epoch {epoch}", leave=True)
 
     for images, targets in progress_bar:
         images = [img.to(device) for img in images]
@@ -113,30 +123,37 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch):
 
     return epoch_loss / len(data_loader)
 
-# Training loop
-if not os.path.exists(OUT_DIR):
-    os.makedirs(OUT_DIR)
-
-best_loss = float("inf")
+# === Training loop com checkpoints ===
 patience_counter = 0
 
-for epoch in range(1, NUM_EPOCHS+1):
+for epoch in range(start_epoch, NUM_EPOCHS+1):
     loss = train_one_epoch(model, optimizer, train_loader, DEVICE, epoch)
     lr_scheduler.step()
+
+    # salvar sempre último checkpoint
+    last_model_path = os.path.join(OUT_DIR, 'last_checkpoint.pth')
+    torch.save({
+        'epoch': epoch,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'scheduler_state_dict': lr_scheduler.state_dict(),
+        'best_loss': best_loss,
+    }, last_model_path)
 
     if loss < best_loss:
         best_loss = loss
         patience_counter = 0
         best_model_path = os.path.join(OUT_DIR, 'best.pth')
-        torch.save(model.state_dict(), best_model_path)
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'scheduler_state_dict': lr_scheduler.state_dict(),
+            'best_loss': best_loss,
+        }, best_model_path)
         print(f"Melhor modelo salvo: {best_model_path} com loss {best_loss:.4f}")
     else:
         patience_counter += 1
-
-    if epoch % PATIENCE == 0:
-        last_model_path = os.path.join(OUT_DIR, 'last_checkpoint.pth')
-        torch.save(model.state_dict(), last_model_path)
-        print(f"Modelo salvo: {last_model_path}")
 
     if patience_counter == PATIENCE:
         print("Parando o treinamento por falta de melhoria.")
