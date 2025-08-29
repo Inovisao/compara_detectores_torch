@@ -44,9 +44,17 @@ def xyxy_to_xywh(boxes):
 # Load the trained model
 
 class ResultFaster:
-    def resultFaster(frame,modelName,LIMIAR_THRESHOLD):
+    def resultFaster(frame, modelName, LIMIAR_THRESHOLD):
         model = get_model(NUM_CLASSES)
-        model.load_state_dict(torch.load(modelName))
+
+        # Carregar checkpoint corretamente
+        checkpoint = torch.load(modelName, map_location=DEVICE)
+        if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+            model.load_state_dict(checkpoint["model_state_dict"])
+        else:
+            # compatibilidade com modelos antigos que salvavam só state_dict
+            model.load_state_dict(checkpoint)
+
         model.to(DEVICE)
         model.eval()  # Set the model to evaluation mode
 
@@ -55,15 +63,18 @@ class ResultFaster:
 
         with torch.no_grad():  # Disable gradient computation for inference
             prediction = model(image_tensor)
+
         bbox = prediction[0]['boxes'].cpu().tolist()
         labels = prediction[0]['labels'].cpu().tolist()
         scores = prediction[0]['scores'].cpu().tolist()
+
         faster_box = []
-        for i,box in enumerate(bbox):
+        for i, box in enumerate(bbox):
             if scores[i] > LIMIAR_THRESHOLD:
-                faster_box.append([int(box[0]),int(box[1]),int(box[2]),int(box[3]),int(labels[i]),scores[i]])
-        #box = prediction['box']
+                faster_box.append([
+                    int(box[0]), int(box[1]), int(box[2]), int(box[3]),
+                    int(labels[i]), scores[i]
+                ])
 
         coco_boxes = xyxy_to_xywh(faster_box)
-
         return coco_boxes
