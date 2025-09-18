@@ -14,6 +14,7 @@ import csv
 
 # Importações dos modelos de detecção
 from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
+from Detectors.YOLOV5_TPH.DetectionsYOLOV5TPH import ResultYOLOV5TPH
 from Detectors.FasterRCNN.inference import ResultFaster
 from Detectors.Detr.inference_image_detect import resultDetr
 from Detectors.mminference.inference import runMMdetection
@@ -243,6 +244,8 @@ def generate_results(root, fold, model, model_name, save_imgs):
 
         if model_name == "YOLOV8":
             result = resultYOLO.result(frame, model,LIMIAR_THRESHOLD)
+        elif model_name == "YOLOV5_TPH":
+            result = ResultYOLOV5TPH.result(frame, model, LIMIAR_THRESHOLD)
         elif model_name == "Faster":
             print(image_path)
             result = ResultFaster.resultFaster(frame,model,LIMIAR_THRESHOLD)

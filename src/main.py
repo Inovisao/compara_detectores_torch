@@ -27,6 +27,11 @@ def train_model(model,fold,fold_dir,ROOT_DATA_DIR):
         runFaster(fold,fold_dir,ROOT_DATA_DIR)
         model_path = os.path.join(fold_dir,model,'best.pth')
     
+    elif model == 'YOLOV5_TPH':
+        from Detectors.YOLOV5_TPH.RunYOLOV5TPH import runYOLOV5TPH
+        runYOLOV5TPH(fold, fold_dir, ROOT_DATA_DIR)
+        model_path = os.path.join(fold_dir, model, 'train', 'weights', 'best.pt')
+
     elif model == 'Detr':
         from Detectors.Detr.runDetr import runDetr
         runDetr(fold,fold_dir,ROOT_DATA_DIR)
@@ -38,14 +43,16 @@ def test_model(model,fold_dir):
         model_path = os.path.join(fold_dir,model,'train','weights','best.pt')
     elif model == 'Faster':
         model_path = os.path.join(fold_dir,model,'best.pth')
+    elif model == 'YOLOV5_TPH':
+        model_path = os.path.join(fold_dir, model, 'train', 'weights', 'best.pt')
     elif model == 'Detr':
         model_path = os.path.join(fold_dir,model,'training','best_model.pth')
     else:
         model_path = os.path.join(fold_dir,model,'latest.pth')
     return model_path
 
-# YOLOV8, Faster, Detr
-MODELS = ['Faster', 'YOLOV8'] #Variavel para selecionar os modelos
+# YOLOV8, YOLOV5_TPH, Faster, Detr
+MODELS = ['Faster', 'YOLOV8', 'YOLOV5_TPH'] #Variavel para selecionar os modelos
 
 APENAS_TESTE = False # True para apenas testar modelos treinados False para Treinar e Testar.
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')

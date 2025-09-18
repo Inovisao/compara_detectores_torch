@@ -12,6 +12,8 @@ import argparse
 import funcy
 import os
 import glob
+from copy import deepcopy
+from pathlib import Path
 from sklearn.model_selection import train_test_split
 
 parser = argparse.ArgumentParser(description='Divide o conjunto de anotações para permitir aplicação de validação cruzada em dobras')
@@ -28,9 +30,24 @@ parser.add_argument('--having-annotations', dest='having_annotations', action='s
 args = parser.parse_args()
 
 def save_coco(file, info, licenses, images, annotations, categories):
+    sanitized_images = []
+    for image in images:
+        item = deepcopy(image)
+        file_name = item.get('file_name', '')
+        item['file_name'] = os.path.basename(file_name)
+        sanitized_images.append(item)
+
+    payload = {
+        'info': info,
+        'licenses': licenses,
+        'images': sanitized_images,
+        'annotations': annotations,
+        'categories': categories,
+    }
+
+    Path(file).parent.mkdir(parents=True, exist_ok=True)
     with open(file, 'wt', encoding='UTF-8') as coco:
-        json.dump({ 'info': info, 'licenses': licenses, 'images': images, 
-            'annotations': annotations, 'categories': categories}, coco, indent=2, sort_keys=True)
+        json.dump(payload, coco, indent=2, sort_keys=True)
 
 def filter_annotations(annotations, images):
     image_ids = funcy.lmap(lambda i: int(i['id']), images)
