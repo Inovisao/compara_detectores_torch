@@ -3,18 +3,16 @@ import json
 import numpy as np
 import cv2
 import torch
-import torchmetrics
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 from torchmetrics.regression import MeanAbsoluteError, MeanSquaredError, PearsonCorrCoef
 from torchmetrics.classification import MulticlassPrecision, MulticlassRecall, MulticlassF1Score, MulticlassAccuracy
 from torchmetrics.classification import BinaryPrecision, BinaryRecall, BinaryF1Score, BinaryAccuracy
-import shutil
 import sys
 import csv
 
 # Importações dos modelos de detecção
-from Detectors.YOLOV5_TPH.DetectionsYOLOV5TPH import ResultYOLOV5TPH
 from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
+from Detectors.YOLOV5_TPH.DetectionsYOLOV5TPH import ResultYOLOV5TPH
 from Detectors.FasterRCNN.inference import ResultFaster
 #from Detectors.Detr.inference_image_detect import resultDetr
 from Detectors.mminference.inference import runMMdetection
@@ -257,13 +255,12 @@ def generate_results(root, fold, model, model_name, save_imgs):
         frame = cv2.imread(image_path)
 
         if model_name == "YOLOV8":
-            result = resultYOLO.result(frame, model,LIMIAR_THRESHOLD)
+            result = resultYOLO.result(frame, model, LIMIAR_THRESHOLD)
+        elif model_name == "YOLOV5_TPH":
+            result = ResultYOLOV5TPH.result(frame, model, LIMIAR_THRESHOLD)
         elif model_name == "Faster":
             print(image_path)
-            result = ResultFaster.resultFaster(frame,model,LIMIAR_THRESHOLD)
-        elif model_name == "YOLOV5_TPH":
-            print(image_path)
-            result = ResultYOLOV5TPH.result(frame, model, LIMIAR_THRESHOLD)
+            result = ResultFaster.resultFaster(frame, model, LIMIAR_THRESHOLD)
         elif model_name == "Detr":
             print(image_path)
             #result = resultDetr(fold,frame,LIMIAR_THRESHOLD)
@@ -339,7 +336,9 @@ def create_csv(selected_model, fold, root, model_path, save_imgs):
     """Cria um arquivo CSV com os resultados das métricas."""
     results_path = os.path.join('..', 'results', 'results.csv')
     try:
-        mAP, mAP50, mAP75, MAE, RMSE, precision, recall, fscore, r = generate_results(root, fold, model_path, selected_model, save_imgs)
+        mAP, mAP50, mAP75, MAE, RMSE, precision, recall, fscore, r = generate_results(
+            root, fold, model_path, selected_model, save_imgs
+        )
         file_exists = os.path.isfile(results_path)
         dir_path = os.path.dirname(results_path)
         if not os.path.exists(dir_path):
@@ -347,7 +346,19 @@ def create_csv(selected_model, fold, root, model_path, save_imgs):
         with open(results_path, mode="a", newline="") as file:
             writer = csv.writer(file)
             if not file_exists:
-                writer.writerow(["ml", "fold", "mAP", "mAP50", "mAP75", "MAE", "RMSE", "accuracy", "precision", "recall", "fscore"])
+                writer.writerow([
+                    "ml",
+                    "fold",
+                    "mAP",
+                    "mAP50",
+                    "mAP75",
+                    "MAE",
+                    "RMSE",
+                    "accuracy",
+                    "precision",
+                    "recall",
+                    "fscore",
+                ])
             writer.writerow([selected_model, fold, mAP, mAP50, mAP75, MAE, RMSE, r, precision, recall, fscore])
         print(f"[INFO] Resultados salvos com sucesso em {results_path}")
     except Exception as e:

@@ -12,8 +12,6 @@ def _resolve_output_dir() -> Path:
     project_root = Path(__file__).resolve().parents[3]
     project_name = os.getenv("TPH_PROJECT", "YOLOV5_TPH")
     return project_root / project_name
-
-
 def runYOLOV5TPH(fold, fold_dir, ROOT_DATA_DIR):
     CriarLabelsYOLOV5TPH(fold)
     treino = os.path.join('Detectors', 'YOLOV5_TPH', 'TreinoYOLOV5TPH.sh')
@@ -22,9 +20,12 @@ def runYOLOV5TPH(fold, fold_dir, ROOT_DATA_DIR):
     if target_dir.exists():
         shutil.rmtree(target_dir)
 
+    output_dir = _resolve_output_dir()
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
+
     subprocess.run([treino], check=True)
 
-    output_dir = _resolve_output_dir()
     if not output_dir.exists():
         raise FileNotFoundError(
             f"YOLOV5_TPH training output not found at {output_dir}. Ensure training succeeded."

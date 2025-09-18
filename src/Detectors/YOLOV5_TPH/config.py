@@ -36,7 +36,7 @@ DATA_YAML = PROJECT_ROOT / "dataset" / "all" / "data_yolov5_tph.yaml"
 
 
 # Hyperparâmetros e opções de treino configuráveis
-CFG = _env_override("TPH_CFG", "yolov5s.yaml")
+CFG = _env_override("TPH_CFG", "models/tph/yolov5s.yaml")
 IMG_SIZE = _env_override("TPH_IMG", 640)
 EPOCHS = _env_override("TPH_EPOCHS", 10)
 PATIENCE = _env_override("TPH_PATIENCE", 3)
@@ -54,8 +54,6 @@ WEIGHTS_PATH = os.getenv("TPH_PRETRAINED")
 DEVICE = os.getenv("TPH_DEVICE")
 RUN_NAME = os.getenv("TPH_RUN_NAME", "train")
 DEFAULT_HYP = REPO_DIR / "data" / "hyps" / "hyp.scratch.yaml"
-
-
 def _ensure_prerequisites() -> None:
     if not REPO_DIR.exists():
         raise FileNotFoundError(
@@ -86,7 +84,6 @@ def treino():
         with open(path, "w", encoding="utf-8") as f:
             yaml.safe_dump(hyperparams, f, sort_keys=False)
         hyp_file = Path(path)
-
     command = [
         sys.executable,
         str(REPO_DIR / "train.py"),
@@ -134,4 +131,5 @@ def treino():
     subprocess.run(command, cwd=REPO_DIR, check=True, env=env)
 
 
+treino()
 treino()

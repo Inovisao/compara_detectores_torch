@@ -94,6 +94,31 @@ src/Detectors/
 ```
 Altere os parâmetros do modelo no arquivo `config.py`.
 
+#### YOLOv5 TPH
+```
+src/Detectors/
+└── YOLOV5_TPH
+    ├── DetectionsYOLOV5TPH.py
+    ├── GeraLabels.py
+    ├── RunYOLOV5TPH.py
+    ├── TreinoYOLOV5TPH.sh
+    └── config.py
+```
+Passos adicionais:
+
+1. Clone o repositório [cv516Buaa/tph-yolov5](https://github.com/cv516Buaa/tph-yolov5) dentro de `src/Detectors/YOLOV5_TPH/`:
+   ```sh
+   cd src/Detectors/YOLOV5_TPH
+   git clone https://github.com/cv516Buaa/tph-yolov5.git
+   ```
+2. Ajuste hiperparâmetros via variáveis de ambiente antes de executar o treinamento (opcional):
+   - `TPH_IMG` (padrão: 640)
+   - `TPH_BATCH` (padrão: 4)
+   - `TPH_EPOCHS` (padrão: 300)
+   - `TPH_CFG` (padrão: `models/tph/yolov5s.yaml`)
+   - `TPH_HYP`, `TPH_PRETRAINED`, `TPH_DEVICE`
+3. Durante o pipeline, o script `RunYOLOV5TPH.py` gera as labels, chama `TreinoYOLOV5TPH.sh` (que executa `config.py`) e move os pesos para `model_checkpoints/fold_k/YOLOV5_TPH/`.
+
 #### FasterRCNN
 ```
 src/Detectors/FasterRCNN
@@ -112,7 +137,7 @@ optimizer = torch.optim.SGD(params, lr=LR, momentum=0.9, weight_decay=0.0005)
 ### 3. Executando o Treinamento
 No arquivo `main.py`, edite a variável `MODELS` para selecionar os modelos desejados:
 ```python
-MODELS = ['YOLOV8', 'FasterRCNN']
+MODELS = ['YOLOV8', 'FasterRCNN', 'YOLOV5_TPH']
 ```
 
 Agora, execute o treinamento:
@@ -160,5 +185,3 @@ Em todas as pastas das redes há três arquivos principais: `config.py`, `GeraLa
 ### 3. Verificação de Dependências
 
 Antes de rodar um novo modelo, é essencial verificar se todas as dependências necessárias estão instaladas e compatíveis com os modelos já existentes. Certifique-se de que bibliotecas como `torch`, `numpy`, `opencv`, entre outras, estejam na versão correta para evitar conflitos entre os modelos.
-
-
