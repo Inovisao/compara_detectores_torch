@@ -22,6 +22,8 @@ def convert_coco_to_voc(fold):
             Classe.append(category["name"],)
     caminho_arquivo_yaml = os.path.join(ROOT_DATA_DIR, 'dataDetr.yaml')
     
+##
+
     # Carregue o conteúdo do arquivo YAML
     with open(caminho_arquivo_yaml, 'r') as arquivo:
         conteudo = yaml.safe_load(arquivo)

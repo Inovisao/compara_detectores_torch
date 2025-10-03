@@ -10,6 +10,6 @@ def runDetr(fold,fold_dir,ROOT_DATA_DIR):
         os.makedirs(fold_dir)
     convert_coco_to_voc(fold)
     treino = os.path.join('Detectors','Detr','TreinoDetr.sh')
-    subprocess.run([treino]) # Roda o bash para treino
+    subprocess.run([treino], check=True) # Roda o bash para treino e interrompe em caso de falha
     os.rename("./Detr", os.path.join(fold_dir,"Detr"))
     shutil.rmtree(os.path.join(ROOT_DATA_DIR,'detr'))

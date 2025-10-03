@@ -3,7 +3,6 @@ import numpy as np
 from ResultsDetections import create_csv, print_to_file
 from ResultsDetectionsbyclass import generate_results
 import shutil
-import time
 # Remove todos os resultados presentes dos outros treinamentos
 def resetar_pasta(caminho):
     shutil.rmtree(caminho, ignore_errors=True)  # Remove a pasta inteira
@@ -28,6 +27,11 @@ def train_model(model,fold,fold_dir,ROOT_DATA_DIR):
         runFaster(fold,fold_dir,ROOT_DATA_DIR)
         model_path = os.path.join(fold_dir,model,'best.pth')
     
+    elif model == 'YOLOV5_TPH':
+        from Detectors.YOLOV5_TPH.RunYOLOV5TPH import runYOLOV5TPH
+        runYOLOV5TPH(fold, fold_dir, ROOT_DATA_DIR)
+        model_path = os.path.join(fold_dir, model, 'train', 'weights', 'best.pt')
+
     elif model == 'Detr':
         from Detectors.Detr.runDetr import runDetr
         runDetr(fold,fold_dir,ROOT_DATA_DIR)
@@ -39,20 +43,21 @@ def test_model(model,fold_dir):
         model_path = os.path.join(fold_dir,model,'train','weights','best.pt')
     elif model == 'Faster':
         model_path = os.path.join(fold_dir,model,'best.pth')
+    elif model == 'YOLOV5_TPH':
+        model_path = os.path.join(fold_dir, model, 'train', 'weights', 'best.pt')
     elif model == 'Detr':
         model_path = os.path.join(fold_dir,model,'training','best_model.pth')
     else:
         model_path = os.path.join(fold_dir,model,'latest.pth')
     return model_path
 
-# YOLOV8, Faster, Detr
-MODELS = ['YOLOV8'] #Variavel para selecionar os modelos
+# YOLOV8, YOLOV5_TPH, Faster, Detr
+MODELS = ['Faster', 'YOLOV8', 'YOLOV5_TPH'] #Variavel para selecionar os modelos
 
 APENAS_TESTE = False # True para apenas testar modelos treinados False para Treinar e Testar.
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
 DOBRAS = int(len(os.listdir(DIR_PATH))/3)
-print(f"Total de Dobra: {DOBRAS}")
 GeraRult = True # True para gerar Resultados False para não gerar
 save_imgs = True # True para salvar imagens em predictes False para não salvar
 GeraResultByClass = False # True para Salvar Resultados Por classes
@@ -72,7 +77,6 @@ if GeraResultByClass:
 
 # Loop Para o selecionar o Modelo
 for model in MODELS:
-    inicio = time.time()
     # Loop Para Treinar o Modelo na referente a Dobra
     for f in np.arange(1,DOBRAS+1):
         fold = 'fold_'+str(f) # Selecione a Pasta referente a dobra
@@ -88,5 +92,3 @@ for model in MODELS:
             create_csv(root=ROOT_DATA_DIR,fold=fold,selected_model=model,model_path=model_path,save_imgs=save_imgs)
         if GeraResultByClass:
             generate_results(root=ROOT_DATA_DIR,fold=fold,model=model_path,model_name=model,save_imgs=save_imgs)
-    fim = time.time()
-    print(f"Tempo de execução: {fim - inicio:.4f} segundos do modelo{model}")

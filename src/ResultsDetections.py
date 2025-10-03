@@ -13,6 +13,7 @@ import sys
 import csv
 
 # Importações dos modelos de detecção
+from Detectors.YOLOV5_TPH.DetectionsYOLOV5TPH import ResultYOLOV5TPH
 from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
 from Detectors.FasterRCNN.inference import ResultFaster
 from Detectors.Detr.inference_image_detect import resultDetr
@@ -260,6 +261,9 @@ def generate_results(root, fold, model, model_name, save_imgs):
         elif model_name == "Faster":
             print(image_path)
             result = ResultFaster.resultFaster(frame,model,LIMIAR_THRESHOLD)
+        elif model_name == "YOLOV5_TPH":
+            print(image_path)
+            result = ResultYOLOV5TPH.result(frame, model, LIMIAR_THRESHOLD)
         elif model_name == "Detr":
             print(image_path)
             result = resultDetr(fold,frame,LIMIAR_THRESHOLD)
