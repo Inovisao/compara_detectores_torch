@@ -52,8 +52,7 @@ def test_model(model,fold_dir):
     return model_path
 
 # YOLOV8, YOLOV5_TPH, Faster, Detr
-MODELS = ['Faster', 'YOLOV8', 'YOLOV5_TPH'] #Variavel para selecionar os modelos
-
+MODELS = ['YOLOV5_TPH', 'Detr'] 
 APENAS_TESTE = False # True para apenas testar modelos treinados False para Treinar e Testar.
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
