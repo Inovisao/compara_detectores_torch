@@ -3,7 +3,7 @@ import json
 import os
 BATCH_SIZE = 8 # lote de imagens
 RESIZE_TO = 640 # tamanho da imagem
-NUM_EPOCHS = 30 # Numero de epocas
+NUM_EPOCHS = 5 # Numero de epocas
 NUM_WORKERS = 5 # Numero de workers
 LR = 0.0001 # Taxa de aprendizagem
 DATA_PATH = os.path.join('..','dataset','all','dataDetr.yaml')

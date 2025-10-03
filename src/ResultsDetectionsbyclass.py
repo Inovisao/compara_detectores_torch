@@ -15,7 +15,7 @@ import csv
 # Importações dos modelos de detecção
 from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
 from Detectors.FasterRCNN.inference import ResultFaster
-from Detectors.Detr.inference_image_detect import resultDetr
+#from Detectors.Detr.inference_image_detect import resultDetr
 from Detectors.mminference.inference import runMMdetection
 # Constantes
 LIMIAR_THRESHOLD = 0.50
@@ -257,7 +257,7 @@ def generate_results(root, fold, model, model_name, save_imgs):
             result = ResultFaster.resultFaster(frame,model,LIMIAR_THRESHOLD)
         elif model_name == "Detr":
             print(image_path)
-            result =   resultDetr(fold,frame,LIMIAR_THRESHOLD)
+            #result =   resultDetr(fold,frame,LIMIAR_THRESHOLD)
         else:
             print(image_path)
             result = runMMdetection(model,frame,LIMIAR_THRESHOLD)

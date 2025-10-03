@@ -16,7 +16,7 @@ import csv
 from Detectors.YOLOV5_TPH.DetectionsYOLOV5TPH import ResultYOLOV5TPH
 from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
 from Detectors.FasterRCNN.inference import ResultFaster
-from Detectors.Detr.inference_image_detect import resultDetr
+#from Detectors.Detr.inference_image_detect import resultDetr
 from Detectors.mminference.inference import runMMdetection
 
 # Constantes
@@ -266,7 +266,7 @@ def generate_results(root, fold, model, model_name, save_imgs):
             result = ResultYOLOV5TPH.result(frame, model, LIMIAR_THRESHOLD)
         elif model_name == "Detr":
             print(image_path)
-            result = resultDetr(fold,frame,LIMIAR_THRESHOLD)
+            #result = resultDetr(fold,frame,LIMIAR_THRESHOLD)
         else:
             print(image_path)
             result = runMMdetection(model,frame,LIMIAR_THRESHOLD)
@@ -337,9 +337,9 @@ def generate_results(root, fold, model, model_name, save_imgs):
 
 def create_csv(selected_model, fold, root, model_path, save_imgs):
     """Cria um arquivo CSV com os resultados das métricas."""
+    results_path = os.path.join('..', 'results', 'results.csv')
     try:
         mAP, mAP50, mAP75, MAE, RMSE, precision, recall, fscore, r = generate_results(root, fold, model_path, selected_model, save_imgs)
-        results_path = os.path.join('..', 'results', 'results.csv')
         file_exists = os.path.isfile(results_path)
         dir_path = os.path.dirname(results_path)
         if not os.path.exists(dir_path):
