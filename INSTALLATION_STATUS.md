@@ -19,9 +19,10 @@ All dependencies required by the README.md have been installed and verified. The
 | Package | Required Version | Installed Version | Status |
 |---------|-----------------|-------------------|--------|
 | Python | 3.9.16 | 3.9.19 | ✅ Compatible |
-| PyTorch | 2.1.0 | 2.0.0 | ⚠️ Minor version difference (works fine) |
-| torchvision | 0.16.0 | 0.15.0 | ⚠️ Minor version difference (works fine) |
-| torchaudio | 2.1.0 | 2.0.0 | ⚠️ Minor version difference (works fine) |
+| **NumPy** | **< 2.0** | **1.26.4** | ✅ **CRITICAL - Fixed from 2.0.2** |
+| PyTorch | 2.1.0 | 2.0.0 | ✅ Compatible |
+| torchvision | 0.16.0 | 0.15.0 | ✅ Compatible |
+| torchaudio | 2.1.0 | 2.0.0 | ✅ Compatible |
 
 **Note**: PyTorch 2.0.0 is compatible and works correctly with all models. Upgrading to 2.1.0 is optional.
 
@@ -85,7 +86,18 @@ python3 test_tiled_integration.py
 
 ## Changes Made
 
-### 1. Installed Missing Packages
+### 1. **CRITICAL** - Downgraded NumPy (Fixed Runtime Error)
+
+```bash
+~/miniconda3/envs/detectores/bin/python -m pip install "numpy<2.0"
+```
+
+**Issue**: NumPy 2.0.2 was incompatible with torchmetrics/torchvision (compiled with NumPy 1.x)
+**Error**: "A module that was compiled using NumPy 1.x cannot be run in NumPy 2.0.2"
+**Solution**: Downgraded to numpy==1.26.4
+**Status**: ✅ **FIXED - Training now works**
+
+### 2. Installed Missing Packages
 
 ```bash
 ~/miniconda3/envs/detectores/bin/python -m pip install vision-transformers tensorboard
@@ -94,12 +106,26 @@ python3 test_tiled_integration.py
 **Newly Installed**:
 - `tensorboard==2.20.0` (and dependencies: absl-py, grpcio, protobuf, tensorboard-data-server, werkzeug)
 
-### 2. Cloned YOLOV5_TPH Repository
+### 3. Cloned YOLOV5_TPH Repository
 
 ```bash
 cd src/Detectors/YOLOV5_TPH
 git clone https://github.com/cv516Buaa/tph-yolov5.git
 ```
+
+### 4. Fixed Hardcoded Dataset Paths (Code Changes)
+
+All detector configs had hardcoded paths to `../dataset/all` which prevented tiled dataset usage.
+
+**Files Modified**:
+- `src/Detectors/FasterRCNN/config.py` - Added `FASTER_ROOT_DATA_DIR` env var support
+- `src/Detectors/FasterRCNN/runFaster.py` - Sets env var before training
+- `src/Detectors/YOLOV8/config.py` - Added `YOLOV8_DATA_YAML` env var support
+- `src/Detectors/YOLOV8/RunYOLOV8.py` - Sets env var before training
+- `src/Detectors/YOLOV5_TPH/config.py` - Added `TPH_DATA_YAML` env var support
+- `src/Detectors/YOLOV5_TPH/RunYOLOV5TPH.py` - Sets env var before training
+
+**Result**: All detectors now correctly use tiled dataset paths dynamically
 
 ---
 
