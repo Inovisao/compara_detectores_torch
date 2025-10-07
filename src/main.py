@@ -52,7 +52,8 @@ def test_model(model,fold_dir):
     return model_path
 
 # YOLOV8, YOLOV5_TPH, Faster, Detr
-DEFAULT_MODELS = ['Faster', 'YOLOV5_TPH', 'YOLOV8']
+# DEFAULT_MODELS = ['Faster', 'YOLOV5_TPH', 'YOLOV8']
+DEFAULT_MODELS = ['YOLOV5_TPH', 'YOLOV8']
 
 
 def _get_models_to_run():

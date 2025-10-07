@@ -9,7 +9,10 @@ LR = 0.0001 # Taxa de aprendizagem
 PATIENCE = 50
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-ROOT_DATA_DIR = os.path.join('..','dataset','all')
+
+# Support dynamic ROOT_DATA_DIR from environment variable (for tiled datasets)
+# Falls back to default path if not set
+ROOT_DATA_DIR = os.getenv('FASTER_ROOT_DATA_DIR', os.path.join('..','dataset','all'))
 
 TRAIN_DIR = os.path.join(ROOT_DATA_DIR,'Faster','train')
 

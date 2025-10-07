@@ -5,6 +5,10 @@ import subprocess
 
 def runFaster(fold,fold_dir,ROOT_DATA_DIR):
     geredata(fold, ROOT_DATA_DIR) # Função para cirar as labels do treino da YOLOV8
+
+    # Set environment variable for config.py to use correct ROOT_DATA_DIR
+    os.environ['FASTER_ROOT_DATA_DIR'] = ROOT_DATA_DIR
+
     treino = os.path.join('Detectors', 'FasterRCNN', 'TreinoFaster.sh') 
     # Remove se over Resultados na pasta model_checkpoints
     if os.path.exists(os.path.join(fold_dir, 'Faster')):  

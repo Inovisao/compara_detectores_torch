@@ -32,7 +32,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 REPO_DIR = Path(__file__).resolve().parent / "tph-yolov5"
 PROJECT_NAME = os.getenv("TPH_PROJECT", "YOLOV5_TPH")
 OUTPUT_PROJECT = PROJECT_ROOT / PROJECT_NAME
-DATA_YAML = PROJECT_ROOT / "dataset" / "all" / "data_yolov5_tph.yaml"
+
+# Support dynamic DATA_YAML path for tiled datasets
+DATA_YAML_STR = os.getenv("TPH_DATA_YAML")
+if DATA_YAML_STR:
+    DATA_YAML = Path(DATA_YAML_STR)
+else:
+    DATA_YAML = PROJECT_ROOT / "dataset" / "all" / "data_yolov5_tph.yaml"
 
 
 # Hyperparâmetros e opções de treino configuráveis

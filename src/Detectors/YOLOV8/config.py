@@ -35,8 +35,11 @@ def _env_bool(name: str, default: bool) -> bool:
 
 # Função para Rodar o Treino da YOLOV8
 def treino():
+    # Support dynamic data.yaml path for tiled datasets
+    data_yaml = os.getenv('YOLOV8_DATA_YAML', '../dataset/all/data.yaml')
+
     model.train(
-        data='../dataset/all/data.yaml',
+        data=data_yaml,
         epochs=_env_int('YOLOV8_EPOCHS', 1000),  # Epocas que o Modelo ira Rodar
         imgsz=_env_int('YOLOV8_IMGSZ', 640),  # Dimeção das imagens
         patience=_env_int('YOLOV8_PATIENCE', 100),  # paciencia para o modelo parar o treinamento geral mente se usa 10% das epocas
@@ -49,7 +52,7 @@ def treino():
         cos_lr=_env_bool('YOLOV8_COS_LR', True),
         lr0=_env_float('YOLOV8_LR0', 0.0001),  # Taxa De Aprendizado Inicial
         lrf=_env_float('YOLOV8_LRF', 0.001),  # Taxa de Aprendizado Final
-        plots=_env_bool('YOLOV8_PLOTS', True),  # Usado para salvar os dados do treinamento para salver = True
+        plots=_env_bool('YOLOV9_PLOTS', True),  # Usado para salvar os dados do treinamento para salver = True
     )
 
 

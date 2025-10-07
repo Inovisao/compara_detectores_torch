@@ -12,9 +12,9 @@ results
 *.pt
 Faster
 *.pdf
-# eng_co.md removed from ignore to allow committing documentation updates
-# eng_co.md
+
 eng_cl.md
 eng_co.md
 .claude/
 create_dataset/
+todo_list.md

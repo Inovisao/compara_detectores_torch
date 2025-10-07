@@ -14,6 +14,11 @@ def _resolve_output_dir() -> Path:
     return project_root / project_name
 def runYOLOV5TPH(fold, fold_dir, ROOT_DATA_DIR):
     CriarLabelsYOLOV5TPH(fold, ROOT_DATA_DIR)
+
+    # Set environment variable for config.py to use correct data.yaml path
+    data_yaml_path = os.path.join(ROOT_DATA_DIR, 'data_yolov5_tph.yaml')
+    os.environ['TPH_DATA_YAML'] = data_yaml_path
+
     treino = os.path.join('Detectors', 'YOLOV5_TPH', 'TreinoYOLOV5TPH.sh')
 
     target_dir = Path(fold_dir) / 'YOLOV5_TPH'
