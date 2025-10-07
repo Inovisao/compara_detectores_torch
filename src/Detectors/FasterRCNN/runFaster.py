@@ -4,7 +4,7 @@ import shutil
 import subprocess
 
 def runFaster(fold,fold_dir,ROOT_DATA_DIR):
-    geredata(fold) # Função para cirar as labels do treino da YOLOV8
+    geredata(fold, ROOT_DATA_DIR) # Função para cirar as labels do treino da YOLOV8
     treino = os.path.join('Detectors', 'FasterRCNN', 'TreinoFaster.sh') 
     # Remove se over Resultados na pasta model_checkpoints
     if os.path.exists(os.path.join(fold_dir, 'Faster')):  

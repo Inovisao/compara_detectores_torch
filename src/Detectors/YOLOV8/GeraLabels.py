@@ -5,11 +5,28 @@ import yaml
 
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 
+def _get_use_tiled_dataset():
+    """Check if tiled dataset mode is enabled"""
+    return os.getenv('USE_TILED_DATASET', 'true').lower() == 'true'
 
 # Função para criar o dataset para treinamento da YOLOV8
-def CriarLabelsYOLOV8(fold):
+def CriarLabelsYOLOV8(fold, root_data_dir=None):
+    # Use provided root_data_dir or fall back to default
+    if root_data_dir is None:
+        root_data_dir = ROOT_DATA_DIR
+
+    use_tiled = _get_use_tiled_dataset()
+
+    # Determine where to read categories from
+    if use_tiled:
+        # For tiled datasets, read from train split annotations
+        annotations_file = os.path.join(root_data_dir, 'train', '_annotations.coco.json')
+    else:
+        # For original dataset, read from train folder
+        annotations_file = os.path.join(root_data_dir, 'train', '_annotations.coco.json')
+
     # Abre o arquivo Json onde temos as anotações de cada imagem
-    with open(os.path.join(ROOT_DATA_DIR, 'train', '_annotations.coco.json'), 'r') as f:
+    with open(annotations_file, 'r') as f:
         data = json.load(f)
     
     ann_ids = []
@@ -20,11 +37,23 @@ def CriarLabelsYOLOV8(fold):
     for category in data["categories"]:
         if category["id"] in ann_ids:
             Classe.append(category["name"],)
-    caminho_arquivo_yaml = os.path.join(ROOT_DATA_DIR, 'data.yaml')
-    
-    # Carregue o conteúdo do arquivo YAML
-    with open(caminho_arquivo_yaml, 'r') as arquivo:
-        conteudo = yaml.safe_load(arquivo)
+
+    caminho_arquivo_yaml = os.path.join(root_data_dir, 'data.yaml')
+
+    # For tiled datasets, we need to create data.yaml if it doesn't exist
+    if not os.path.exists(caminho_arquivo_yaml):
+        # Create a new data.yaml
+        conteudo = {
+            'train': os.path.join(root_data_dir, 'YOLO', 'train', 'images'),
+            'val': os.path.join(root_data_dir, 'YOLO', 'valid', 'images'),
+            'test': os.path.join(root_data_dir, 'YOLO', 'test', 'images'),
+            'nc': 0,  # Will be updated below
+            'names': []  # Will be updated below
+        }
+    else:
+        # Carregue o conteúdo do arquivo YAML
+        with open(caminho_arquivo_yaml, 'r') as arquivo:
+            conteudo = yaml.safe_load(arquivo)
 
     # Altere o conteúdo conforme necessário
     conteudo['nc'] = len(Classe)
@@ -34,27 +63,46 @@ def CriarLabelsYOLOV8(fold):
     with open(caminho_arquivo_yaml, 'w') as arquivo:
         yaml.dump(conteudo, arquivo)
 
-    if os.path.exists(os.path.join(ROOT_DATA_DIR,'YOLO')):
-        shutil.rmtree(os.path.join(ROOT_DATA_DIR, 'YOLO'))
+    yolo_output_dir = os.path.join(root_data_dir,'YOLO')
+    if os.path.exists(yolo_output_dir):
+        shutil.rmtree(yolo_output_dir)
 
     for c1 in ['train', 'test', 'valid']:
         for c2 in ['labels', 'images']:
-            os.makedirs(os.path.join(ROOT_DATA_DIR, 'YOLO', c1, c2), exist_ok=True)
+            os.makedirs(os.path.join(yolo_output_dir, c1, c2), exist_ok=True)
 
-    caminhos = (os.listdir(os.path.join(ROOT_DATA_DIR,'filesJSON')))
-    foldsUsadas = []
-    #Pega o caminho do arquivo coco que esta sendo usada
-    for caminho in caminhos:
+    # Handle both tiled and original dataset structures
+    if use_tiled:
+        # For tiled datasets, read directly from train/val/test folders
+        foldsUsadas = []
+        for split in ['train', 'val', 'test']:
+            split_dir = os.path.join(root_data_dir, split)
+            annotations_path = os.path.join(split_dir, '_annotations.coco.json')
+            if os.path.exists(annotations_path):
+                foldsUsadas.append((split, annotations_path))
+    else:
+        # Original logic: read from filesJSON
+        caminhos = (os.listdir(os.path.join(root_data_dir,'filesJSON')))
+        foldsUsadas = []
+        #Pega o caminho do arquivo coco que esta sendo usada
+        for caminho in caminhos:
+            fold_check = caminho.split("_")[0] + "_" +caminho.split("_")[1]
+            if str(fold_check) == str(fold):
+                foldsUsadas.append(caminho)
 
-        fold_check = caminho.split("_")[0] + "_" +caminho.split("_")[1]
+    for item in foldsUsadas:
+        if use_tiled:
+            # item is (split_name, annotations_path)
+            split_name, caminho = item
+            source_split = split_name  # Original split name for image source
+            path = split_name  # Will be converted to 'valid' if needed for YOLO format
+        else:
+            # item is a filename string
+            Caminho = item
+            path = Caminho.split('_')[-1][0:-5]
+            source_split = None  # Not used for non-tiled
+            caminho = os.path.join(root_data_dir,'filesJSON',Caminho)
 
-        if str(fold_check) == str(fold):
-            foldsUsadas.append(caminho)
-
-    for Caminho in foldsUsadas:
-        path = Caminho.split('_')[-1][0:-5]
-
-        caminho = os.path.join(ROOT_DATA_DIR,'filesJSON',Caminho)
         # Lendo o arquivo JSON
         with open(caminho, 'r') as f:
             anotacaoDobras = json.load(f)
@@ -104,15 +152,22 @@ def CriarLabelsYOLOV8(fold):
                 height = abs(anotacao[id][i][3])
                 linhas.append(str(abs(idAnotcao[id][i]))+' '+str(x_center/640)+' '+str(y_center/640)+' '+str(width/640)+' '+str(height/640)+"\n")
 
-            image = os.path.join(ROOT_DATA_DIR,'train',NameFile[slectImage])
+            # Determine source image location
+            if use_tiled:
+                # Images are in the same directory as annotations (use source_split which hasn't been converted yet)
+                image = os.path.join(root_data_dir, source_split, NameFile[slectImage])
+            else:
+                # Images are in the train folder
+                image = os.path.join(root_data_dir,'train',NameFile[slectImage])
+
             arq = NameFile[slectImage][0:-4]+'.txt'
             with open(arq, 'w') as arquivo:
             # Escrevendo múltiplas linhas no arquivo
                 arquivo.writelines(linhas)
             slectImage+=1
-            
-            if path == 'val':
-                path = 'valid'
 
-            shutil.move(arq, os.path.join(ROOT_DATA_DIR,'YOLO', path, 'labels'))
-            shutil.copy(image, os.path.join(ROOT_DATA_DIR,'YOLO', path, 'images'))
+            # Convert 'val' to 'valid' for YOLO directory naming convention
+            output_path = 'valid' if path == 'val' else path
+
+            shutil.move(arq, os.path.join(yolo_output_dir, output_path, 'labels'))
+            shutil.copy(image, os.path.join(yolo_output_dir, output_path, 'images'))

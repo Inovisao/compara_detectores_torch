@@ -7,7 +7,7 @@ import shutil
 def runYOLOV8(fold,fold_dir,ROOT_DATA_DIR):
 
     Settings()
-    CriarLabelsYOLOV8(fold) # Função para criar as labels do treino da YOLOV8
+    CriarLabelsYOLOV8(fold, ROOT_DATA_DIR) # Função para criar as labels do treino da YOLOV8
     treino = os.path.join('Detectors', 'YOLOV8', 'TreinoYOLOV8.sh') # 'Detectors/YOLOV8/TreinoYOLOV8.sh'
     # Remove se over Resultados na pasta model_checkpoints
     if os.path.exists(os.path.join(fold_dir, 'YOLOV8')):  

@@ -13,7 +13,7 @@ def _resolve_output_dir() -> Path:
     project_name = os.getenv("TPH_PROJECT", "YOLOV5_TPH")
     return project_root / project_name
 def runYOLOV5TPH(fold, fold_dir, ROOT_DATA_DIR):
-    CriarLabelsYOLOV5TPH(fold)
+    CriarLabelsYOLOV5TPH(fold, ROOT_DATA_DIR)
     treino = os.path.join('Detectors', 'YOLOV5_TPH', 'TreinoYOLOV5TPH.sh')
 
     target_dir = Path(fold_dir) / 'YOLOV5_TPH'
