@@ -1,8 +1,20 @@
 import os
-import numpy as np
-from ResultsDetections import create_csv, print_to_file
-from ResultsDetectionsbyclass import generate_results
+from pathlib import Path
+from ResultsDetections import create_csv, print_to_file, RESULTS_CSV_PATH, COUNTING_CSV_PATH, RESULTS_PATH
+from ResultsDetectionsbyclass import generate_results, RESULTS_BY_CLASS_CSV_PATH
 import shutil
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DATASET_PATH = PROJECT_ROOT / "dataset" / "tiles"
+
+
+def clear_dataset_cache(base_path: Path) -> None:
+    for cache_file in base_path.rglob("*.cache"):
+        try:
+            cache_file.unlink()
+        except OSError:
+            pass
+
 # Remove todos os resultados presentes dos outros treinamentos
 def resetar_pasta(caminho):
     shutil.rmtree(caminho, ignore_errors=True)  # Remove a pasta inteira
@@ -52,42 +64,81 @@ def test_model(model,fold_dir):
     return model_path
 
 # YOLOV8, YOLOV5_TPH, Faster, Detr
-MODELS = ['YOLOV5_TPH', 'YOLOV8'] 
+# DEFAULT_MODELS = ['Faster', 'YOLOV5_TPH', 'YOLOV8']
+DEFAULT_MODELS = ['Faster', 'YOLOV5_TPH', 'YOLOV8']
+
+
+def _get_models_to_run():
+    raw = os.getenv('MODELS_TO_RUN')
+    if not raw:
+        return DEFAULT_MODELS
+    parsed = [model.strip() for model in raw.split(',') if model.strip()]
+    return parsed if parsed else DEFAULT_MODELS
+
+
+MODELS = _get_models_to_run()
 APENAS_TESTE = False # True para apenas testar modelos treinados False para Treinar e Testar.
-ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
-DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
-DOBRAS = int(len(os.listdir(DIR_PATH))/3)
+
+# Tiled dataset configuration
+USE_TILED_DATASET = os.getenv('USE_TILED_DATASET', 'true').lower() == 'true'
+
+if USE_TILED_DATASET:
+    if not DATASET_PATH.exists():
+        raise FileNotFoundError(f"Tiled dataset directory not found: {DATASET_PATH}")
+    clear_dataset_cache(DATASET_PATH)
+    fold_dirs = sorted(
+        d.name for d in DATASET_PATH.iterdir()
+        if d.is_dir() and d.name.startswith('fold_')
+    )
+    if not fold_dirs:
+        raise FileNotFoundError(f"No folds found inside tiled dataset directory: {DATASET_PATH}")
+    DOBRAS = len(fold_dirs)
+    tiles_root = str(DATASET_PATH)
+    ROOT_DATA_DIR = None  # Will be set per fold
+    FOLD_NAMES = fold_dirs
+else:
+    ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
+    DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
+    DOBRAS = int(len(os.listdir(DIR_PATH))/3)
+    FOLD_NAMES = [f'fold_{i}' for i in range(1, DOBRAS + 1)]
 GeraRult = True # True para gerar Resultados False para não gerar
 save_imgs = True # True para salvar imagens em predictes False para não salvar
 GeraResultByClass = False # True para Salvar Resultados Por classes
 CONTINUE = False # True para Continuar sem apagar os pesos ja treinados
-resetar_pasta(os.path.join("..","results","prediction"))
+resetar_pasta(str(RESULTS_PATH))
 
 if GeraRult:
-    if not os.path.exists('../results'):
-        os.makedirs('../results')
-    print_to_file('ml,fold,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore','../results/results.csv','w')
-    print_to_file('ml,fold,groundtruth,predicted,TP,FP,dif,fileName','../results/counting.csv','w')# Inicia o arquivo de Results
+    RESULTS_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
+    print_to_file('ml,fold,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore', RESULTS_CSV_PATH, 'w')
+    print_to_file('ml,fold,groundtruth,predicted,TP,FP,dif,fileName', COUNTING_CSV_PATH, 'w')# Inicia o arquivo de Results
 
 if GeraResultByClass:
-    if not os.path.exists('../results'):
-        os.makedirs('../results')
-    print_to_file('ml,fold,classes,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore','../results/resultsbyclass.csv','w')
+    RESULTS_BY_CLASS_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
+    print_to_file('ml,fold,classes,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore', RESULTS_BY_CLASS_CSV_PATH, 'w')
 
 # Loop Para o selecionar o Modelo
 for model in MODELS:
     # Loop Para Treinar o Modelo na referente a Dobra
-    for f in np.arange(1,DOBRAS+1):
-        fold = 'fold_'+str(f) # Selecione a Pasta referente a dobra
+    for fold in FOLD_NAMES:
         fold_dir = os.path.join('model_checkpoints', fold)
+
+        # Set ROOT_DATA_DIR for this fold if using tiled datasets
+        if USE_TILED_DATASET:
+            current_root = os.path.join(tiles_root, fold)
+            if not os.path.exists(current_root):
+                print(f"Warning: Tiled dataset not found for {fold} at {current_root}, skipping...")
+                continue
+        else:
+            current_root = ROOT_DATA_DIR
+
         if not APENAS_TESTE:
-            model_path = train_model(model,fold,fold_dir,ROOT_DATA_DIR)
+            model_path = train_model(model,fold,fold_dir,current_root)
             if model_path == None:
                 continue
         else:
             model_path =  test_model(model,fold_dir)
 
         if GeraRult:
-            create_csv(root=ROOT_DATA_DIR,fold=fold,selected_model=model,model_path=model_path,save_imgs=save_imgs)
+            create_csv(root=current_root,fold=fold,selected_model=model,model_path=model_path,save_imgs=save_imgs)
         if GeraResultByClass:
-            generate_results(root=ROOT_DATA_DIR,fold=fold,model=model_path,model_name=model,save_imgs=save_imgs)
+            generate_results(root=current_root,fold=fold,model=model_path,model_name=model,save_imgs=save_imgs)

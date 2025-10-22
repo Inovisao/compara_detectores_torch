@@ -1,25 +1,68 @@
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
 from ultralytics import YOLO
 
-#https://docs.ultralytics.com/pt/modes/train/#resuming-interrupted-trainings Link para os parametros de treiono
+# https://docs.ultralytics.com/pt/modes/train/#resuming-interrupted-trainings Link para os parametros de treino
 
-model = YOLO('yolov8s.pt')  # load a pretrained model (recommended for training)
-# Função para Rodar o Treino da YOLOV8
-def treino():
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_DATA = PROJECT_ROOT / "dataset" / "all" / "data.yaml"
+DEFAULT_WEIGHTS = os.getenv("YOLOV8_WEIGHTS", "yolov8s.pt")
 
-    model.train(
-                data = '../dataset/all/data.yaml',
-                epochs=1000, # Epocas que o Modelo ira Rodar
-                imgsz=640, # Dimeção das imagens
-                patience = 100, # paciencia para o modelo parar o treinamento geral mente se usa 10% das epocas
-                batch = 64, # Tamanho do lote da GPU
-                project = 'YOLOV8', # Nome do Projeto
-                exist_ok = True, # Caso o arquivo ja exista ele sobre escreve
-                optimizer = 'AdamW', # Optimizador do modelo (SGD, Adam, AdamW, NAdam, RAdam, RMSPro) Talvez tenha mais
-                single_cls = False, # Se o dataset é multiclasses = False ou Com uma classe so = True
-                rect = False,
-                cos_lr = True,
-                lr0 = 0.0001, # Taxa De Aprendizado Inicial
-                lrf = 0.01,# Taxa de Aprendizado Final
-                plots = True, # Usado para salvar os dados do treinamento para salver = True 
+
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "t", "yes", "y"}
+
+
+def treino(data_yaml: str | Path | None = None) -> None:
+    model = YOLO(DEFAULT_WEIGHTS)
+
+    data_path = Path(os.getenv("YOLOV8_DATA", data_yaml or DEFAULT_DATA))
+    epochs = int(os.getenv("YOLOV8_EPOCHS", "10"))
+    imgsz = int(os.getenv("YOLOV8_IMGSZ", "640"))
+    patience = int(os.getenv("YOLOV8_PATIENCE", "3"))
+    batch = int(os.getenv("YOLOV8_BATCH", "8"))
+    project = os.getenv("YOLOV8_PROJECT", "YOLOV8")
+    run_name = os.getenv("YOLOV8_RUN_NAME", "train")
+    optimizer = os.getenv("YOLOV8_OPTIMIZER", "AdamW")
+    single_cls = _env_bool("YOLOV8_SINGLE_CLS", False)
+    rect = _env_bool("YOLOV8_RECT", False)
+    cos_lr = _env_bool("YOLOV8_COS_LR", True)
+    lr0 = float(os.getenv("YOLOV8_LR0", "0.0005"))
+    lrf = float(os.getenv("YOLOV8_LRF", "0.1"))
+    plots = _env_bool("YOLOV8_PLOTS", True)
+    device = os.getenv("YOLOV8_DEVICE")
+
+    train_kwargs = dict(
+        data=str(data_path),
+        epochs=epochs,
+        imgsz=imgsz,
+        patience=patience,
+        batch=batch,
+        project=project,
+        name=run_name,
+        exist_ok=True,
+        optimizer=optimizer,
+        single_cls=single_cls,
+        rect=rect,
+        cos_lr=cos_lr,
+        lr0=lr0,
+        lrf=lrf,
+        plots=plots,
     )
-treino()
+
+    if device:
+        train_kwargs["device"] = device
+
+    model.train(**train_kwargs)
+
+
+if __name__ == "__main__":
+    custom_data = Path(sys.argv[1]) if len(sys.argv) > 1 else None
+    treino(custom_data)

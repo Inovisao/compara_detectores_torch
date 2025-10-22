@@ -7,9 +7,11 @@ import tempfile
 from pathlib import Path
 
 import yaml
+import warnings
 
 # Desativa integrações do Weights & Biases para evitar pedidos de login
 os.environ.setdefault("WANDB_DISABLED", "true")
+warnings.filterwarnings("ignore")
 
 #https://docs.ultralytics.com/pt/modes/train/#resuming-interrupted-trainings Link para os parametros de treino
 
@@ -32,7 +34,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 REPO_DIR = Path(__file__).resolve().parent / "tph-yolov5"
 PROJECT_NAME = os.getenv("TPH_PROJECT", "YOLOV5_TPH")
 OUTPUT_PROJECT = PROJECT_ROOT / PROJECT_NAME
-DATA_YAML = PROJECT_ROOT / "dataset" / "all" / "data_yolov5_tph.yaml"
+DEFAULT_DATA_YAML = PROJECT_ROOT / "dataset" / "all" / "data_yolov5_tph.yaml"
 
 
 # Hyperparâmetros e opções de treino configuráveis
@@ -45,8 +47,8 @@ OPTIMIZER = _env_override("TPH_OPTIMIZER", "AdamW")
 SINGLE_CLS = _env_override("TPH_SINGLE_CLS", False)
 RECT = _env_override("TPH_RECT", False)
 COS_LR = _env_override("TPH_COS_LR", True)
-LR0 = _env_override("TPH_LR0", 1e-4)
-LRF = _env_override("TPH_LRF", 1e-2)
+LR0 = _env_override("TPH_LR0", 0.0005)
+LRF = _env_override("TPH_LRF", 0.1)
 PLOTS = _env_override("TPH_PLOTS", True)
 
 HYP_PATH = os.getenv("TPH_HYP")
@@ -56,21 +58,22 @@ RUN_NAME = os.getenv("TPH_RUN_NAME", "train")
 DEFAULT_HYP = REPO_DIR / "data" / "hyps" / "hyp.scratch.yaml"
 
 
-def _ensure_prerequisites() -> None:
+def _ensure_prerequisites(data_yaml_path: Path) -> None:
     if not REPO_DIR.exists():
         raise FileNotFoundError(
             "Repository tph-yolov5 not found. Clone https://github.com/cv516Buaa/tph-yolov5 "
             "into src/Detectors/YOLOV5_TPH/tph-yolov5 before running the training."
         )
-    if not DATA_YAML.exists():
+    if not data_yaml_path.exists():
         raise FileNotFoundError(
-            f"Data configuration not found at {DATA_YAML}. Run the label generation step before training."
+            f"Data configuration not found at {data_yaml_path}. Run the label generation step before training."
         )
 
 
 # Função para Rodar o Treino da YOLOV5 TPH
-def treino():
-    _ensure_prerequisites()
+def treino(data_yaml: Path | None = None):
+    data_yaml_path = Path(os.getenv("TPH_DATA", data_yaml or DEFAULT_DATA_YAML))
+    _ensure_prerequisites(data_yaml_path)
 
     if HYP_PATH:
         hyp_file = Path(HYP_PATH)
@@ -99,7 +102,7 @@ def treino():
         "--patience",
         str(PATIENCE),
         "--data",
-        str(DATA_YAML),
+        str(data_yaml_path),
         "--cfg",
         str(CFG),
         "--project",
@@ -134,4 +137,6 @@ def treino():
     subprocess.run(command, cwd=REPO_DIR, check=True, env=env)
 
 
-treino()
+if __name__ == "__main__":
+    custom_data = Path(sys.argv[1]) if len(sys.argv) > 1 else None
+    treino(custom_data)
