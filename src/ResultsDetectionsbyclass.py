@@ -37,6 +37,18 @@ RESULTS_BY_CLASS_CSV_PATH = RESULTS_DIR / "resultsbyclass.csv"
 COUNTING_CSV_PATH = RESULTS_DIR / "counting.csv"
 
 
+def _resolve_tiling_mode(root: str, requested_mode: str = "auto") -> bool:
+    """Return True if SAGE aggregation should be used based on the desired tiling mode."""
+    normalized = (requested_mode or "auto").strip().lower()
+    if normalized not in {"auto", "sage", "basic", "normal", "none"}:
+        raise ValueError(f"Tiling mode inválido: {requested_mode}")
+    if normalized == "sage":
+        return True
+    if normalized in {"basic", "normal", "none"}:
+        return False
+    return detect_sage_dataset(root)
+
+
 def _has_filesjson(root: str) -> bool:
     return os.path.exists(os.path.join(root, "filesJSON"))
 
@@ -305,12 +317,12 @@ def compute_metrics(preds, targets, num_classes=1):
 
     return precision.item(), recall.item(), fscore.item()
 
-def generate_results(root, fold, model, model_name, save_imgs):
+def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto"):
     """Gera resultados para um modelo específico e salva as métricas por classe."""
     test_json_path, tile_images_dir = _resolve_test_split(root, fold)
-    is_sage = detect_sage_dataset(root)
+    use_sage = _resolve_tiling_mode(root, tiling_mode)
 
-    if is_sage:
+    if use_sage:
         aggregator = SageAggregator(root, fold)
         classes_dict = aggregator.classes_dict
         ground_truth = None
@@ -346,7 +358,7 @@ def generate_results(root, fold, model, model_name, save_imgs):
             print(image_path)
             result = runMMdetection(model, frame, LIMIAR_THRESHOLD)
 
-        if is_sage:
+        if use_sage:
             aggregator.add_tile_prediction(file_name, result)
         else:
             gt_items = []
@@ -357,7 +369,7 @@ def generate_results(root, fold, model, model_name, save_imgs):
             ground_truth[file_name] = gt_items
             predictions[file_name] = result
 
-    if is_sage:
+    if use_sage:
         ground_truth, predictions, image_source, classes_dict = aggregator.finalize()
     else:
         image_source = tile_images_dir

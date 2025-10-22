@@ -45,6 +45,12 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Se definido, imagens anotadas serão salvas em results/prediction.",
     )
+    parser.add_argument(
+        "--tiling-mode",
+        default="auto",
+        choices=["auto", "sage", "basic", "normal", "none"],
+        help="Força o modo de tiling a ser usado na agregação (auto detecta automaticamente).",
+    )
     return parser.parse_args()
 
 
@@ -74,6 +80,7 @@ def main() -> None:
         selected_model=args.model_name,
         model_path=str(model_path),
         save_imgs=args.save_imgs,
+        tiling_mode=args.tiling_mode,
     )
     print("[INFO] Avaliação concluída")
 

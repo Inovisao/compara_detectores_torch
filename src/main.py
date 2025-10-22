@@ -6,6 +6,7 @@ import shutil
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATASET_PATH = PROJECT_ROOT / "dataset" / "tiles"
+TILING_MODE = os.getenv("TILING_MODE", "auto")
 
 
 def clear_dataset_cache(base_path: Path) -> None:
@@ -139,6 +140,20 @@ for model in MODELS:
             model_path =  test_model(model,fold_dir)
 
         if GeraRult:
-            create_csv(root=current_root,fold=fold,selected_model=model,model_path=model_path,save_imgs=save_imgs)
+            create_csv(
+                root=current_root,
+                fold=fold,
+                selected_model=model,
+                model_path=model_path,
+                save_imgs=save_imgs,
+                tiling_mode=TILING_MODE,
+            )
         if GeraResultByClass:
-            generate_results(root=current_root,fold=fold,model=model_path,model_name=model,save_imgs=save_imgs)
+            generate_results(
+                root=current_root,
+                fold=fold,
+                model=model_path,
+                model_name=model,
+                save_imgs=save_imgs,
+                tiling_mode=TILING_MODE,
+            )

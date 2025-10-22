@@ -37,6 +37,18 @@ RESULTS_CSV_PATH = RESULTS_DIR / "results.csv"
 COUNTING_CSV_PATH = RESULTS_DIR / "counting.csv"
 
 
+def _resolve_tiling_mode(root: str, requested_mode: str = "auto") -> bool:
+    """Return True if SAGE aggregation should be used based on the desired tiling mode."""
+    normalized = (requested_mode or "auto").strip().lower()
+    if normalized not in {"auto", "sage", "basic", "normal", "none"}:
+        raise ValueError(f"Tiling mode inválido: {requested_mode}")
+    if normalized == "sage":
+        return True
+    if normalized in {"basic", "normal", "none"}:
+        return False
+    return detect_sage_dataset(root)
+
+
 def _has_filesjson(root: str) -> bool:
     return os.path.exists(os.path.join(root, "filesJSON"))
 
@@ -302,12 +314,12 @@ def compute_metrics(preds, targets, num_classes=1):
 
     return precision.item(), recall.item(), fscore.item()
 
-def generate_results(root, fold, model, model_name, save_imgs):
+def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto"):
     """Gera resultados para um modelo específico e salva as métricas."""
     test_json_path, tile_images_dir = _resolve_test_split(root, fold)
-    is_sage = detect_sage_dataset(root)
+    use_sage = _resolve_tiling_mode(root, tiling_mode)
 
-    if is_sage:
+    if use_sage:
         aggregator = SageAggregator(root, fold)
         classes_dict = aggregator.classes_dict
         predictions = None
@@ -347,7 +359,7 @@ def generate_results(root, fold, model, model_name, save_imgs):
             print(image_path)
             result = runMMdetection(model, frame, LIMIAR_THRESHOLD)
 
-        if is_sage:
+        if use_sage:
             aggregator.add_tile_prediction(file_name, result)
         else:
             gt_items = []
@@ -358,7 +370,7 @@ def generate_results(root, fold, model, model_name, save_imgs):
             ground_truth[file_name] = gt_items
             predictions[file_name] = result
 
-    if is_sage:
+    if use_sage:
         ground_truth, predictions, image_source, classes_dict = aggregator.finalize()
     else:
         image_source = tile_images_dir
@@ -449,11 +461,13 @@ def generate_results(root, fold, model, model_name, save_imgs):
 
     return mAP.item(), mAP50.item(), mAP75.item(), mae.item(), rmse.item(), precision, recall, fscore, r.item()
 
-def create_csv(selected_model, fold, root, model_path, save_imgs):
+def create_csv(selected_model, fold, root, model_path, save_imgs, tiling_mode="auto"):
     """Cria um arquivo CSV com os resultados das métricas."""
     results_path = RESULTS_CSV_PATH
     try:
-        mAP, mAP50, mAP75, MAE, RMSE, precision, recall, fscore, r = generate_results(root, fold, model_path, selected_model, save_imgs)
+        mAP, mAP50, mAP75, MAE, RMSE, precision, recall, fscore, r = generate_results(
+            root, fold, model_path, selected_model, save_imgs, tiling_mode=tiling_mode
+        )
         results_path.parent.mkdir(parents=True, exist_ok=True)
         file_exists = results_path.exists()
         with results_path.open(mode="a", newline="") as file:
