@@ -27,7 +27,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model-name",
         default="YOLOV5_TPH",
-        help="Nome do modelo (precisa coincidir com os suportados em ResultsDetections).",
+        help="Nome do modelo (ex.: YOLOV8, YOLOV11, YOLOV5_TPH, Faster, RetinaNet, Detr).",
     )
     parser.add_argument(
         "--fold",

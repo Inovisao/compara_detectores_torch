@@ -16,6 +16,8 @@ from pathlib import Path
 # Importações dos modelos de detecção
 from Detectors.YOLOV5_TPH.DetectionsYOLOV5TPH import ResultYOLOV5TPH
 from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
+from Detectors.YOLOV11.DetectionsYOLOV11 import ResultYOLOV11
+from Detectors.RetinaNet.DetectionsRetinaNet import ResultRetinaNet
 try:
     from Detectors.FasterRCNN.inference import ResultFaster
 except (FileNotFoundError, ModuleNotFoundError) as _faster_exc:
@@ -340,6 +342,8 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
 
         if model_name == "YOLOV8":
             result = resultYOLO.result(frame, model, LIMIAR_THRESHOLD)
+        elif model_name == "YOLOV11":
+            result = ResultYOLOV11.result(frame, model, LIMIAR_THRESHOLD)
         elif model_name == "Faster":
             if ResultFaster is None:
                 raise RuntimeError(
@@ -351,6 +355,8 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
         elif model_name == "YOLOV5_TPH":
             print(image_path)
             result = ResultYOLOV5TPH.result(frame, model, LIMIAR_THRESHOLD)
+        elif model_name == "RetinaNet":
+            result = ResultRetinaNet.result(frame, model, LIMIAR_THRESHOLD)
         elif model_name == "Detr":
             print(image_path)
             # result = resultDetr(fold,frame,LIMIAR_THRESHOLD)

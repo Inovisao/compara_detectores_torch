@@ -45,6 +45,16 @@ def train_model(model,fold,fold_dir,ROOT_DATA_DIR):
         runYOLOV5TPH(fold, fold_dir, ROOT_DATA_DIR)
         model_path = os.path.join(fold_dir, model, 'train', 'weights', 'best.pt')
 
+    elif model == 'YOLOV11':
+        from Detectors.YOLOV11.RunYOLOV11 import runYOLOV11
+        runYOLOV11(fold, fold_dir, ROOT_DATA_DIR)
+        model_path = os.path.join(fold_dir, model, 'train', 'weights', 'best.pt')
+
+    elif model == 'RetinaNet':
+        from Detectors.RetinaNet.RunRetinaNet import runRetinaNet
+        runRetinaNet(fold, fold_dir, ROOT_DATA_DIR)
+        model_path = os.path.join(fold_dir, model, 'best.pth')
+
     elif model == 'Detr':
         from Detectors.Detr.runDetr import runDetr
         runDetr(fold,fold_dir,ROOT_DATA_DIR)
@@ -54,19 +64,22 @@ def train_model(model,fold,fold_dir,ROOT_DATA_DIR):
 def test_model(model,fold_dir):
     if model == 'YOLOV8':
         model_path = os.path.join(fold_dir,model,'train','weights','best.pt')
+    elif model == 'YOLOV11':
+        model_path = os.path.join(fold_dir,model,'train','weights','best.pt')
     elif model == 'Faster':
         model_path = os.path.join(fold_dir,model,'best.pth')
     elif model == 'YOLOV5_TPH':
         model_path = os.path.join(fold_dir, model, 'train', 'weights', 'best.pt')
+    elif model == 'RetinaNet':
+        model_path = os.path.join(fold_dir, model, 'best.pth')
     elif model == 'Detr':
         model_path = os.path.join(fold_dir,model,'training','best_model.pth')
     else:
         model_path = os.path.join(fold_dir,model,'latest.pth')
     return model_path
 
-# YOLOV8, YOLOV5_TPH, Faster, Detr
-# DEFAULT_MODELS = ['Faster', 'YOLOV5_TPH', 'YOLOV8']
-DEFAULT_MODELS = ['Faster', 'YOLOV5_TPH', 'YOLOV8']
+# YOLOV8, YOLOV11, YOLOV5_TPH, Faster, RetinaNet, Detr
+DEFAULT_MODELS = ['RetinaNet']
 
 
 def _get_models_to_run():
