@@ -3,10 +3,11 @@ from pathlib import Path
 from ResultsDetections import create_csv, print_to_file, RESULTS_CSV_PATH, COUNTING_CSV_PATH, RESULTS_PATH
 from ResultsDetectionsbyclass import generate_results, RESULTS_BY_CLASS_CSV_PATH
 import shutil
+import time
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATASET_PATH = PROJECT_ROOT / "dataset" / "tiles"
-TILING_MODE = os.getenv("TILING_MODE", "auto")
+TILING_MODE = os.getenv("TILING_MODE", "basic")
 
 
 def clear_dataset_cache(base_path: Path) -> None:
@@ -23,7 +24,7 @@ def resetar_pasta(caminho):
 
 # Função que ira verificar qual modelo sera utilizado para o treinamento
 def train_model(model,fold,fold_dir,ROOT_DATA_DIR):
-
+    
     check_save_path = os.path.join(fold_dir,model)
 
     if os.path.exists(check_save_path):
@@ -79,7 +80,7 @@ def test_model(model,fold_dir):
     return model_path
 
 # YOLOV8, YOLOV11, YOLOV5_TPH, Faster, RetinaNet, Detr
-DEFAULT_MODELS = ['RetinaNet']
+DEFAULT_MODELS = ['YOLOV11', 'RetinaNet']
 
 
 def _get_models_to_run():
