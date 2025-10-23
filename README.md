@@ -51,6 +51,9 @@ mim install mmengine=="0.10.7"
 mim install mmcv=="1.3.17"
 mim install mmcv-full=="1.7.2"
 mim install mmdet=="2.28.2"
+
+-> Para a YOLOv11 rodar pip install ultralytics==8.3.217
+
 obs : todas as bibliotecas utilzadas estão no arquivo Bibliotecas.yml
 ```
 
