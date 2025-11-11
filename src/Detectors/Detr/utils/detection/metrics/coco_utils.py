@@ -8,7 +8,16 @@ def convert_to_coco_api(ds):
     coco_ds = COCO()
     # annotation IDs need to start at 1, not 0, see torchvision issue #1530
     ann_id = 1
-    dataset = {"images": [], "categories": [], "annotations": []}
+    dataset = {
+        "info": {
+            "description": "Converted from DETRDataset",
+            "version": "1.0",
+        },
+        "licenses": [],
+        "images": [],
+        "categories": [],
+        "annotations": [],
+    }
     categories = set()
     for img_idx in range(len(ds)):
         # find better way to get target

@@ -380,8 +380,8 @@ def main(args):
                 warn(f"Falha ao salvar estado do modelo da epoch {epoch}: {e}")
 
             try:
-                if len(val_map) > 0:
-                    save_best_model(model, val_map[-1], epoch, OUT_DIR, data_configs, args.model)
+                if len(val_map_05) > 0:
+                    save_best_model(model, val_map_05[-1], epoch, OUT_DIR, data_configs, args.model)
             except Exception as e:
                 warn(f"Falha ao salvar melhor modelo: {e}")
 
