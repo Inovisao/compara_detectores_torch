@@ -24,20 +24,21 @@ def treino(data_yaml: str | Path | None = None) -> None:
     model = YOLO(DEFAULT_WEIGHTS)
 
     data_path = Path(os.getenv("YOLOV8_DATA", data_yaml or DEFAULT_DATA))
-    epochs = int(os.getenv("YOLOV8_EPOCHS", "10"))
+    epochs = int(os.getenv("YOLOV8_EPOCHS", "500"))
     imgsz = int(os.getenv("YOLOV8_IMGSZ", "640"))
-    patience = int(os.getenv("YOLOV8_PATIENCE", "3"))
-    batch = int(os.getenv("YOLOV8_BATCH", "8"))
+    patience = int(os.getenv("YOLOV8_PATIENCE", "50"))
+    batch = int(os.getenv("YOLOV8_BATCH", "4"))
     project = os.getenv("YOLOV8_PROJECT", "YOLOV8")
     run_name = os.getenv("YOLOV8_RUN_NAME", "train")
-    optimizer = os.getenv("YOLOV8_OPTIMIZER", "AdamW")
+    optimizer = os.getenv("YOLOV8_OPTIMIZER", "SGD")
     single_cls = _env_bool("YOLOV8_SINGLE_CLS", False)
     rect = _env_bool("YOLOV8_RECT", False)
     cos_lr = _env_bool("YOLOV8_COS_LR", True)
-    lr0 = float(os.getenv("YOLOV8_LR0", "0.0005"))
+    lr0 = float(os.getenv("YOLOV8_LR0", "0.001"))
     lrf = float(os.getenv("YOLOV8_LRF", "0.1"))
     plots = _env_bool("YOLOV8_PLOTS", True)
     device = os.getenv("YOLOV8_DEVICE")
+    workers = int(os.getenv("YOLOV8_WORKERS", "4"))
 
     train_kwargs = dict(
         data=str(data_path),
@@ -55,6 +56,7 @@ def treino(data_yaml: str | Path | None = None) -> None:
         lr0=lr0,
         lrf=lrf,
         plots=plots,
+        workers=workers,
     )
 
     if device:

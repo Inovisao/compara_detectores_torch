@@ -9,7 +9,9 @@ import os
 from tqdm import tqdm
 from config import (
     TRAIN_DIR,
+    TRAIN_ANN_PATH,
     VALID_DIR,
+    VAL_ANN_PATH,
     NUM_CLASSES,
     NUM_EPOCHS,
     BATCH_SIZE,
@@ -34,15 +36,22 @@ def get_coco_dataset(img_dir, ann_file):
         transforms=CocoTransform()
     )
 
+# Validate dataset configuration
+if not all([TRAIN_DIR, TRAIN_ANN_PATH, VALID_DIR, VAL_ANN_PATH]):
+    raise RuntimeError(
+        "FasterRCNN dataset paths are not configured. "
+        "Ensure runFaster sets FASTER_* environment variables before launching training."
+    )
+
 # Load datasets
 train_dataset = get_coco_dataset(
     img_dir=TRAIN_DIR,
-    ann_file=os.path.join(TRAIN_DIR, '_annotations.coco.json')
+    ann_file=TRAIN_ANN_PATH,
 )
 
 val_dataset = get_coco_dataset(
     img_dir=VALID_DIR,
-    ann_file=os.path.join(VALID_DIR, "_annotations.coco.json")
+    ann_file=VAL_ANN_PATH,
 )
 
 # DataLoader
@@ -71,11 +80,11 @@ model.to(DEVICE)
 # Define optimizer and scheduler
 params = [p for p in model.parameters() if p.requires_grad]
 
-optimizer = torch.optim.AdamW(
+optimizer = torch.optim.SGD(
     params,
-    lr=LR,        
-    betas=(0.9, 0.999),
-    weight_decay=0.0001
+    lr=LR,
+    momentum=0.9,
+    weight_decay=0.0005
 )
 
 

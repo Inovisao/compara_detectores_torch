@@ -1,10 +1,8 @@
 CLASSES:
 - __background__
-- class_0
-- class_1
-- class_2
-- class_3
-NC: 5
+- dirt
+- seed
+NC: 3
 SAVE_VALID_PREDICTION_IMAGES: true
 TRAIN_DIR_IMAGES: ../dataset/all/detr/train
 TRAIN_DIR_LABELS: ../dataset/all/detr/train

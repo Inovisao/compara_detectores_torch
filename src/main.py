@@ -9,6 +9,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATASET_PATH = PROJECT_ROOT / "dataset" / "tiles"
 TILING_MODE = os.getenv("TILING_MODE", "basic")
 
+# Disable Weights & Biases logging unless explicitly re-enabled outside.
+os.environ.setdefault("WANDB_DISABLED", "true")
+
 
 def clear_dataset_cache(base_path: Path) -> None:
     for cache_file in base_path.rglob("*.cache"):
@@ -80,7 +83,7 @@ def test_model(model,fold_dir):
     return model_path
 
 # YOLOV8, YOLOV11, YOLOV5_TPH, Faster, RetinaNet, Detr
-DEFAULT_MODELS = ['YOLOV11', 'RetinaNet']
+DEFAULT_MODELS = ['Detr','Faster','YOLOV8']
 
 
 def _get_models_to_run():
@@ -95,7 +98,7 @@ MODELS = _get_models_to_run()
 APENAS_TESTE = False # True para apenas testar modelos treinados False para Treinar e Testar.
 
 # Tiled dataset configuration
-USE_TILED_DATASET = os.getenv('USE_TILED_DATASET', 'true').lower() == 'true'
+USE_TILED_DATASET = os.getenv('USE_TILED_DATASET', 'true').lower() == 'false'
 
 if USE_TILED_DATASET:
     if not DATASET_PATH.exists():

@@ -33,3 +33,7 @@ wandb
 */__pycache__
 src/utils/detection/metrics/__pycache__/coco_eval.cpython-39.pyc
 src/utils/detection/metrics/__pycache__/coco_utils.cpython-39.pyc
+src/Detectors/YOLOV5_TPH/tph-yolov5
+results/results.csv
+src/Detectors/Detr/__pycache__/runDetr.cpython-39.pyc
+src/Detectors/YOLOV5_TPH/tph-yolov5

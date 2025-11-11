@@ -6,6 +6,7 @@ import yaml
 import torch
 import numpy as np
 import torchinfo
+from typing import Optional
 
 from config import (
     BATCH_SIZE as CFG_BATCH_SIZE, RESIZE_TO as CFG_RESIZE_TO, NUM_EPOCHS as CFG_NUM_EPOCHS,
@@ -30,7 +31,7 @@ from utils.detection.detr.logging import set_log, coco_log
 RANK = int(os.getenv('RANK', -1))
 np.random.seed(42)
 
-def error(msg: str, exc: Exception | None = None, exit_code: int = 1):
+def error(msg: str, exc: Optional[Exception] = None, exit_code: int = 1):
     """Loga erro padronizado e encerra o processo."""
     print(f"[ERRO] {msg}", file=sys.stderr)
     if exc is not None:

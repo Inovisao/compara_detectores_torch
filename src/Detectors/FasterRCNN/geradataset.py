@@ -1,35 +1,79 @@
-import os
-import shutil
-import json
+from __future__ import annotations
+
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional, Tuple, Union
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-DATASET_TILE_ROOT = PROJECT_ROOT / 'dataset' / 'tiles'
 
-# Criar a pasta de destino se não existir
-def geredata(fold):
-    fold_root = DATASET_TILE_ROOT / fold
-    if not fold_root.exists():
-        raise FileNotFoundError(f"Fold directory not found: {fold_root}")
+@dataclass(frozen=True)
+class FasterDatasetConfig:
+    root: Path
+    train_dir: Path
+    train_annotations: Path
+    val_dir: Path
+    val_annotations: Path
 
-    destination_folder = fold_root / 'Faster'
-    shutil.rmtree(destination_folder, ignore_errors=True)
 
-    for split in ('train', 'val'):
-        split_src_dir = fold_root / split
-        src_json = split_src_dir / '_annotations.coco.json'
-        if not src_json.exists():
-            continue
-        split_dir = destination_folder / split
-        split_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy(src_json, split_dir / '_annotations.coco.json')
+def _resolve_from_filesjson(fold: str, dataset_root: Path) -> Optional[FasterDatasetConfig]:
+    files_json_dir = dataset_root / "filesJSON"
+    if not files_json_dir.exists():
+        return None
 
-        with open(src_json, "r", encoding="utf-8") as f:
-            data = json.load(f)
+    train_ann = files_json_dir / f"{fold}_train.json"
+    val_ann = files_json_dir / f"{fold}_val.json"
+    images_dir = dataset_root / "train"
 
-        for imgs in data['images']:
-            img_name = imgs['file_name']
-            img_path = split_src_dir / img_name
-            if not img_path.exists():
-                continue
-            shutil.copy(img_path, split_dir)
+    if not images_dir.exists():
+        raise FileNotFoundError(f"Images directory not found for FasterRCNN: {images_dir}")
+    if not train_ann.exists():
+        raise FileNotFoundError(f"Train annotations not found for fold '{fold}': {train_ann}")
+    if not val_ann.exists():
+        raise FileNotFoundError(f"Validation annotations not found for fold '{fold}': {val_ann}")
+
+    return FasterDatasetConfig(
+        root=dataset_root,
+        train_dir=images_dir,
+        train_annotations=train_ann,
+        val_dir=images_dir,
+        val_annotations=val_ann,
+    )
+
+
+def _find_split_dir(dataset_root: Path, candidates: Tuple[str, ...]) -> Tuple[Path, Path]:
+    for name in candidates:
+        split_dir = dataset_root / name
+        annotations = split_dir / "_annotations.coco.json"
+        if split_dir.exists() and annotations.exists():
+            return split_dir, annotations
+    raise FileNotFoundError(
+        f"Unable to locate split directory with annotations under {dataset_root}. "
+        f"Tried: {', '.join(str(dataset_root / c) for c in candidates)}"
+    )
+
+
+def _resolve_from_split_dirs(dataset_root: Path) -> FasterDatasetConfig:
+    train_dir, train_ann = _find_split_dir(dataset_root, ("train", "training"))
+    val_dir, val_ann = _find_split_dir(dataset_root, ("val", "valid", "validation"))
+
+    return FasterDatasetConfig(
+        root=dataset_root,
+        train_dir=train_dir,
+        train_annotations=train_ann,
+        val_dir=val_dir,
+        val_annotations=val_ann,
+    )
+
+
+def geredata(fold: str, dataset_root: Union[str, Path]) -> FasterDatasetConfig:
+    root_path = Path(dataset_root).resolve()
+    if not root_path.exists():
+        raise FileNotFoundError(f"Dataset root not found for FasterRCNN: {root_path}")
+
+    config = _resolve_from_filesjson(fold, root_path)
+    if config:
+        return config
+
+    return _resolve_from_split_dirs(root_path)
+
+
+__all__ = ["FasterDatasetConfig", "geredata"]

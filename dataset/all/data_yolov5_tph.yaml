@@ -1,6 +1,0 @@
-train: /home/robertoneto/Documents/compara_detectores_torch/dataset/all/YOLOV5_TPH/train/images
-val: /home/robertoneto/Documents/compara_detectores_torch/dataset/all/YOLOV5_TPH/val/images
-test: /home/robertoneto/Documents/compara_detectores_torch/dataset/all/YOLOV5_TPH/test/images
-nc: 1
-names:
-- Peixe

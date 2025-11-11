@@ -40,14 +40,14 @@ DEFAULT_DATA_YAML = PROJECT_ROOT / "dataset" / "all" / "data_yolov5_tph.yaml"
 # Hyperparâmetros e opções de treino configuráveis
 CFG = _env_override("TPH_CFG", "yolov5s.yaml")
 IMG_SIZE = _env_override("TPH_IMG", 640)
-EPOCHS = _env_override("TPH_EPOCHS", 10)
-PATIENCE = _env_override("TPH_PATIENCE", 3)
+EPOCHS = _env_override("TPH_EPOCHS", 1000)
+PATIENCE = _env_override("TPH_PATIENCE", 150)
 BATCH = _env_override("TPH_BATCH", 8)
-OPTIMIZER = _env_override("TPH_OPTIMIZER", "AdamW")
+OPTIMIZER = _env_override("TPH_OPTIMIZER", "SGD")
 SINGLE_CLS = _env_override("TPH_SINGLE_CLS", False)
 RECT = _env_override("TPH_RECT", False)
 COS_LR = _env_override("TPH_COS_LR", True)
-LR0 = _env_override("TPH_LR0", 0.0005)
+LR0 = _env_override("TPH_LR0", 0.001)
 LRF = _env_override("TPH_LRF", 0.1)
 PLOTS = _env_override("TPH_PLOTS", True)
 

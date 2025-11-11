@@ -5,25 +5,27 @@ from torchvision.models.detection import FasterRCNN
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 import cv2
 import numpy as np
-from Detectors.FasterRCNN.config import (DEVICE,NUM_CLASSES,CLASSES)
+from Detectors.FasterRCNN import config as faster_config
 # Load Faster R-CNN with ResNet-50 backbone
-def get_model(num_classes):
+def get_model(num_classes=None):
     # Load pre-trained Faster R-CNN
-    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+    if num_classes is None:
+        num_classes = faster_config.NUM_CLASSES
+    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights="DEFAULT")
     # Get the number of input features for the classifier
     in_features = model.roi_heads.box_predictor.cls_score.in_features
     # Replace the pre-trained head with a new one
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
     return model
 
-def prepare_image(frame):
+def prepare_image(frame, device):
     # Load the image using OpenCV (in BGR format)
     # Convert BGR to RGB (since OpenCV loads images in BGR by default)
     image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     # Convert to tensor and normalize
     image_tensor = torch.from_numpy(image_rgb).float() / 255.0  # Normalize the image
     image_tensor = image_tensor.permute(2, 0, 1).unsqueeze(0)  # Change to CxHxW and add batch dimension
-    return image_tensor.to(DEVICE)
+    return image_tensor.to(device)
 
 def xyxy_to_xywh(boxes):
     """
@@ -45,13 +47,16 @@ def xyxy_to_xywh(boxes):
 
 class ResultFaster:
     def resultFaster(frame,modelName,LIMIAR_THRESHOLD):
-        model = get_model(NUM_CLASSES)
-        model.load_state_dict(torch.load(modelName))
-        model.to(DEVICE)
+        device = faster_config.DEVICE
+        num_classes = faster_config.NUM_CLASSES
+        model = get_model(num_classes)
+        state_dict = torch.load(modelName, map_location=device)
+        model.load_state_dict(state_dict)
+        model.to(device)
         model.eval()  # Set the model to evaluation mode
 
         # Load the unseen image
-        image_tensor = prepare_image(frame)
+        image_tensor = prepare_image(frame, device)
 
         with torch.no_grad():  # Disable gradient computation for inference
             prediction = model(image_tensor)

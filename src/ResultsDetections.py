@@ -18,10 +18,15 @@ from Detectors.YOLOV5_TPH.DetectionsYOLOV5TPH import ResultYOLOV5TPH
 from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
 from Detectors.YOLOV11.DetectionsYOLOV11 import ResultYOLOV11
 from Detectors.RetinaNet.DetectionsRetinaNet import ResultRetinaNet
+_FASTER_IMPORT_ERROR = None
 try:
     from Detectors.FasterRCNN.inference import ResultFaster
+    from Detectors.FasterRCNN.geradataset import geredata as faster_geradata
+    from Detectors.FasterRCNN import config as faster_config
 except (FileNotFoundError, ModuleNotFoundError) as _faster_exc:
     ResultFaster = None
+    faster_geradata = None
+    faster_config = None
     _FASTER_IMPORT_ERROR = _faster_exc
 #from Detectors.Detr.inference_image_detect import resultDetr
 from Detectors.mminference.inference import runMMdetection
@@ -93,6 +98,19 @@ def _resolve_class_annotations(root: str) -> str:
             return path
     raise FileNotFoundError(
         "Unable to locate a COCO annotations file for class discovery in the dataset root."
+    )
+
+
+def _configure_faster_inference(root: str, fold: str) -> None:
+    """Ensure the FasterRCNN config matches the current dataset for inference."""
+    if ResultFaster is None or faster_config is None or faster_geradata is None:
+        return
+    dataset_config = faster_geradata(fold, Path(root))
+    faster_config.configure_dataset(
+        dataset_config.train_dir,
+        dataset_config.train_annotations,
+        dataset_config.val_dir,
+        dataset_config.val_annotations,
     )
 
 def print_to_file(line: str = '', file_path: Path = RESULTS_CSV_PATH, mode: str = 'a'):
@@ -318,6 +336,9 @@ def compute_metrics(preds, targets, num_classes=1):
 
 def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto"):
     """Gera resultados para um modelo específico e salva as métricas."""
+    if model_name == "Faster":
+        _configure_faster_inference(root, fold)
+
     test_json_path, tile_images_dir = _resolve_test_split(root, fold)
     use_sage = _resolve_tiling_mode(root, tiling_mode)
 
