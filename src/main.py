@@ -25,6 +25,7 @@ SUPPORTED_MODELS = (
     "Faster",
     "RetinaNet",
     "Detr",
+    "SSDLite",
 )
 
 MODEL_NAME_ALIASES = {
@@ -37,6 +38,9 @@ MODEL_NAME_ALIASES = {
     "FASTERRCNN": "Faster",
     "RETINANET": "RetinaNet",
     "DETR": "Detr",
+    "SSDLITE": "SSDLite",
+    "SSD-LITE": "SSDLite",
+    "SSD_LITE": "SSDLite",
 }
 
 
@@ -111,6 +115,9 @@ def _get_model_training_params(model: str) -> dict:
         return get_training_params()
     if model == "Detr":
         from Detectors.Detr.config import get_training_params
+        return get_training_params()
+    if model == "SSDLite":
+        from Detectors.SSDLite.config import get_training_params
         return get_training_params()
     raise ValueError(f"Modelo não suportado para log de parâmetros: {model}")
 
@@ -216,6 +223,12 @@ def train_model(model,fold,fold_dir,ROOT_DATA_DIR):
         from Detectors.Detr.runDetr import runDetr
         runDetr(fold,fold_dir,ROOT_DATA_DIR)
         model_path = os.path.join(fold_dir,model,'training','best_model.pth')
+
+    elif model == 'SSDLite':
+        from Detectors.SSDLite.RunSSDLite import runSSDLite
+        runSSDLite(fold, fold_dir, ROOT_DATA_DIR)
+        model_path = os.path.join(fold_dir, model, 'best.pth')
+
     return model_path
 # Função que server para selecionar os modelos que ja foram treinados
 def test_model(model,fold_dir):
@@ -233,6 +246,8 @@ def test_model(model,fold_dir):
         model_path = os.path.join(fold_dir, model, 'best.pth')
     elif model == 'Detr':
         model_path = os.path.join(fold_dir,model,'training','best_model.pth')
+    elif model == 'SSDLite':
+        model_path = os.path.join(fold_dir, model, 'best.pth')
     else:
         model_path = os.path.join(fold_dir,model,'latest.pth')
     return model_path

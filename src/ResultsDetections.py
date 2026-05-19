@@ -19,6 +19,7 @@ from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
 from Detectors.YOLOV11.DetectionsYOLOV11 import ResultYOLOV11
 from Detectors.YOLO26.DetectionsYOLO26 import ResultYOLO26
 from Detectors.RetinaNet.DetectionsRetinaNet import ResultRetinaNet
+from Detectors.SSDLite.DetectionsSSDLite import ResultSSDLite
 _FASTER_IMPORT_ERROR = None
 try:
     from Detectors.FasterRCNN.inference import ResultFaster
@@ -380,6 +381,8 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
             result = ResultYOLOV5TPH.result(frame, model, LIMIAR_THRESHOLD)
         elif model_name == "RetinaNet":
             result = ResultRetinaNet.result(frame, model, LIMIAR_THRESHOLD)
+        elif model_name == "SSDLite":
+            result = ResultSSDLite.result(frame, model, LIMIAR_THRESHOLD)
         elif model_name == "Detr":
             print(image_path)
             # result = resultDetr(fold,frame,LIMIAR_THRESHOLD)
