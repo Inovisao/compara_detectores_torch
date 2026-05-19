@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 from ultralytics import YOLO
@@ -9,8 +10,8 @@ from ultralytics import YOLO
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SRC_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATA = PROJECT_ROOT / "dataset" / "all" / "data.yaml"
-DEFAULT_WEIGHTS = os.getenv("YOLOV11_WEIGHTS", "yolo11s.pt")
-DEFAULT_PROJECT = SRC_ROOT / "runs" / "detect" / "YOLOV11"
+DEFAULT_WEIGHTS = os.getenv("YOLO26_WEIGHTS", "yolo26n.pt")
+DEFAULT_PROJECT = SRC_ROOT / "runs" / "detect" / "YOLO26"
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -21,24 +22,25 @@ def _env_bool(name: str, default: bool) -> bool:
 
 
 def get_training_params(data_yaml: str | Path | None = None) -> dict:
-    data_path = Path(os.getenv("YOLOV11_DATA", data_yaml or DEFAULT_DATA))
+    data_path = Path(os.getenv("YOLO26_DATA", data_yaml or DEFAULT_DATA))
     return {
         "weights": DEFAULT_WEIGHTS,
         "data": str(data_path),
-        "epochs": int(os.getenv("YOLOV11_EPOCHS", "1000")),
-        "imgsz": int(os.getenv("YOLOV11_IMGSZ", "640")),
-        "patience": int(os.getenv("YOLOV11_PATIENCE", "100")),
-        "batch": int(os.getenv("YOLOV11_BATCH", "16")),
-        "project": os.getenv("YOLOV11_PROJECT", str(DEFAULT_PROJECT)),
-        "run_name": os.getenv("YOLOV11_RUN_NAME", "train"),
-        "optimizer": os.getenv("YOLOV11_OPTIMIZER", "SGD"),
-        "single_cls": _env_bool("YOLOV11_SINGLE_CLS", False),
-        "rect": _env_bool("YOLOV11_RECT", False),
-        "cos_lr": _env_bool("YOLOV11_COS_LR", True),
-        "lr0": float(os.getenv("YOLOV8_LR0", "0.001")),
-        "lrf": float(os.getenv("YOLOV8_LRF", "0.2")),
-        "plots": _env_bool("YOLOV11_PLOTS", True),
-        "device": os.getenv("YOLOV11_DEVICE"),
+        "epochs": int(os.getenv("YOLO26_EPOCHS", "1000")),
+        "imgsz": int(os.getenv("YOLO26_IMGSZ", "640")),
+        "patience": int(os.getenv("YOLO26_PATIENCE", "100")),
+        "batch": int(os.getenv("YOLO26_BATCH", "16")),
+        "project": os.getenv("YOLO26_PROJECT", str(DEFAULT_PROJECT)),
+        "run_name": os.getenv("YOLO26_RUN_NAME", "train"),
+        "optimizer": os.getenv("YOLO26_OPTIMIZER", "SGD"),
+        "single_cls": _env_bool("YOLO26_SINGLE_CLS", False),
+        "rect": _env_bool("YOLO26_RECT", False),
+        "cos_lr": _env_bool("YOLO26_COS_LR", True),
+        "lr0": float(os.getenv("YOLO26_LR0", "0.001")),
+        "lrf": float(os.getenv("YOLO26_LRF", "0.2")),
+        "plots": _env_bool("YOLO26_PLOTS", True),
+        "device": os.getenv("YOLO26_DEVICE"),
+        "workers": int(os.getenv("YOLO26_WORKERS", "4")),
     }
 
 
@@ -63,6 +65,7 @@ def treino(data_yaml: str | Path | None = None) -> None:
         lr0=params["lr0"],
         lrf=params["lrf"],
         plots=params["plots"],
+        workers=params["workers"],
     )
 
     if params["device"]:
@@ -72,7 +75,5 @@ def treino(data_yaml: str | Path | None = None) -> None:
 
 
 if __name__ == "__main__":
-    import sys
-
     custom_data = Path(sys.argv[1]) if len(sys.argv) > 1 else None
     treino(custom_data)

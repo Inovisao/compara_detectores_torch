@@ -104,8 +104,29 @@ def _try_init_from_env() -> None:
 
 _try_init_from_env()
 
+
+def get_training_params() -> dict:
+    return {
+        "batch_size": BATCH_SIZE,
+        "resize_to": RESIZE_TO,
+        "num_epochs": NUM_EPOCHS,
+        "num_workers": NUM_WORKERS,
+        "learning_rate": LR,
+        "patience": PATIENCE,
+        "device": str(DEVICE),
+        "out_dir": OUT_DIR,
+        "root_data_dir": ROOT_DATA_DIR,
+        "train_dir": TRAIN_DIR,
+        "train_annotations": TRAIN_ANN_PATH,
+        "valid_dir": VALID_DIR,
+        "val_annotations": VAL_ANN_PATH,
+        "num_classes": NUM_CLASSES,
+        "classes": CLASSES,
+    }
+
 __all__ = [
     "configure_dataset",
+    "get_training_params",
     "ROOT_DATA_DIR",
     "TRAIN_DIR",
     "TRAIN_ANN_PATH",

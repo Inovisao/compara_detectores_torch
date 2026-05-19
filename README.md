@@ -8,8 +8,6 @@ Este repositório foi desenvolvido para facilitar a junção de múltiplas redes
 - **https://github.com/AarohiSingla/Faster-R-CNN-on-custom-dataset-Using-Pytorch**
 ### Detr
 - **https://debuggercafe.com/train-detr-on-custom-dataset/**
-### MMdetections
-- **https://mmdetection.readthedocs.io/en/latest/**
 
 ## Estrutura de Pastas
 ```
@@ -22,7 +20,6 @@ Este repositório foi desenvolvido para facilitar a junção de múltiplas redes
 │   └── Detectors
 │      ├── Detr
 │      ├── FasterRCNN
-│      ├── mminference
 │      ├── YOLOV8
 │      ├── YOLOV11
 │      └── RetinaNet
@@ -35,7 +32,6 @@ Este repositório foi desenvolvido para facilitar a junção de múltiplas redes
 - **src/**: Contém os códigos das redes.
 - **Detectors/**: Diretório para organização dos modelos de detecção.
 - **utils/**: Scripts auxiliares para geração de gráficos, instalação de dependências e outras utilidades.
-- **src/Detectors/mminference**: Este código foi adicionado exclusivamente para a geração de resultados e não realizará o treinamento de redes da MMDetection.
 ## Instalação
 
 Execute os seguintes comandos no terminal para configurar o ambiente:
@@ -45,12 +41,6 @@ conda create --name detectores python=3.9.16 -y
 conda activate detectores
 conda install pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia
 pip install scikit-learn funcy albumentations==1.4.4 ultralytics==8.2.87 supervision==0.1.0 pycocotools torchinfo vision-transformers torchmetrics tensorboard
-pip install openmim==0.3.9
-pip install yapf==0.40.1
-mim install mmengine=="0.10.7"
-mim install mmcv=="1.3.17"
-mim install mmcv-full=="1.7.2"
-mim install mmdet=="2.28.2"
 
 -> Para a YOLOv11 rodar pip install ultralytics==8.3.217
 
@@ -85,7 +75,7 @@ dataset/
 ```
 
 ### 2. Escolhendo e Configurando os Modelos
-Os modelos disponíveis para treinamento são **YOLOV8**, **YOLOV11**, **YOLOV5-TPH**, **FasterRCNN**, **RetinaNet** e **DETR**.
+Os modelos disponíveis para treinamento são **YOLOV8**, **YOLOV11**, **YOLO26**, **YOLOV5-TPH**, **FasterRCNN**, **RetinaNet** e **DETR**.
 
 #### YOLOV8
 ```
@@ -109,6 +99,17 @@ src/Detectors/
     └── config.py
 ```
 Utiliza o pacote `ultralytics` (>= 8.3.0) com os pesos `yolo11*.pt`. Por padrão o código baixa `yolo11s.pt`; se quiser usar um checkpoint local (ex.: `src/yolo11s.pt`), defina `YOLOV11_WEIGHTS` antes de rodar. Hiperparâmetros podem ser sobrepostos via variáveis como `YOLOV11_EPOCHS`, `YOLOV11_BATCH`, `YOLOV11_LR0`, etc. O script `RunYOLOV11.py` cria o `data_yolov11.yaml`, executa o treino e move o diretório `YOLOV11/train/` para o checkpoint da dobra.
+
+#### YOLO26
+```
+src/Detectors/
+└── YOLO26
+    ├── DetectionsYOLO26.py
+    ├── GeraLabels.py
+    ├── RunYOLO26.py
+    └── config.py
+```
+Utiliza o pacote `ultralytics` com pesos `yolo26*.pt`. Por padrão o código usa `yolo26n.pt`; você pode sobrescrever com variáveis como `YOLO26_WEIGHTS`, `YOLO26_EPOCHS`, `YOLO26_BATCH`, `YOLO26_LR0` e `YOLO26_DEVICE`. O script `RunYOLO26.py` cria o `data_yolo26.yaml`, executa o treino e move o diretório `YOLO26/train/` para o checkpoint da dobra.
 
 #### FasterRCNN
 ```
@@ -143,7 +144,7 @@ O treinamento utiliza o `retinanet_resnet50_fpn` do `torchvision` (>= 0.17). O `
 ### 3. Executando o Treinamento
 No arquivo `main.py`, edite a variável `MODELS` ou defina a variável de ambiente `MODELS_TO_RUN` para selecionar os modelos desejados, por exemplo:
 ```bash
-MODELS_TO_RUN="YOLOV11,RetinaNet" python main.py
+MODELS_TO_RUN="YOLO26,YOLOV11,RetinaNet" python main.py
 ```
 
 Agora, execute o treinamento manualmente (caso não use a variável de ambiente):

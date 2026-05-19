@@ -58,6 +58,31 @@ RUN_NAME = os.getenv("TPH_RUN_NAME", "train")
 DEFAULT_HYP = REPO_DIR / "data" / "hyps" / "hyp.scratch.yaml"
 
 
+def get_training_params(data_yaml: Path | None = None) -> dict:
+    data_yaml_path = Path(os.getenv("TPH_DATA", data_yaml or DEFAULT_DATA_YAML))
+    return {
+        "cfg": CFG,
+        "img_size": IMG_SIZE,
+        "epochs": EPOCHS,
+        "patience": PATIENCE,
+        "batch": BATCH,
+        "optimizer": OPTIMIZER,
+        "single_cls": SINGLE_CLS,
+        "rect": RECT,
+        "cos_lr": COS_LR,
+        "lr0": LR0,
+        "lrf": LRF,
+        "plots": PLOTS,
+        "hyp_path": HYP_PATH,
+        "pretrained_weights": WEIGHTS_PATH,
+        "device": DEVICE,
+        "run_name": RUN_NAME,
+        "project": str(OUTPUT_PROJECT),
+        "data": str(data_yaml_path),
+        "repo_dir": str(REPO_DIR),
+    }
+
+
 def _ensure_prerequisites(data_yaml_path: Path) -> None:
     if not REPO_DIR.exists():
         raise FileNotFoundError(

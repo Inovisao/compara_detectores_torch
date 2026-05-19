@@ -17,6 +17,7 @@ from pathlib import Path
 from Detectors.YOLOV5_TPH.DetectionsYOLOV5TPH import ResultYOLOV5TPH
 from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
 from Detectors.YOLOV11.DetectionsYOLOV11 import ResultYOLOV11
+from Detectors.YOLO26.DetectionsYOLO26 import ResultYOLO26
 from Detectors.RetinaNet.DetectionsRetinaNet import ResultRetinaNet
 _FASTER_IMPORT_ERROR = None
 try:
@@ -29,7 +30,6 @@ except (FileNotFoundError, ModuleNotFoundError) as _faster_exc:
     faster_config = None
     _FASTER_IMPORT_ERROR = _faster_exc
 #from Detectors.Detr.inference_image_detect import resultDetr
-from Detectors.mminference.inference import runMMdetection
 from sage import SageAggregator, detect_sage_dataset
 
 # Constantes
@@ -363,6 +363,8 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
 
         if model_name == "YOLOV8":
             result = resultYOLO.result(frame, model, LIMIAR_THRESHOLD)
+        elif model_name == "YOLO26":
+            result = ResultYOLO26.result(frame, model, LIMIAR_THRESHOLD)
         elif model_name == "YOLOV11":
             result = ResultYOLOV11.result(frame, model, LIMIAR_THRESHOLD)
         elif model_name == "Faster":
@@ -383,8 +385,7 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
             # result = resultDetr(fold,frame,LIMIAR_THRESHOLD)
             result = []
         else:
-            print(image_path)
-            result = runMMdetection(model, frame, LIMIAR_THRESHOLD)
+            raise ValueError(f"Modelo de inferência não suportado: {model_name}")
 
         if use_sage:
             aggregator.add_tile_prediction(file_name, result)

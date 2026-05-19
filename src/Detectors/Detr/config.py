@@ -3,7 +3,7 @@ import json
 import os
 BATCH_SIZE = 8 # lote de imagens
 RESIZE_TO = 640 # tamanho da imagem
-NUM_EPOCHS = 100 # Numero de epocas
+NUM_EPOCHS = 1000 # Numero de epocas
 NUM_WORKERS = 4 # Numero de workers
 LR = 0.0001 # Taxa de aprendizagem
 DATA_PATH = os.path.join('..','dataset','all','dataDetr.yaml')
@@ -37,3 +37,22 @@ VISUALIZE_TRANSFORMED_IMAGES = True
 
 # location to save model and plots
 OUT_DIR = 'detr'
+
+
+def get_training_params() -> dict:
+    return {
+        "batch_size": BATCH_SIZE,
+        "resize_to": RESIZE_TO,
+        "num_epochs": NUM_EPOCHS,
+        "num_workers": NUM_WORKERS,
+        "learning_rate": LR,
+        "data_path": DATA_PATH,
+        "device": str(DEVICE),
+        "root_data_dir": ROOT_DATA_DIR,
+        "train_dir": TRAIN_DIR,
+        "valid_dir": VALID_DIR,
+        "num_classes": NUM_CLASSES,
+        "classes": CLASSES,
+        "visualize_transformed_images": VISUALIZE_TRANSFORMED_IMAGES,
+        "out_dir": OUT_DIR,
+    }
