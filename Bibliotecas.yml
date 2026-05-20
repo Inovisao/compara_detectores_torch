@@ -195,5 +195,8 @@ dependencies:
     - vision-transformers==0.1.1.0
     - yapf==0.40.1
     - zipp==3.21.0
+
+    - onnx>=1.16.0
+    - onnxruntime-gpu>=1.18.0
 prefix: /home/inovisao/anaconda3/envs/compara_detectores
 

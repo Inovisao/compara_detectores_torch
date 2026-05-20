@@ -311,6 +311,7 @@ def runSSDLite(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
                 "model_state": model.state_dict(),
                 "num_classes": num_classes,
                 "class_names": dataset_config.class_names,
+                "category_mapping": dataset_config.category_mapping,
             }
 
         lr_scheduler.step()

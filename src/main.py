@@ -252,8 +252,14 @@ def test_model(model,fold_dir):
         model_path = os.path.join(fold_dir,model,'latest.pth')
     return model_path
 
-# YOLOV8, YOLOV11, YOLO26, YOLOV5_TPH, Faster, RetinaNet, Detr
-DEFAULT_MODELS = ['YOLOV8', 'YOLOV11', 'YOLO26', 'Faster']
+# ─────────────────────────────────────────────────────────────────────────────
+# CONFIGURAÇÃO — edite apenas este bloco antes de rodar
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Modelos que serão treinados e avaliados quando MODELS_TO_RUN não for definido
+# via variável de ambiente. Adicione ou remova nomes conforme necessário.
+# Opções disponíveis: YOLOV8 | YOLOV11 | YOLO26 | YOLOV5_TPH | Faster | RetinaNet | Detr | SSDLite
+DEFAULT_MODELS = ['SSDLite']
 
 
 def _get_models_to_run():
@@ -265,9 +271,15 @@ def _get_models_to_run():
 
 
 MODELS = _get_models_to_run()
-APENAS_TESTE = False # True para apenas testar modelos treinados False para Treinar e Testar.
 
-# Tiled dataset configuration
+# False → treina cada modelo e em seguida avalia (fluxo completo).
+# True  → pula o treinamento e avalia os pesos já salvos em model_checkpoints/.
+#         Use quando o treinamento já foi feito e só quer rever as métricas.
+APENAS_TESTE = True
+
+# False → usa dataset padrão em dataset/all/ com anotações COCO em filesJSON/.
+# True  → usa dataset tileado em dataset/tiles/<fold_N>/ (imagens recortadas).
+#         Exige que a pasta dataset/tiles/ exista com subpastas fold_1/, fold_2/ ...
 USE_TILED_DATASET = False
 
 if USE_TILED_DATASET:
@@ -293,10 +305,24 @@ else:
 TRAINING_PARAMS_LOG = _new_training_params_payload()
 _write_training_params_json(TRAINING_PARAMS_LOG)
 
-GeraRult = True # True para gerar Resultados False para não gerar
-save_imgs = True # True para salvar imagens em predictes False para não salvar
-GeraResultByClass = False # True para Salvar Resultados Por classes
-CONTINUE = False # True para Continuar sem apagar os pesos ja treinados
+# True  → calcula e salva métricas (mAP, MAE, RMSE, F1 …) em results/results.csv.
+# False → roda só o treinamento, sem gerar arquivos de avaliação.
+GeraRult = True
+
+# True  → salva imagens com bounding boxes preditos em results/prediction/.
+#         Útil para inspeção visual, mas ocupa espaço em disco.
+# False → descarta as imagens; só os CSVs são gerados.
+save_imgs = True
+
+# True  → salva métricas discriminadas por classe em results/results_by_class.csv.
+# False → gera apenas o resultado agregado (suficiente para comparação geral).
+GeraResultByClass = False
+
+# False → apaga os pesos anteriores de model_checkpoints/ antes de treinar.
+#         Garante um treino limpo a cada execução.
+# True  → mantém os pesos já treinados e pula o treino daquela dobra/modelo.
+#         Use para retomar uma execução interrompida sem retreinar do zero.
+CONTINUE = False
 resetar_pasta(str(RESULTS_PATH))
 
 if GeraRult:
