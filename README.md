@@ -155,6 +155,86 @@ python main.py
 
 Os resultados serão salvos na pasta `results/`.
 
+---
+
+## SSDLite + MobileNetV2
+
+```
+src/Detectors/SSDLite
+├── config.py               — hiperparâmetros (epochs, lr, batch, NMS…)
+├── GeraLabels.py           — converte anotações COCO para o DataLoader
+├── RunSSDLite.py           — backbone MobileNetV2 + cabeça SSDLite + loop de treino
+├── DetectionsSSDLite.py    — inferência PyTorch → [x, y, w, h, class_id, score]
+├── export_onnx.py          — exporta best.pth para ONNX
+└── onnx_predict.py         — inferência via ONNX Runtime (sem PyTorch)
+```
+
+### Exportar para ONNX
+
+```bash
+cd /home/neto/development/compara_detectores_torch
+
+python src/Detectors/SSDLite/export_onnx.py \
+    --checkpoint src/model_checkpoints/fold_1/SSDLite/best.pth \
+    --output ssdlite.onnx
+```
+
+Dois arquivos são gerados:
+- `ssdlite.onnx` — grafo ONNX com normalização ImageNet embutida
+- `ssdlite.anchors.npy` — âncoras necessárias para decodificar as detecções
+
+### Inferência com ONNX Runtime (app Python)
+
+Dependências mínimas — **sem PyTorch**:
+
+```bash
+pip install onnxruntime numpy opencv-python
+```
+
+Exemplo de uso:
+
+```python
+from src.Detectors.SSDLite.onnx_predict import SSDLitePredictor
+import cv2
+
+# Carrega modelo uma vez
+predictor = SSDLitePredictor(
+    onnx_path="ssdlite.onnx",
+    score_thresh=0.5,
+    nms_thresh=0.5,
+)
+
+frame = cv2.imread("imagem.jpg")          # BGR, qualquer resolução
+detections = predictor.predict(frame)
+# detections: [(x1, y1, x2, y2, class_id, score), ...]
+
+for x1, y1, x2, y2, cls, score in detections:
+    cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
+    cv2.putText(frame, f"{cls} {score:.2f}", (int(x1), int(y1) - 5),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
+cv2.imwrite("resultado.jpg", frame)
+```
+
+### Inferência com PyTorch (durante avaliação)
+
+```python
+from src.Detectors.SSDLite.DetectionsSSDLite import ResultSSDLite
+import cv2
+
+frame = cv2.imread("imagem.jpg")
+frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+detections = ResultSSDLite.result(
+    frame_rgb,
+    model_path="src/model_checkpoints/fold_1/SSDLite/best.pth",
+    threshold=0.5,
+)
+# detections: [[x, y, w, h, class_id, score], ...]
+```
+
+---
+
 ## Adição de Novos Modelos
 
 ### 1. Estrutura de Pastas
