@@ -275,7 +275,7 @@ MODELS = _get_models_to_run()
 # False → treina cada modelo e em seguida avalia (fluxo completo).
 # True  → pula o treinamento e avalia os pesos já salvos em model_checkpoints/.
 #         Use quando o treinamento já foi feito e só quer rever as métricas.
-APENAS_TESTE = True
+APENAS_TESTE = False
 
 # False → usa dataset padrão em dataset/all/ com anotações COCO em filesJSON/.
 # True  → usa dataset tileado em dataset/tiles/<fold_N>/ (imagens recortadas).
@@ -297,7 +297,7 @@ if USE_TILED_DATASET:
     ROOT_DATA_DIR = None  # Will be set per fold
     FOLD_NAMES = fold_dirs
 else:
-    ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
+    ROOT_DATA_DIR = os.path.join('..', 'dataset', 'all_320')
     DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
     DOBRAS = int(len(os.listdir(DIR_PATH))/3)
     FOLD_NAMES = [f'fold_{i}' for i in range(1, DOBRAS + 1)]

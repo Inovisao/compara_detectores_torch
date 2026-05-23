@@ -62,11 +62,17 @@ def _resolve_split_paths(root: Path, fold: str) -> List[Tuple[str, Path, Path]]:
 
 def _collect_categories(annotation_paths: List[Path]) -> Tuple[List[str], Dict[int, int]]:
     categories: Dict[int, str] = {}
+    used_ids: set = set()
     for path in annotation_paths:
         with open(path, "r", encoding="utf-8") as handle:
             data = json.load(handle)
         for category in data.get("categories", []):
             categories[int(category["id"])] = category["name"]
+        for ann in data.get("annotations", []):
+            used_ids.add(int(ann["category_id"]))
+
+    # Ignora categorias definidas mas sem nenhuma anotação (classe fantasma)
+    categories = {k: v for k, v in categories.items() if k in used_ids}
 
     if not categories:
         raise ValueError("No categories found in the provided annotation files.")
