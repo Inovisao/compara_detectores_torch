@@ -1,19 +1,3 @@
-"""
-Pré-processa o dataset original para 320×320, mantendo a proporção via
-LongestMaxSize + PadIfNeeded (padding preto centralizado).
-
-Uso:
-    python utils/preprocess_dataset.py
-    python utils/preprocess_dataset.py --input dataset/all --output dataset/all_320 --size 320
-
-Saída:
-    dataset/all_320/train/          — imagens redimensionadas
-    dataset/all_320/train/_annotations.coco.json — JSON com coordenadas atualizadas
-
-Depois rode geraDobras.py apontando para o novo JSON:
-    python utils/geraDobras.py -annotations dataset/all_320/train/_annotations.coco.json \
-                               -json dataset/all_320/filesJSON/
-"""
 from __future__ import annotations
 
 import argparse

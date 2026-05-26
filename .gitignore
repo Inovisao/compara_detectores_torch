@@ -38,3 +38,6 @@ results/results.csv
 src/Detectors/Detr/__pycache__/runDetr.cpython-39.pyc
 src/Detectors/YOLOV5_TPH/tph-yolov5
 .codex
+.env
+results/*
+runs

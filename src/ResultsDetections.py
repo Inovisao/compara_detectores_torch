@@ -87,7 +87,23 @@ def _resolve_test_split(root: str, fold: str):
     )
 
 
-def _resolve_class_annotations(root: str) -> str:
+def _resolve_class_annotations(root: str, fold=None) -> str:
+    files_json_dir = os.path.join(root, "filesJSON")
+    if os.path.exists(files_json_dir):
+        candidates = []
+        if fold:
+            candidates.extend(
+                os.path.join(files_json_dir, f"{fold}_{split}.json")
+                for split in ("train", "val", "test")
+            )
+        candidates.extend(
+            str(path)
+            for path in sorted(Path(files_json_dir).glob("fold_*_*.json"))
+        )
+        for path in candidates:
+            if os.path.exists(path):
+                return path
+
     candidates = [
         os.path.join(root, "train", "_annotations.coco.json"),
         os.path.join(root, "val", "_annotations.coco.json"),
@@ -349,7 +365,7 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
         predictions = None
         ground_truth = None
     else:
-        annotations_path = _resolve_class_annotations(root)
+        annotations_path = _resolve_class_annotations(root, fold)
         classes_dict = get_classes(annotations_path)
         predictions = {}
         ground_truth = {}

@@ -15,6 +15,7 @@ class SSDLiteConfig:
     lr_step_size: int
     lr_gamma: float
     num_workers: int
+    pin_memory: bool
     score_thresh: float
     nms_thresh: float
     detections_per_img: int
@@ -32,6 +33,13 @@ def _get_env_int(name: str, default: int) -> int:
     return int(value) if value is not None else default
 
 
+def _get_env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
 def get_config() -> SSDLiteConfig:
     return SSDLiteConfig(
         epochs=_get_env_int("SSDLITE_EPOCHS", 80),
@@ -42,7 +50,8 @@ def get_config() -> SSDLiteConfig:
         weight_decay=_get_env_float("SSDLITE_WEIGHT_DECAY", 4e-5),
         lr_step_size=_get_env_int("SSDLITE_LR_STEP", 50),
         lr_gamma=_get_env_float("SSDLITE_LR_GAMMA", 0.5),
-        num_workers=_get_env_int("SSDLITE_NUM_WORKERS", 4),
+        num_workers=_get_env_int("SSDLITE_NUM_WORKERS", 0),
+        pin_memory=_get_env_bool("SSDLITE_PIN_MEMORY", False),
         score_thresh=_get_env_float("SSDLITE_SCORE_THRESH", 0.01),
         nms_thresh=_get_env_float("SSDLITE_NMS_THRESH", 0.45),
         detections_per_img=_get_env_int("SSDLITE_DETECTIONS_PER_IMG", 200),

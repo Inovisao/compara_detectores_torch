@@ -162,42 +162,45 @@ class _CocoDataset(Dataset):
         return len(self.images_info)
 
     def __getitem__(self, idx: int):
-        if idx == 0:
-            print(f"[DEBUG] transform type: {type(self.transforms)}", flush=True)
-            print(f"[DEBUG] train mode: {self.train}", flush=True)
         sample   = self.images_info[idx]
         image_id = int(sample["id"])
 
         image_path = self.images_dir / sample["file_name"]
-        image = cv2.imread(str(image_path))
-        if image is None:
-            raise FileNotFoundError(f"Image not found: {image_path}")
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        try:
+            image = cv2.imread(str(image_path))
+            if image is None:
+                raise FileNotFoundError(f"Image not found: {image_path}")
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-        annotations = self.annotations_by_image.get(image_id, [])
-        img_h, img_w = image.shape[:2]
-        boxes, labels = [], []
-        for ann in annotations:
-            x, y, w, h = ann["bbox"]
-            mapped_label = self.category_mapping.get(int(ann["category_id"]))
-            if mapped_label is None or w <= 0 or h <= 0:
-                continue
-            x2, y2 = x + w, y + h
-            if x < 0 or y < 0 or x2 > img_w or y2 > img_h:
-                x  = max(0.0, x)
-                y  = max(0.0, y)
-                x2 = min(float(img_w), x2)
-                y2 = min(float(img_h), y2)
-            if x2 - x < 2 or y2 - y < 2:
-                continue
-            boxes.append([x, y, x2, y2])
-            labels.append(mapped_label)
+            annotations = self.annotations_by_image.get(image_id, [])
+            img_h, img_w = image.shape[:2]
+            boxes, labels = [], []
+            for ann in annotations:
+                x, y, w, h = ann["bbox"]
+                mapped_label = self.category_mapping.get(int(ann["category_id"]))
+                if mapped_label is None or w <= 0 or h <= 0:
+                    continue
+                x2, y2 = x + w, y + h
+                if x < 0 or y < 0 or x2 > img_w or y2 > img_h:
+                    x  = max(0.0, x)
+                    y  = max(0.0, y)
+                    x2 = min(float(img_w), x2)
+                    y2 = min(float(img_h), y2)
+                if x2 - x < 2 or y2 - y < 2:
+                    continue
+                boxes.append([x, y, x2, y2])
+                labels.append(mapped_label)
 
-        transformed = self.transforms(
-            image=image,
-            bboxes=boxes if boxes else [],
-            labels=labels if labels else [],
-        )
+            transformed = self.transforms(
+                image=image,
+                bboxes=boxes if boxes else [],
+                labels=labels if labels else [],
+            )
+        except Exception as exc:
+            raise RuntimeError(
+                f"Failed to load SSDLite sample idx={idx}, image_id={image_id}, "
+                f"path={image_path}"
+            ) from exc
         image_tensor = transformed["image"]
         boxes  = list(transformed["bboxes"])
         labels = list(transformed["labels"])
@@ -238,6 +241,33 @@ def _to_device(items, device):
     return items
 
 
+def _build_loader(dataset: Dataset, *, cfg, device: torch.device, shuffle: bool) -> DataLoader:
+    use_workers = cfg.num_workers > 0
+    pin_memory = bool(cfg.pin_memory and device.type == "cuda" and use_workers)
+    loader_kwargs = {
+        "batch_size": cfg.batch_size,
+        "shuffle": shuffle,
+        "num_workers": cfg.num_workers,
+        "collate_fn": _collate_fn,
+        "pin_memory": pin_memory,
+    }
+    if use_workers:
+        loader_kwargs.update(persistent_workers=True, prefetch_factor=2)
+    return DataLoader(dataset, **loader_kwargs)
+
+
+def _checkpoint_state(model: SSD, num_classes: int, dataset_config: SSDLiteDatasetConfig) -> Dict:
+    return {
+        "model_state": {
+            key: value.detach().cpu().clone()
+            for key, value in model.state_dict().items()
+        },
+        "num_classes": num_classes,
+        "class_names": dataset_config.class_names,
+        "category_mapping": dataset_config.category_mapping,
+    }
+
+
 def runSSDLite(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
     dataset_config = CriarLabelsSSDLite(fold, root_data_dir)
     cfg = get_config()
@@ -261,31 +291,13 @@ def runSSDLite(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
     val_dataset = _CocoDataset(
         dataset_config.val, dataset_config.category_mapping, train=False
     )
-    _use_workers = cfg.num_workers > 0
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=cfg.batch_size,
-        shuffle=True,
-        num_workers=cfg.num_workers,
-        collate_fn=_collate_fn,
-        pin_memory=device.type == "cuda",
-        persistent_workers=_use_workers,
-        prefetch_factor=2 if _use_workers else None,
-    )
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=cfg.batch_size,
-        shuffle=False,
-        num_workers=cfg.num_workers,
-        collate_fn=_collate_fn,
-        pin_memory=device.type == "cuda",
-        persistent_workers=_use_workers,
-        prefetch_factor=2 if _use_workers else None,
-    )
+    train_loader = _build_loader(train_dataset, cfg=cfg, device=device, shuffle=True)
+    val_loader = _build_loader(val_dataset, cfg=cfg, device=device, shuffle=False)
 
     print(
         f"[SSDLite] Iniciando treino | device={device} | epochs={cfg.epochs} "
         f"| batch={cfg.batch_size} | lr={cfg.learning_rate} "
+        f"| workers={cfg.num_workers} | pin_memory={train_loader.pin_memory} "
         f"| classes={len(dataset_config.class_names)}",
         flush=True,
     )
@@ -324,9 +336,9 @@ def runSSDLite(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
             weight_decay=cfg.weight_decay,
         )
 
-    _warmup_epochs = 3
+    _warmup_epochs = min(3, max(1, cfg.epochs - 1))
     warmup = LinearLR(optimizer, start_factor=0.1, end_factor=1.0, total_iters=_warmup_epochs)
-    cosine = CosineAnnealingLR(optimizer, T_max=cfg.epochs - _warmup_epochs, eta_min=1e-6)
+    cosine = CosineAnnealingLR(optimizer, T_max=max(1, cfg.epochs - _warmup_epochs), eta_min=1e-6)
     lr_scheduler = SequentialLR(optimizer, schedulers=[warmup, cosine], milestones=[_warmup_epochs])
 
     best_state = None
@@ -390,12 +402,7 @@ def runSSDLite(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
         if avg_val_loss < best_loss:
             best_loss = avg_val_loss
             epochs_without_improvement = 0
-            best_state = {
-                "model_state":      model.state_dict(),
-                "num_classes":      num_classes,
-                "class_names":      dataset_config.class_names,
-                "category_mapping": dataset_config.category_mapping,
-            }
+            best_state = _checkpoint_state(model, num_classes, dataset_config)
         else:
             epochs_without_improvement += 1
             if cfg.patience > 0 and epochs_without_improvement >= cfg.patience:
@@ -409,12 +416,7 @@ def runSSDLite(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
         lr_scheduler.step()
 
     if best_state is None:
-        best_state = {
-            "model_state":      model.state_dict(),
-            "num_classes":      num_classes,
-            "class_names":      dataset_config.class_names,
-            "category_mapping": dataset_config.category_mapping,
-        }
+        best_state = _checkpoint_state(model, num_classes, dataset_config)
 
     target_dir = Path(fold_dir) / "SSDLite"
     target_dir.mkdir(parents=True, exist_ok=True)

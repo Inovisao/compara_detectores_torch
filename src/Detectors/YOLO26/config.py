@@ -9,7 +9,7 @@ from ultralytics import YOLO
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SRC_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_DATA = PROJECT_ROOT / "dataset" / "all" / "data.yaml"
+DEFAULT_DATA = PROJECT_ROOT / "dataset" / "all" / "data_yolo26.yaml"
 DEFAULT_WEIGHTS = os.getenv("YOLO26_WEIGHTS", "yolo26n.pt")
 DEFAULT_PROJECT = SRC_ROOT / "runs" / "detect" / "YOLO26"
 
@@ -26,14 +26,14 @@ def get_training_params(data_yaml: str | Path | None = None) -> dict:
     return {
         "weights": DEFAULT_WEIGHTS,
         "data": str(data_path),
-        "epochs": int(os.getenv("YOLO26_EPOCHS", "1000")),
+        "epochs": int(os.getenv("YOLO26_EPOCHS", "500")),
         "imgsz": int(os.getenv("YOLO26_IMGSZ", "640")),
-        "patience": int(os.getenv("YOLO26_PATIENCE", "100")),
+        "patience": int(os.getenv("YOLO26_PATIENCE", "10")),
         "batch": int(os.getenv("YOLO26_BATCH", "16")),
         "project": os.getenv("YOLO26_PROJECT", str(DEFAULT_PROJECT)),
         "run_name": os.getenv("YOLO26_RUN_NAME", "train"),
-        "optimizer": os.getenv("YOLO26_OPTIMIZER", "SGD"),
-        "single_cls": _env_bool("YOLO26_SINGLE_CLS", False),
+        "optimizer": os.getenv("YOLO26_OPTIMIZER", "AdamW"),
+        "single_cls": _env_bool("YOLO26_SINGLE_CLS", True),
         "rect": _env_bool("YOLO26_RECT", False),
         "cos_lr": _env_bool("YOLO26_COS_LR", True),
         "lr0": float(os.getenv("YOLO26_LR0", "0.001")),
@@ -42,6 +42,7 @@ def get_training_params(data_yaml: str | Path | None = None) -> dict:
         "device": os.getenv("YOLO26_DEVICE"),
         "workers": int(os.getenv("YOLO26_WORKERS", "4")),
     }
+
 
 
 def treino(data_yaml: str | Path | None = None) -> None:
@@ -71,7 +72,97 @@ def treino(data_yaml: str | Path | None = None) -> None:
     if params["device"]:
         train_kwargs["device"] = params["device"]
 
+    print(model.model.loss)
+    model.info(verbose=True)
+    for name, param in model.model.named_parameters():
+        if "dfl" in name.lower():
+            print(name, param.shape)
     model.train(**train_kwargs)
+
+
+def get_finetune_params(data_yaml: str | Path, weights: str | Path, fold: str = "") -> dict:
+    data_path = Path(data_yaml)
+    project   = SRC_ROOT / "runs" / "detect" / "YOLO26_finetune"
+    suffix    = f"_{fold}" if fold else ""
+    return {
+        "phase_a": {
+            "data":           str(data_path),
+            "weights":        str(weights),
+            "epochs":         int(os.getenv("YOLO26_FT_A_EPOCHS",    "300")),
+            "imgsz":          int(os.getenv("YOLO26_FT_IMGSZ",       "640")),
+            "patience":       int(os.getenv("YOLO26_FT_A_PATIENCE",  "30")),
+            "batch":          int(os.getenv("YOLO26_FT_BATCH",        "32")),
+            "freeze":         int(os.getenv("YOLO26_FT_A_FREEZE",     "0")),
+            "lr0":          float(os.getenv("YOLO26_FT_A_LR0",     "0.01")),
+            "lrf":          float(os.getenv("YOLO26_FT_A_LRF",      "0.01")),
+            "warmup_epochs":  int(os.getenv("YOLO26_FT_A_WARMUP",     "3")),
+            "optimizer":           os.getenv("YOLO26_FT_OPTIMIZER",   "MuSGD"),
+            "momentum":     float(os.getenv("YOLO26_FT_MOMENTUM",    "0.937")),
+            "weight_decay": float(os.getenv("YOLO26_FT_WD",        "0.0005")),
+            "augment":      _env_bool("YOLO26_FT_AUGMENT", True),
+            "project":      str(project),
+            "name":         f"phase_a{suffix}",
+            "save_period":    int(os.getenv("YOLO26_FT_SAVE_PERIOD",  "5")),
+             # augmentation explícito
+            "hsv_h":    0.015,
+            "hsv_s":    0.7,
+            "hsv_v":    0.4,
+            "degrees":  5.0,
+            "translate": 0.1,
+            "scale":    0.5,
+            "fliplr":   0.5,
+            "flipud":   0.0,
+            "mosaic":   1.0,   # crítico para objetos pequenos
+            "mixup":    0.1,
+            "copy_paste": 0.1, # copia buracos pequenos para outras imagens
+        },
+        "phase_b": {
+            "data":           str(data_path),
+            "epochs":         int(os.getenv("YOLO26_FT_B_EPOCHS",    "50")),
+            "imgsz":          int(os.getenv("YOLO26_FT_IMGSZ",       "640")),
+            "patience":       int(os.getenv("YOLO26_FT_B_PATIENCE",  "15")),
+            "batch":          int(os.getenv("YOLO26_FT_BATCH",        "16")),
+            "freeze":         int(os.getenv("YOLO26_FT_B_FREEZE",     "9")),
+            "lr0":          float(os.getenv("YOLO26_FT_B_LR0",    "0.0001")),
+            "lrf":          float(os.getenv("YOLO26_FT_B_LRF",       "0.1")),
+            "warmup_epochs":  int(os.getenv("YOLO26_FT_B_WARMUP",     "3")),
+            "optimizer":           os.getenv("YOLO26_FT_OPTIMIZER",   "SGD"),
+            "momentum":     float(os.getenv("YOLO26_FT_MOMENTUM",    "0.937")),
+            "weight_decay": float(os.getenv("YOLO26_FT_WD",        "0.0005")),
+            "augment":      _env_bool("YOLO26_FT_AUGMENT", True),
+            "project":      str(project),
+            "name":         f"phase_b{suffix}",
+            "save_period":    int(os.getenv("YOLO26_FT_SAVE_PERIOD",  "5")),
+             # augmentation explícito
+            "hsv_h":    0.015,
+            "hsv_s":    0.7,
+            "hsv_v":    0.4,
+            "degrees":  5.0,
+            "translate": 0.1,
+            "scale":    0.5,
+            "fliplr":   0.5,
+            "flipud":   0.0,
+            "mosaic":   1.0,   # crítico para objetos pequenos
+            "mixup":    0.1,
+            "copy_paste": 0.1, # copia buracos pequenos para outras imagens
+        },
+    }
+
+
+def finetune(data_yaml: str | Path, weights: str | Path, fold: str = "") -> None:
+    params = get_finetune_params(data_yaml, weights, fold)
+
+    model = YOLO(str(weights))
+    model.train(**{k: v for k, v in params["phase_a"].items() if k != "weights"})
+
+    phase_a_best = (
+        Path(params["phase_a"]["project"])
+        / params["phase_a"]["name"]
+        / "weights"
+        / "best.pt"
+    )
+    model = YOLO(str(phase_a_best))
+    model.train(**{k: v for k, v in params["phase_b"].items()})
 
 
 if __name__ == "__main__":

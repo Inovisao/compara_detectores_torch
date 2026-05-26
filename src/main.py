@@ -13,6 +13,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATASET_PATH = PROJECT_ROOT / "dataset" / "tiles"
 TILING_MODE = os.getenv("TILING_MODE", "basic")
 TRAINING_PARAMS_JSON_PATH = PROJECT_ROOT / "results" / "training_params.json"
+DEFAULT_DATASET_CANDIDATES = (
+    PROJECT_ROOT / "dataset" / "all_320",
+    PROJECT_ROOT / "dataset" / "all",
+    Path("/home/neto/development/buracos/dataset_problematico/all_320"),
+    Path("/home/neto/development/buracos/dataset_problematico/all"),
+)
 
 # Disable Weights & Biases logging unless explicitly re-enabled outside.
 os.environ.setdefault("WANDB_DISABLED", "true")
@@ -175,6 +181,33 @@ def register_training_params(model: str, fold: str, root: str, mode: str, model_
     _write_run_training_params_json(run_payload)
     _write_training_params_json(TRAINING_PARAMS_LOG)
 
+
+def _resolve_dataset_root() -> Path:
+    env_root = os.getenv("DATASET_ROOT")
+    candidates = [Path(env_root).expanduser()] if env_root else list(DEFAULT_DATASET_CANDIDATES)
+
+    for candidate in candidates:
+        files_json_dir = candidate / "filesJSON"
+        if files_json_dir.exists():
+            return candidate.resolve()
+
+    checked = "\n".join(f"  - {candidate}" for candidate in candidates)
+    raise FileNotFoundError(
+        "Dataset COCO não encontrado. Defina DATASET_ROOT apontando para uma pasta "
+        f"com filesJSON/.\nCaminhos verificados:\n{checked}"
+    )
+
+
+def _collect_fold_names(files_json_dir: Path) -> list[str]:
+    fold_names = {
+        "_".join(path.stem.split("_")[:2])
+        for path in files_json_dir.glob("fold_*_*.json")
+        if path.is_file()
+    }
+    if not fold_names:
+        raise FileNotFoundError(f"Nenhum arquivo fold_*_*.json encontrado em {files_json_dir}")
+    return sorted(fold_names, key=lambda name: int(name.split("_")[1]))
+
 # Remove todos os resultados presentes dos outros treinamentos
 def resetar_pasta(caminho):
     shutil.rmtree(caminho, ignore_errors=True)  # Remove a pasta inteira
@@ -187,7 +220,14 @@ def train_model(model,fold,fold_dir,ROOT_DATA_DIR):
 
     if os.path.exists(check_save_path):
         if CONTINUE:
-            return test_model(model, fold_dir)
+            existing_model_path = test_model(model, fold_dir)
+            if os.path.exists(existing_model_path):
+                return existing_model_path
+            print(
+                f"[INFO] Checkpoint incompleto para {model} em {fold}: "
+                f"{existing_model_path} não existe. Retreinando.",
+                flush=True,
+            )
         shutil.rmtree(check_save_path)
     if model == 'YOLOV8':
         from Detectors.YOLOV8.RunYOLOV8 import runYOLOV8
@@ -259,7 +299,7 @@ def test_model(model,fold_dir):
 # Modelos que serão treinados e avaliados quando MODELS_TO_RUN não for definido
 # via variável de ambiente. Adicione ou remova nomes conforme necessário.
 # Opções disponíveis: YOLOV8 | YOLOV11 | YOLO26 | YOLOV5_TPH | Faster | RetinaNet | Detr | SSDLite
-DEFAULT_MODELS = ['SSDLite']
+DEFAULT_MODELS = ['YOLO26']
 
 
 def _get_models_to_run():
@@ -297,10 +337,12 @@ if USE_TILED_DATASET:
     ROOT_DATA_DIR = None  # Will be set per fold
     FOLD_NAMES = fold_dirs
 else:
-    ROOT_DATA_DIR = os.path.join('..', 'dataset', 'all_320')
-    DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
-    DOBRAS = int(len(os.listdir(DIR_PATH))/3)
-    FOLD_NAMES = [f'fold_{i}' for i in range(1, DOBRAS + 1)]
+    dataset_root = _resolve_dataset_root()
+    ROOT_DATA_DIR = str(dataset_root)
+    DIR_PATH = dataset_root / 'filesJSON'
+    FOLD_NAMES = _collect_fold_names(DIR_PATH)
+    DOBRAS = len(FOLD_NAMES)
+    print(f"[INFO] Dataset: {ROOT_DATA_DIR} | folds={DOBRAS}", flush=True)
 
 TRAINING_PARAMS_LOG = _new_training_params_payload()
 _write_training_params_json(TRAINING_PARAMS_LOG)
