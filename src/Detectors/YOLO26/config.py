@@ -21,8 +21,13 @@ def _env_bool(name: str, default: bool) -> bool:
     return value.strip().lower() in {"1", "true", "t", "yes", "y"}
 
 
+def _env_int(name: str, default: str | int) -> int:
+    return int(os.getenv(name, str(default)))
+
+
 def get_training_params(data_yaml: str | Path | None = None) -> dict:
     data_path = Path(os.getenv("YOLO26_DATA", data_yaml or DEFAULT_DATA))
+
     return {
         "weights": DEFAULT_WEIGHTS,
         "data": str(data_path),
@@ -84,13 +89,15 @@ def get_finetune_params(data_yaml: str | Path, weights: str | Path, fold: str = 
     data_path = Path(data_yaml)
     project   = SRC_ROOT / "runs" / "detect" / "YOLO26_finetune"
     suffix    = f"_{fold}" if fold else ""
+    ft_patience = _env_int("YOLO26_FT_PATIENCE", 30)
+
     return {
         "phase_a": {
             "data":           str(data_path),
             "weights":        str(weights),
             "epochs":         int(os.getenv("YOLO26_FT_A_EPOCHS",    "300")),
             "imgsz":          int(os.getenv("YOLO26_FT_IMGSZ",       "640")),
-            "patience":       int(os.getenv("YOLO26_FT_A_PATIENCE",  "30")),
+            "patience":       _env_int("YOLO26_FT_A_PATIENCE", ft_patience),
             "batch":          int(os.getenv("YOLO26_FT_BATCH",        "32")),
             "freeze":         int(os.getenv("YOLO26_FT_A_FREEZE",     "0")),
             "lr0":          float(os.getenv("YOLO26_FT_A_LR0",     "0.01")),
@@ -99,7 +106,7 @@ def get_finetune_params(data_yaml: str | Path, weights: str | Path, fold: str = 
             "optimizer":           os.getenv("YOLO26_FT_OPTIMIZER",   "MuSGD"),
             "momentum":     float(os.getenv("YOLO26_FT_MOMENTUM",    "0.937")),
             "weight_decay": float(os.getenv("YOLO26_FT_WD",        "0.0005")),
-            "augment":      _env_bool("YOLO26_FT_AUGMENT", True),
+            "augment":      _env_bool("YOLO26_FT_TTA", False),
             "project":      str(project),
             "name":         f"phase_a{suffix}",
             "save_period":    int(os.getenv("YOLO26_FT_SAVE_PERIOD",  "5")),
@@ -120,7 +127,7 @@ def get_finetune_params(data_yaml: str | Path, weights: str | Path, fold: str = 
             "data":           str(data_path),
             "epochs":         int(os.getenv("YOLO26_FT_B_EPOCHS",    "50")),
             "imgsz":          int(os.getenv("YOLO26_FT_IMGSZ",       "640")),
-            "patience":       int(os.getenv("YOLO26_FT_B_PATIENCE",  "15")),
+            "patience":       _env_int("YOLO26_FT_B_PATIENCE", ft_patience),
             "batch":          int(os.getenv("YOLO26_FT_BATCH",        "16")),
             "freeze":         int(os.getenv("YOLO26_FT_B_FREEZE",     "9")),
             "lr0":          float(os.getenv("YOLO26_FT_B_LR0",    "0.0001")),
@@ -129,7 +136,7 @@ def get_finetune_params(data_yaml: str | Path, weights: str | Path, fold: str = 
             "optimizer":           os.getenv("YOLO26_FT_OPTIMIZER",   "SGD"),
             "momentum":     float(os.getenv("YOLO26_FT_MOMENTUM",    "0.937")),
             "weight_decay": float(os.getenv("YOLO26_FT_WD",        "0.0005")),
-            "augment":      _env_bool("YOLO26_FT_AUGMENT", True),
+            "augment":      _env_bool("YOLO26_FT_TTA", False),
             "project":      str(project),
             "name":         f"phase_b{suffix}",
             "save_period":    int(os.getenv("YOLO26_FT_SAVE_PERIOD",  "5")),

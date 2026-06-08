@@ -27,3 +27,19 @@ def test_finetune_patience_can_be_overridden_per_phase(monkeypatch, tmp_path):
 
     assert params["phase_a"]["patience"] == 40
     assert params["phase_b"]["patience"] == 8
+
+
+def test_finetune_disables_unsupported_tta_by_default(tmp_path):
+    params = get_finetune_params(tmp_path / "data.yaml", "yolo26n.pt")
+
+    assert params["phase_a"]["augment"] is False
+    assert params["phase_b"]["augment"] is False
+
+
+def test_finetune_tta_can_be_enabled_explicitly(monkeypatch, tmp_path):
+    monkeypatch.setenv("YOLO26_FT_TTA", "true")
+
+    params = get_finetune_params(tmp_path / "data.yaml", "yolo26n.pt")
+
+    assert params["phase_a"]["augment"] is True
+    assert params["phase_b"]["augment"] is True
