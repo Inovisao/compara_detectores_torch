@@ -34,7 +34,7 @@ def train(
         samples = list(image.to(device) for image in samples)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-        with torch.cuda.amp.autocast(enabled=scaler is not None):
+        with torch.amp.autocast("cuda", enabled=scaler is not None):
             outputs = model(samples)
             loss_dict = criterion(outputs, targets)
             weight_dict = criterion.weight_dict

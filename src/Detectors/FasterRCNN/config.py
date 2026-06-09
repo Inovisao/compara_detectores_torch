@@ -5,7 +5,7 @@ from typing import Optional
 
 import torch
 
-BATCH_SIZE = 8
+BATCH_SIZE = 4
 RESIZE_TO = 640
 NUM_EPOCHS = 100
 NUM_WORKERS = 8

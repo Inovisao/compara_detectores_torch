@@ -299,8 +299,9 @@ def test_model(model,fold_dir):
 # Modelos que serão treinados e avaliados quando MODELS_TO_RUN não for definido
 # via variável de ambiente. Adicione ou remova nomes conforme necessário.
 # Opções disponíveis: YOLOV8 | YOLOV11 | YOLO26 | YOLOV5_TPH | Faster | RetinaNet | Detr | SSDLite
-DEFAULT_MODELS = ['YOLOV8', 'Faster', 'Detr']
-
+DEFAULT_MODELS = ['Faster', 'YOLOV8', 'Detr']
+#DEFAULT_MODELS = ['YOLOV8', 'Faster', 'Detr']
+#DEFAULT_MODELS = ['YOLOV8', 'Faster', 'Detr']
 
 def _get_models_to_run():
     raw = os.getenv('MODELS_TO_RUN')

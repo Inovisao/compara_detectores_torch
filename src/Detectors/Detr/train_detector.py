@@ -306,7 +306,7 @@ def main(args):
             pass
 
     use_amp = DEVICE.startswith("cuda")
-    scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
+    scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
 
     # Sumário do modelo
     summarize_model(model, DEVICE, BATCH_SIZE, IMAGE_SIZE)

@@ -106,7 +106,7 @@ optimizer = torch.optim.SGD(
 
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
 
-_scaler = torch.cuda.amp.GradScaler(enabled=str(DEVICE).startswith("cuda"))
+_scaler = torch.amp.GradScaler("cuda", enabled=str(DEVICE).startswith("cuda"))
 
 
 def train_one_epoch(model, optimizer, data_loader, device, epoch):
@@ -139,7 +139,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch):
             continue
 
         images = valid_images
-        with torch.cuda.amp.autocast(enabled=_scaler.is_enabled()):
+        with torch.amp.autocast("cuda", enabled=_scaler.is_enabled()):
             loss_dict = model(images, processed_targets)
             losses = sum(loss for loss in loss_dict.values())
 
