@@ -12,7 +12,8 @@ from config import (
     BATCH_SIZE as CFG_BATCH_SIZE, RESIZE_TO as CFG_RESIZE_TO, NUM_EPOCHS as CFG_NUM_EPOCHS,
     NUM_WORKERS as CFG_NUM_WORKERS, LR as CFG_LR, DEVICE as CFG_DEVICE, ROOT_DATA_DIR,
     TRAIN_DIR, VALID_DIR, CLASSES as CFG_CLASSES, NUM_CLASSES as CFG_NUM_CLASSES,
-    VISUALIZE_TRANSFORMED_IMAGES as CFG_VIS, OUT_DIR as CFG_OUT_DIR, DATA_PATH as CFG_DATA_PATH
+    VISUALIZE_TRANSFORMED_IMAGES as CFG_VIS, OUT_DIR as CFG_OUT_DIR, DATA_PATH as CFG_DATA_PATH,
+    PATIENCE as CFG_PATIENCE,
 )
 from utils.detection.datasets import (
     create_train_dataset, create_valid_dataset,
@@ -69,12 +70,12 @@ def parse_opt():
     parser.add_argument('--name', default=CFG_OUT_DIR, type=str, help='training result dir name')
     parser.add_argument('--imgsz', '--img-size', dest='imgsz', default=CFG_RESIZE_TO, type=int)
     parser.add_argument('--batch', default=CFG_BATCH_SIZE, type=int)
-    parser.add_argument('-j', '--workers', default=4, type=int)
+    parser.add_argument('-j', '--workers', default=CFG_NUM_WORKERS, type=int)
     parser.add_argument('-st', '--square-training', dest='square_training', action='store_true')
     parser.add_argument('-uta', '--use-train-aug', dest='use_train_aug', action='store_true')
     parser.add_argument('--mosaic', default=0.0, type=float)
     parser.add_argument('-vt', '--vis-transformed', dest='vis_transformed', action='store_true')
-    parser.add_argument('-lr', '--learning-rate', dest='learning_rate', type=float, default=5e-5)
+    parser.add_argument('-lr', '--learning-rate', dest='learning_rate', type=float, default=CFG_LR)
     parser.add_argument('-lrb', '--lr-backbone', dest='lr_backbone', type=float, default=1e-6)
     parser.add_argument('--weight-decay', dest='weight_decay', default=1e-4, type=float)
     parser.add_argument('--eos_coef', default=0.1, type=float)
@@ -297,6 +298,16 @@ def main(args):
     except Exception as e:
         error("Falha ao mover o modelo para o dispositivo.", e)
 
+    if hasattr(torch, 'compile'):
+        try:
+            model = torch.compile(model)
+            info("torch.compile() ativado.")
+        except Exception:
+            pass
+
+    use_amp = DEVICE.startswith("cuda")
+    scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
+
     # Sumário do modelo
     summarize_model(model, DEVICE, BATCH_SIZE, IMAGE_SIZE)
 
@@ -324,6 +335,8 @@ def main(args):
     save_best_model = SaveBestModel()
 
     val_map_05, val_map = [], []
+    best_map = 0.0
+    patience_counter = 0
 
     # Loop de treino
     try:
@@ -331,7 +344,7 @@ def main(args):
             info(f"Epoch {epoch+1}/{EPOCHS}")
             try:
                 train_loss = train(
-                    train_loader, model, criterion, optimizer, DEVICE, epoch=epoch
+                    train_loader, model, criterion, optimizer, DEVICE, epoch=epoch, scaler=scaler
                 )
             except RuntimeError as re:
                 # Típicos erros: CUDA OOM
@@ -365,6 +378,14 @@ def main(args):
             try:
                 val_map_05.append(stats['coco_eval_bbox'][1])
                 val_map.append(stats['coco_eval_bbox'])
+                if val_map_05[-1] > best_map:
+                    best_map = val_map_05[-1]
+                    patience_counter = 0
+                else:
+                    patience_counter += 1
+                    if patience_counter >= CFG_PATIENCE:
+                        info(f"Early stopping após {epoch + 1} épocas sem melhoria (patience={CFG_PATIENCE}).")
+                        break
             except Exception as e:
                 warn(f"Formato inesperado de stats em avaliação: {e}")
 

@@ -15,8 +15,11 @@ from config import (
     NUM_CLASSES,
     NUM_EPOCHS,
     BATCH_SIZE,
+    NUM_WORKERS,
     DEVICE,
     LR,
+    MOMENTUM,
+    WEIGHT_DECAY,
     OUT_DIR,
     PATIENCE,
 )
@@ -55,8 +58,16 @@ val_dataset = get_coco_dataset(
 )
 
 # DataLoader
-train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=lambda x: tuple(zip(*x)))
-val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=lambda x: tuple(zip(*x)))
+train_loader = DataLoader(
+    train_dataset, batch_size=BATCH_SIZE, shuffle=True,
+    num_workers=NUM_WORKERS, pin_memory=True, persistent_workers=NUM_WORKERS > 0,
+    collate_fn=lambda x: tuple(zip(*x)),
+)
+val_loader = DataLoader(
+    val_dataset, batch_size=BATCH_SIZE, shuffle=False,
+    num_workers=NUM_WORKERS, pin_memory=True, persistent_workers=NUM_WORKERS > 0,
+    collate_fn=lambda x: tuple(zip(*x)),
+)
 
 # Load Faster R-CNN with ResNet-50 backbone
 def get_model(num_classes):
@@ -76,6 +87,11 @@ def get_model(num_classes):
 # Initialize the model
 model = get_model(NUM_CLASSES)
 model.to(DEVICE)
+if hasattr(torch, 'compile'):
+    try:
+        model = torch.compile(model)
+    except Exception:
+        pass
 
 # Define optimizer and scheduler
 params = [p for p in model.parameters() if p.requires_grad]
@@ -83,12 +99,15 @@ params = [p for p in model.parameters() if p.requires_grad]
 optimizer = torch.optim.SGD(
     params,
     lr=LR,
-    momentum=0.9,
-    weight_decay=0.0005
+    momentum=MOMENTUM,
+    weight_decay=WEIGHT_DECAY,
 )
 
 
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
+
+_scaler = torch.cuda.amp.GradScaler(enabled=str(DEVICE).startswith("cuda"))
+
 
 def train_one_epoch(model, optimizer, data_loader, device, epoch):
     model.train()
@@ -120,11 +139,14 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch):
             continue
 
         images = valid_images
-        loss_dict = model(images, processed_targets)
-        losses = sum(loss for loss in loss_dict.values())
+        with torch.cuda.amp.autocast(enabled=_scaler.is_enabled()):
+            loss_dict = model(images, processed_targets)
+            losses = sum(loss for loss in loss_dict.values())
+
         optimizer.zero_grad()
-        losses.backward()
-        optimizer.step()
+        _scaler.scale(losses).backward()
+        _scaler.step(optimizer)
+        _scaler.update()
 
         epoch_loss += losses.item()
         progress_bar.set_postfix(loss=losses.item())

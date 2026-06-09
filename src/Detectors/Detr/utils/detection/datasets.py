@@ -396,10 +396,11 @@ def create_train_loader(
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
-        # shuffle=True,
         num_workers=num_workers,
         collate_fn=collate_fn,
-        sampler=batch_sampler
+        sampler=batch_sampler,
+        pin_memory=True,
+        persistent_workers=num_workers > 0,
     )
     return train_loader
 
@@ -412,6 +413,8 @@ def create_valid_loader(
         shuffle=False,
         num_workers=num_workers,
         collate_fn=collate_fn,
-        sampler=batch_sampler
+        sampler=batch_sampler,
+        pin_memory=True,
+        persistent_workers=num_workers > 0,
     )
     return valid_loader

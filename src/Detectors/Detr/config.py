@@ -1,10 +1,10 @@
 import torch
 import json
 import os
-BATCH_SIZE = 8
+BATCH_SIZE = 16
 RESIZE_TO = 640
 NUM_EPOCHS = 100
-NUM_WORKERS = 4
+NUM_WORKERS = 8
 PATIENCE = 10
 LR = 0.0001
 OPTIMIZER = "AdamW"

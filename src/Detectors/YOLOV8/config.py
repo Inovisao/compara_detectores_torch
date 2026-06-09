@@ -30,7 +30,7 @@ def get_training_params(data_yaml: str | Path | None = None) -> dict:
         "epochs": int(os.getenv("YOLOV8_EPOCHS", "100")),
         "imgsz": int(os.getenv("YOLOV8_IMGSZ", "640")),
         "patience": int(os.getenv("YOLOV8_PATIENCE", "10")),
-        "batch": int(os.getenv("YOLOV8_BATCH", "16")),
+        "batch": int(os.getenv("YOLOV8_BATCH", "32")),
         "project": os.getenv("YOLOV8_PROJECT", str(DEFAULT_PROJECT)),
         "run_name": os.getenv("YOLOV8_RUN_NAME", "train"),
         "optimizer": os.getenv("YOLOV8_OPTIMIZER", "SGD"),
@@ -46,7 +46,7 @@ def get_training_params(data_yaml: str | Path | None = None) -> dict:
         "copy_paste": float(os.getenv("YOLOV8_COPY_PASTE", "0.0")),
         "plots": _env_bool("YOLOV8_PLOTS", True),
         "device": os.getenv("YOLOV8_DEVICE"),
-        "workers": int(os.getenv("YOLOV8_WORKERS", "4")),
+        "workers": int(os.getenv("YOLOV8_WORKERS", "8")),
     }
 
 
