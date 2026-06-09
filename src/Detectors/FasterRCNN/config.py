@@ -5,12 +5,15 @@ from typing import Optional
 
 import torch
 
-BATCH_SIZE = 4 # lote de imagens
-RESIZE_TO = 640 # tamanho da imagem
-NUM_EPOCHS = 1000 # Numero de epocas
-NUM_WORKERS = 4 # Paciencia
-LR = 0.0001 # Taxa de aprendizagem
-PATIENCE = 150
+BATCH_SIZE = 4
+RESIZE_TO = 640
+NUM_EPOCHS = 100
+NUM_WORKERS = 4
+PATIENCE = 10
+LR = 0.005
+OPTIMIZER = "SGD"
+MOMENTUM = 0.9
+WEIGHT_DECAY = 0.0005
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -111,8 +114,11 @@ def get_training_params() -> dict:
         "resize_to": RESIZE_TO,
         "num_epochs": NUM_EPOCHS,
         "num_workers": NUM_WORKERS,
-        "learning_rate": LR,
         "patience": PATIENCE,
+        "learning_rate": LR,
+        "optimizer": OPTIMIZER,
+        "momentum": MOMENTUM,
+        "weight_decay": WEIGHT_DECAY,
         "device": str(DEVICE),
         "out_dir": OUT_DIR,
         "root_data_dir": ROOT_DATA_DIR,

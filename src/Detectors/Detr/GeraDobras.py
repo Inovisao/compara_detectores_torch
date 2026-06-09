@@ -4,9 +4,102 @@ import shutil
 from tqdm import tqdm
 import json
 import yaml
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+import cv2
+
+from utils.augmentation import build_augmentation_pipeline
+
+_PIPELINE = build_augmentation_pipeline("pascal_voc")
 
 ROOT_DATA_DIR = os.path.join('..','dataset','all')
-# Função que Ira gerar as labels para o Treino da faster
+
+
+def _read_voc_xml(xml_path: Path) -> tuple[list[str], list[list[int]]]:
+    root = ET.parse(xml_path).getroot()
+    class_names, bboxes = [], []
+    for obj in root.findall("object"):
+        class_names.append(obj.findtext("name", ""))
+        bb = obj.find("bndbox")
+        bboxes.append([
+            int(float(bb.findtext("xmin", 0))),
+            int(float(bb.findtext("ymin", 0))),
+            int(float(bb.findtext("xmax", 0))),
+            int(float(bb.findtext("ymax", 0))),
+        ])
+    return class_names, bboxes
+
+
+def _write_voc_xml(
+    xml_path: Path,
+    file_name: str,
+    width: int,
+    height: int,
+    class_names: list[str],
+    bboxes: list[list[int]],
+) -> None:
+    root = ET.Element("annotation")
+    ET.SubElement(root, "folder").text = "JPEGImages"
+    ET.SubElement(root, "filename").text = file_name
+    src = ET.SubElement(root, "source")
+    ET.SubElement(src, "database").text = "Unknown"
+    size = ET.SubElement(root, "size")
+    ET.SubElement(size, "width").text = str(width)
+    ET.SubElement(size, "height").text = str(height)
+    ET.SubElement(size, "depth").text = "3"
+    ET.SubElement(root, "segmented").text = "0"
+    for cls, bbox in zip(class_names, bboxes):
+        obj = ET.SubElement(root, "object")
+        ET.SubElement(obj, "name").text = cls
+        ET.SubElement(obj, "pose").text = "Unspecified"
+        ET.SubElement(obj, "truncated").text = "0"
+        ET.SubElement(obj, "difficult").text = "0"
+        bb = ET.SubElement(obj, "bndbox")
+        ET.SubElement(bb, "xmin").text = str(bbox[0])
+        ET.SubElement(bb, "ymin").text = str(bbox[1])
+        ET.SubElement(bb, "xmax").text = str(bbox[2])
+        ET.SubElement(bb, "ymax").text = str(bbox[3])
+    ET.ElementTree(root).write(xml_path, encoding="unicode", xml_declaration=False)
+
+
+def _augment_detr_train(train_dir: str, copies: int = 2) -> None:
+    train_path = Path(train_dir)
+    image_paths = sorted(train_path.glob("*.jpg")) + sorted(train_path.glob("*.png"))
+
+    for image_path in image_paths:
+        xml_path = train_path / f"{image_path.stem}.xml"
+        if not xml_path.exists():
+            continue
+
+        class_names, bboxes = _read_voc_xml(xml_path)
+        image_bgr = cv2.imread(str(image_path))
+        if image_bgr is None:
+            continue
+        image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+
+        for i in range(copies):
+            result = _PIPELINE(image=image_rgb, bboxes=bboxes, class_labels=class_names)
+            aug_bgr = cv2.cvtColor(result["image"], cv2.COLOR_RGB2BGR)
+            aug_h, aug_w = result["image"].shape[:2]
+            aug_bboxes = [list(map(int, b)) for b in result["bboxes"]]
+            aug_classes = list(result["class_labels"])
+
+            suffix = f"_aug{i + 1}"
+            aug_stem = f"{image_path.stem}{suffix}"
+            aug_file_name = f"{aug_stem}{image_path.suffix}"
+
+            cv2.imwrite(str(train_path / aug_file_name), aug_bgr)
+            _write_voc_xml(
+                train_path / f"{aug_stem}.xml",
+                aug_file_name,
+                aug_w,
+                aug_h,
+                aug_classes,
+                aug_bboxes,
+            )
+
+
 def convert_coco_to_voc(fold):
 
     with open(os.path.join(ROOT_DATA_DIR, 'train', '_annotations.coco.json'), 'r') as f:
@@ -110,3 +203,5 @@ def convert_coco_to_voc(fold):
                 f.write('</annotation>')
             image = os.path.join(ROOT_DATA_DIR,'train',file_name)
             shutil.copy(image,output_dir)
+
+    _augment_detr_train(caminho_train)

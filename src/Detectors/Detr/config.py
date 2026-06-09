@@ -1,11 +1,14 @@
 import torch
 import json
 import os
-BATCH_SIZE = 8 # lote de imagens
-RESIZE_TO = 640 # tamanho da imagem
-NUM_EPOCHS = 1000 # Numero de epocas
-NUM_WORKERS = 4 # Numero de workers
-LR = 0.0001 # Taxa de aprendizagem
+BATCH_SIZE = 8
+RESIZE_TO = 640
+NUM_EPOCHS = 100
+NUM_WORKERS = 4
+PATIENCE = 10
+LR = 0.0001
+OPTIMIZER = "AdamW"
+WEIGHT_DECAY = 0.0001
 DATA_PATH = os.path.join('..','dataset','all','dataDetr.yaml')
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 ROOT_DATA_DIR = os.path.join('..','dataset','all')
@@ -45,7 +48,10 @@ def get_training_params() -> dict:
         "resize_to": RESIZE_TO,
         "num_epochs": NUM_EPOCHS,
         "num_workers": NUM_WORKERS,
+        "patience": PATIENCE,
         "learning_rate": LR,
+        "optimizer": OPTIMIZER,
+        "weight_decay": WEIGHT_DECAY,
         "data_path": DATA_PATH,
         "device": str(DEVICE),
         "root_data_dir": ROOT_DATA_DIR,
