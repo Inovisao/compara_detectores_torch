@@ -26,8 +26,8 @@ VAL_ANN_PATH: Optional[str] = None
 CLASSES = ['Background']
 NUM_CLASSES = 1
 
-# location to save model and plots
-OUT_DIR = './Faster'
+# location to save model and plots — override via FASTER_OUT_DIR env var
+OUT_DIR = os.getenv('FASTER_OUT_DIR', './Faster')
 
 def _load_classes(annotation_paths) -> None:
     global CLASSES, NUM_CLASSES

@@ -6,6 +6,10 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.datasets import CocoDetection
 from torchvision.transforms import functional as F
 import os
+import sys
+import numpy as np
+import cv2
+import albumentations as A
 from tqdm import tqdm
 from config import (
     TRAIN_DIR,
@@ -24,29 +28,64 @@ from config import (
     OUT_DIR,
     PATIENCE,
 )
-import sys
 
-# Define transformations
+_AUG_PIPELINE = A.Compose(
+    [
+        A.HorizontalFlip(p=0.5),
+        A.VerticalFlip(p=0.5),
+        A.HueSaturationValue(
+            hue_shift_limit=round(0.015 * 180),
+            sat_shift_limit=round(0.7 * 100),
+            val_shift_limit=round(0.4 * 100),
+            p=1.0,
+        ),
+    ],
+    bbox_params=A.BboxParams(format="coco", label_fields=["class_labels"], min_visibility=0.3),
+)
+
+
 class CocoTransform:
+    def __init__(self, augment: bool = False):
+        self.augment = augment
+
     def __call__(self, image, target):
-        image = F.to_tensor(image)
-        _, h, w = image.shape
+        # Resize mantendo aspect ratio
+        img_np = np.array(image)  # PIL → RGB numpy
+        h, w = img_np.shape[:2]
         scale = RESIZE_TO / max(h, w)
         if scale != 1.0:
             new_h, new_w = int(h * scale), int(w * scale)
-            image = F.resize(image, [new_h, new_w])
+            img_np = cv2.resize(img_np, (new_w, new_h))
             if target:
                 for obj in target:
                     x, y, bw, bh = obj["bbox"]
                     obj["bbox"] = [x * scale, y * scale, bw * scale, bh * scale]
+
+        if self.augment and target:
+            bboxes = [obj["bbox"] for obj in target]
+            labels = [obj["category_id"] for obj in target]
+            try:
+                result = _AUG_PIPELINE(image=img_np, bboxes=bboxes, class_labels=labels)
+                img_np = result["image"]
+                # Reconstrói target a partir do resultado — albumentations pode remover
+                # bboxes por min_visibility, quebrando o mapeamento 1:1 por índice.
+                target = [
+                    {"bbox": list(box), "category_id": int(cat)}
+                    for box, cat in zip(result["bboxes"], result["class_labels"])
+                ]
+            except Exception:
+                pass
+
+        image = F.to_tensor(F.to_pil_image(img_np))
         return image, target
 
+
 # Dataset class
-def get_coco_dataset(img_dir, ann_file):
+def get_coco_dataset(img_dir, ann_file, augment=False):
     return CocoDetection(
         root=img_dir,
         annFile=ann_file,
-        transforms=CocoTransform()
+        transforms=CocoTransform(augment=augment)
     )
 
 # Validate dataset configuration
@@ -60,11 +99,13 @@ if not all([TRAIN_DIR, TRAIN_ANN_PATH, VALID_DIR, VAL_ANN_PATH]):
 train_dataset = get_coco_dataset(
     img_dir=TRAIN_DIR,
     ann_file=TRAIN_ANN_PATH,
+    augment=True,
 )
 
 val_dataset = get_coco_dataset(
     img_dir=VALID_DIR,
     ann_file=VAL_ANN_PATH,
+    augment=False,
 )
 
 # DataLoader

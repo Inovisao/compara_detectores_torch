@@ -31,21 +31,16 @@ def runFaster(fold, fold_dir, root_data_dir):
         dataset_config.val_annotations,
     )
 
+    target_dir = os.path.abspath(os.path.join(fold_dir, 'Faster'))
+    os.makedirs(target_dir, exist_ok=True)
+    print(f"[runFaster] OUT_DIR={target_dir}", flush=True)
+
     treino = os.path.join('Detectors', 'FasterRCNN', 'TreinoFaster.sh')
     treino_abs = os.path.abspath(treino)
     print(f"[runFaster] script={treino_abs} exists={os.path.exists(treino_abs)}", flush=True)
 
-    target_dir = os.path.join(fold_dir, 'Faster')
-    if os.path.exists(target_dir):
-        shutil.rmtree(target_dir)
-
     env = _prepare_environment(dataset_config, fold)
+    env['FASTER_OUT_DIR'] = target_dir
     print(f"[runFaster] Executando subprocess: {treino}", flush=True)
     result = subprocess.run([treino], check=True, env=env)
-    print(f"[runFaster] Subprocess retornou código: {result.returncode}", flush=True)
-
-    src = os.path.abspath('Faster')
-    print(f"[runFaster] Renomeando {src} → {target_dir}, src_exists={os.path.exists(src)}", flush=True)
-    os.makedirs(fold_dir, exist_ok=True)
-    os.rename('Faster', target_dir)
-    print(f"[runFaster] Concluído, checkpoint em {target_dir}", flush=True)
+    print(f"[runFaster] Concluído, código={result.returncode}, checkpoint em {target_dir}", flush=True)

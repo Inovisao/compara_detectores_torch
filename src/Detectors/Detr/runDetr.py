@@ -7,8 +7,9 @@ from Detectors.Detr.GeraDobras import convert_coco_to_voc
 def runDetr(fold,fold_dir,ROOT_DATA_DIR):
     print(f"[runDetr] fold={fold} fold_dir={fold_dir} ROOT_DATA_DIR={ROOT_DATA_DIR}", flush=True)
 
-    if not os.path.exists(fold_dir):
-        os.makedirs(fold_dir)
+    training_dir = os.path.abspath(os.path.join(fold_dir, 'Detr', 'training'))
+    os.makedirs(training_dir, exist_ok=True)
+    print(f"[runDetr] DETR_TRAINING_DIR={training_dir}", flush=True)
 
     print(f"[runDetr] Convertendo COCO → VOC para fold={fold}", flush=True)
     convert_coco_to_voc(fold)
@@ -18,15 +19,12 @@ def runDetr(fold,fold_dir,ROOT_DATA_DIR):
     treino_abs = os.path.abspath(treino)
     print(f"[runDetr] script={treino_abs} exists={os.path.exists(treino_abs)}", flush=True)
     print(f"[runDetr] Executando subprocess...", flush=True)
-    result = subprocess.run([treino], check=True)
-    print(f"[runDetr] Subprocess retornou código: {result.returncode}", flush=True)
-
-    src = os.path.abspath('./Detr')
-    target = os.path.join(fold_dir, "Detr")
-    print(f"[runDetr] Renomeando {src} → {target}, src_exists={os.path.exists(src)}", flush=True)
-    os.rename("./Detr", target)
+    env = os.environ.copy()
+    env['DETR_TRAINING_DIR'] = training_dir
+    result = subprocess.run([treino], check=True, env=env)
+    print(f"[runDetr] Concluído, código={result.returncode}, checkpoint em {training_dir}", flush=True)
 
     detr_data = os.path.join(ROOT_DATA_DIR, 'detr')
-    print(f"[runDetr] Removendo dados VOC temporários: {detr_data}", flush=True)
-    shutil.rmtree(detr_data)
-    print(f"[runDetr] Concluído", flush=True)
+    if os.path.exists(detr_data):
+        print(f"[runDetr] Removendo dados VOC temporários: {detr_data}", flush=True)
+        shutil.rmtree(detr_data)

@@ -182,15 +182,15 @@ def show_tranformed_image(train_loader, device, classes, colors):
             cv2.destroyAllWindows()
 
 def set_training_dir(dir_name=None):
-    """
-    This functions counts the number of training directories already present
-    and creates a new one in `runs/training/`. 
-    And returns the directory path.
-    """
+    # DETR_TRAINING_DIR overrides to save directly in model_checkpoints/fold_X/Detr/training
+    env_dir = os.getenv('DETR_TRAINING_DIR')
+    if env_dir:
+        os.makedirs(env_dir, exist_ok=True)
+        return env_dir
     if not os.path.exists('Detr'):
         os.makedirs('Detr')
     if dir_name:
-        new_dir_name = f"Detr/training"
+        new_dir_name = "Detr/training"
         os.makedirs(new_dir_name, exist_ok=True)
         return new_dir_name
     else:

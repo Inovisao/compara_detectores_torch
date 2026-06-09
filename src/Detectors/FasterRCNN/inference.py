@@ -43,32 +43,47 @@ def xyxy_to_xywh(boxes):
         coco_boxes.append([x_min, y_min, w, h, conf, cls])
     return coco_boxes
 
-# Load the trained model
+_model_cache: dict = {}
+
 
 class ResultFaster:
-    def resultFaster(frame,modelName,LIMIAR_THRESHOLD):
+    def resultFaster(frame, modelName, LIMIAR_THRESHOLD):
         device = faster_config.DEVICE
         num_classes = faster_config.NUM_CLASSES
-        model = get_model(num_classes)
-        state_dict = torch.load(modelName, map_location=device)
-        model.load_state_dict(state_dict)
-        model.to(device)
-        model.eval()  # Set the model to evaluation mode
 
-        # Load the unseen image
+        if modelName not in _model_cache:
+            model = get_model(num_classes)
+            state_dict = torch.load(modelName, map_location=device)
+            model.load_state_dict(state_dict)
+            model.to(device)
+            model.eval()
+            _model_cache[modelName] = model
+        model = _model_cache[modelName]
+
+        # Resize para mesma escala do treino (RESIZE_TO=640)
+        resize_to = faster_config.RESIZE_TO
+        orig_h, orig_w = frame.shape[:2]
+        scale = resize_to / max(orig_h, orig_w)
+        if scale != 1.0:
+            frame = cv2.resize(frame, (int(orig_w * scale), int(orig_h * scale)))
+
         image_tensor = prepare_image(frame, device)
 
-        with torch.no_grad():  # Disable gradient computation for inference
+        with torch.no_grad():
             prediction = model(image_tensor)
-        bbox = prediction[0]['boxes'].cpu().tolist()
+
+        bbox   = prediction[0]['boxes'].cpu().tolist()
         labels = prediction[0]['labels'].cpu().tolist()
         scores = prediction[0]['scores'].cpu().tolist()
+
         faster_box = []
-        for i,box in enumerate(bbox):
+        for i, box in enumerate(bbox):
             if scores[i] > LIMIAR_THRESHOLD:
-                faster_box.append([int(box[0]),int(box[1]),int(box[2]),int(box[3]),int(labels[i]),scores[i]])
-        #box = prediction['box']
+                # Reescala coordenadas de volta para o espaço original
+                x1 = int(box[0] / scale)
+                y1 = int(box[1] / scale)
+                x2 = int(box[2] / scale)
+                y2 = int(box[3] / scale)
+                faster_box.append([x1, y1, x2, y2, int(labels[i]), scores[i]])
 
-        coco_boxes = xyxy_to_xywh(faster_box)
-
-        return coco_boxes
+        return xyxy_to_xywh(faster_box)
