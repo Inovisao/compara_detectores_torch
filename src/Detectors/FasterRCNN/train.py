@@ -16,6 +16,7 @@ from config import (
     NUM_EPOCHS,
     BATCH_SIZE,
     NUM_WORKERS,
+    RESIZE_TO,
     DEVICE,
     LR,
     MOMENTUM,
@@ -29,6 +30,15 @@ import sys
 class CocoTransform:
     def __call__(self, image, target):
         image = F.to_tensor(image)
+        _, h, w = image.shape
+        scale = RESIZE_TO / max(h, w)
+        if scale != 1.0:
+            new_h, new_w = int(h * scale), int(w * scale)
+            image = F.resize(image, [new_h, new_w])
+            if target:
+                for obj in target:
+                    x, y, bw, bh = obj["bbox"]
+                    obj["bbox"] = [x * scale, y * scale, bw * scale, bh * scale]
         return image, target
 
 # Dataset class
@@ -154,8 +164,8 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch):
     return epoch_loss / len(data_loader)
 
 # Training loop
-if not os.path.exists(OUT_DIR):
-    os.makedirs(OUT_DIR)
+os.makedirs(OUT_DIR, exist_ok=True)
+print(f"[FasterRCNN] OUT_DIR={os.path.abspath(OUT_DIR)}", flush=True)
 
 best_loss = float("inf")
 patience_counter = 0
@@ -166,17 +176,20 @@ try:
             loss = train_one_epoch(model, optimizer, train_loader, DEVICE, epoch)
             lr_scheduler.step()
 
+            os.makedirs(OUT_DIR, exist_ok=True)
             if loss < best_loss:
                 best_loss = loss
                 patience_counter = 0
                 best_model_path = os.path.join(OUT_DIR, 'best.pth')
-                torch.save(model.state_dict(), best_model_path)
+                state_dict = model._orig_mod.state_dict() if hasattr(model, '_orig_mod') else model.state_dict()
+                torch.save(state_dict, best_model_path)
                 print(f"Melhor modelo salvo: {best_model_path} com loss {best_loss:.4f}")
             else:
                 patience_counter += 1
 
             last_model_path = os.path.join(OUT_DIR, 'last_checkpoint.pth')
-            torch.save(model.state_dict(), last_model_path)
+            state_dict = model._orig_mod.state_dict() if hasattr(model, '_orig_mod') else model.state_dict()
+            torch.save(state_dict, last_model_path)
             print(f"Modelo salvo: {last_model_path}")
 
             if patience_counter == PATIENCE:

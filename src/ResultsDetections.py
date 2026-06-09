@@ -30,7 +30,7 @@ except (FileNotFoundError, ModuleNotFoundError) as _faster_exc:
     faster_geradata = None
     faster_config = None
     _FASTER_IMPORT_ERROR = _faster_exc
-#from Detectors.Detr.inference_image_detect import resultDetr
+from Detectors.Detr.DetectionsDetr import ResultDetr
 from sage import SageAggregator, detect_sage_dataset
 
 # Constantes
@@ -401,8 +401,7 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
             result = ResultSSDLite.result(frame, model, LIMIAR_THRESHOLD)
         elif model_name == "Detr":
             print(image_path)
-            # result = resultDetr(fold,frame,LIMIAR_THRESHOLD)
-            result = []
+            result = ResultDetr.result(frame, model, LIMIAR_THRESHOLD)
         else:
             raise ValueError(f"Modelo de inferência não suportado: {model_name}")
 

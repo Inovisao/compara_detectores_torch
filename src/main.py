@@ -215,20 +215,29 @@ def resetar_pasta(caminho):
 
 # Função que ira verificar qual modelo sera utilizado para o treinamento
 def train_model(model,fold,fold_dir,ROOT_DATA_DIR):
-    
-    check_save_path = os.path.join(fold_dir,model)
+    check_save_path = os.path.join(fold_dir, model)
+    print(f"[PIPELINE] train_model: model={model} fold={fold}", flush=True)
+    print(f"[PIPELINE]   check_save_path={check_save_path} exists={os.path.exists(check_save_path)}", flush=True)
+    print(f"[PIPELINE]   CONTINUE={CONTINUE}", flush=True)
 
     if os.path.exists(check_save_path):
         if CONTINUE:
             existing_model_path = test_model(model, fold_dir)
+            print(f"[PIPELINE]   CONTINUE=True → verificando checkpoint: {existing_model_path} exists={os.path.exists(existing_model_path)}", flush=True)
             if os.path.exists(existing_model_path):
+                print(f"[PIPELINE]   Checkpoint encontrado, PULANDO treino.", flush=True)
                 return existing_model_path
             print(
                 f"[INFO] Checkpoint incompleto para {model} em {fold}: "
                 f"{existing_model_path} não existe. Retreinando.",
                 flush=True,
             )
+        print(f"[PIPELINE]   CONTINUE=False → removendo pasta antiga e retreinando.", flush=True)
         shutil.rmtree(check_save_path)
+    else:
+        print(f"[PIPELINE]   Pasta não existe → iniciando treino do zero.", flush=True)
+
+    print(f"[PIPELINE]   Chamando run{model}(fold={fold})...", flush=True)
     if model == 'YOLOV8':
         from Detectors.YOLOV8.RunYOLOV8 import runYOLOV8
         runYOLOV8(fold,fold_dir,ROOT_DATA_DIR)
@@ -241,8 +250,10 @@ def train_model(model,fold,fold_dir,ROOT_DATA_DIR):
 
     elif model == 'Faster':
         from Detectors.FasterRCNN.runFaster import runFaster
+        print(f"[PIPELINE]   → runFaster iniciado", flush=True)
         runFaster(fold,fold_dir,ROOT_DATA_DIR)
         model_path = os.path.join(fold_dir,model,'best.pth')
+        print(f"[PIPELINE]   → runFaster concluído, model_path={model_path} exists={os.path.exists(model_path)}", flush=True)
     
     elif model == 'YOLOV5_TPH':
         from Detectors.YOLOV5_TPH.RunYOLOV5TPH import runYOLOV5TPH
@@ -261,8 +272,10 @@ def train_model(model,fold,fold_dir,ROOT_DATA_DIR):
 
     elif model == 'Detr':
         from Detectors.Detr.runDetr import runDetr
+        print(f"[PIPELINE]   → runDetr iniciado", flush=True)
         runDetr(fold,fold_dir,ROOT_DATA_DIR)
         model_path = os.path.join(fold_dir,model,'training','best_model.pth')
+        print(f"[PIPELINE]   → runDetr concluído, model_path={model_path} exists={os.path.exists(model_path)}", flush=True)
 
     elif model == 'SSDLite':
         from Detectors.SSDLite.RunSSDLite import runSSDLite
@@ -299,7 +312,7 @@ def test_model(model,fold_dir):
 # Modelos que serão treinados e avaliados quando MODELS_TO_RUN não for definido
 # via variável de ambiente. Adicione ou remova nomes conforme necessário.
 # Opções disponíveis: YOLOV8 | YOLOV11 | YOLO26 | YOLOV5_TPH | Faster | RetinaNet | Detr | SSDLite
-DEFAULT_MODELS = ['Faster', 'YOLOV8', 'Detr']
+DEFAULT_MODELS = ['Detr', 'Faster', 'YOLOV8', 'YOLOV5_TPH']
 #DEFAULT_MODELS = ['YOLOV8', 'Faster', 'Detr']
 #DEFAULT_MODELS = ['YOLOV8', 'Faster', 'Detr']
 
@@ -398,7 +411,10 @@ def main() -> None:
                 current_root = ROOT_DATA_DIR
 
             if not APENAS_TESTE:
+                t0 = time.time()
                 model_path = train_model(model, fold, fold_dir, current_root)
+                elapsed = time.time() - t0
+                print(f"[TEMPO] {model} | {fold}: {elapsed/60:.1f} min ({elapsed:.0f}s)", flush=True)
                 if model_path is None:
                     continue
             else:

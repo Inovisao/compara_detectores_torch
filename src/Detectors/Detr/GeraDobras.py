@@ -1,5 +1,6 @@
 from pycocotools.coco import COCO
 import os
+import sys
 import shutil
 from tqdm import tqdm
 import json
@@ -9,7 +10,13 @@ from pathlib import Path
 
 import cv2
 
-from utils.augmentation import build_augmentation_pipeline
+import importlib.util as _ilu
+
+_aug_path = Path(__file__).resolve().parents[2] / "utils" / "augmentation.py"
+_aug_spec = _ilu.spec_from_file_location("src_utils_augmentation", _aug_path)
+_aug_mod = _ilu.module_from_spec(_aug_spec)
+_aug_spec.loader.exec_module(_aug_mod)
+build_augmentation_pipeline = _aug_mod.build_augmentation_pipeline
 
 _PIPELINE = build_augmentation_pipeline("pascal_voc")
 

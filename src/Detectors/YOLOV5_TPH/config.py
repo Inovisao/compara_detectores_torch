@@ -40,15 +40,21 @@ DEFAULT_DATA_YAML = PROJECT_ROOT / "dataset" / "all" / "data_yolov5_tph.yaml"
 # Hyperparâmetros e opções de treino configuráveis
 CFG = _env_override("TPH_CFG", "yolov5s.yaml")
 IMG_SIZE = _env_override("TPH_IMG", 640)
-EPOCHS = _env_override("TPH_EPOCHS", 1000)
-PATIENCE = _env_override("TPH_PATIENCE", 150)
-BATCH = _env_override("TPH_BATCH", 8)
+EPOCHS = _env_override("TPH_EPOCHS", 100)
+PATIENCE = _env_override("TPH_PATIENCE", 10)
+BATCH = _env_override("TPH_BATCH", 32)
 OPTIMIZER = _env_override("TPH_OPTIMIZER", "SGD")
-SINGLE_CLS = _env_override("TPH_SINGLE_CLS", False)
+SINGLE_CLS = _env_override("TPH_SINGLE_CLS", True)
 RECT = _env_override("TPH_RECT", False)
 COS_LR = _env_override("TPH_COS_LR", True)
-LR0 = _env_override("TPH_LR0", 0.001)
-LRF = _env_override("TPH_LRF", 0.1)
+LR0 = _env_override("TPH_LR0", 0.01)
+LRF = _env_override("TPH_LRF", 0.2)
+MOMENTUM = _env_override("TPH_MOMENTUM", 0.937)
+WEIGHT_DECAY = _env_override("TPH_WEIGHT_DECAY", 0.0005)
+MOSAIC = _env_override("TPH_MOSAIC", 0.0)
+MIXUP = _env_override("TPH_MIXUP", 0.0)
+COPY_PASTE = _env_override("TPH_COPY_PASTE", 0.0)
+WORKERS = _env_override("TPH_WORKERS", 8)
 PLOTS = _env_override("TPH_PLOTS", True)
 
 HYP_PATH = os.getenv("TPH_HYP")
@@ -72,6 +78,12 @@ def get_training_params(data_yaml: Path | None = None) -> dict:
         "cos_lr": COS_LR,
         "lr0": LR0,
         "lrf": LRF,
+        "momentum": MOMENTUM,
+        "weight_decay": WEIGHT_DECAY,
+        "mosaic": MOSAIC,
+        "mixup": MIXUP,
+        "copy_paste": COPY_PASTE,
+        "workers": WORKERS,
         "plots": PLOTS,
         "hyp_path": HYP_PATH,
         "pretrained_weights": WEIGHTS_PATH,
@@ -107,6 +119,11 @@ def treino(data_yaml: Path | None = None):
             hyperparams = yaml.safe_load(f)
         hyperparams["lr0"] = LR0
         hyperparams["lrf"] = LRF
+        hyperparams["momentum"] = MOMENTUM
+        hyperparams["weight_decay"] = WEIGHT_DECAY
+        hyperparams["mosaic"] = MOSAIC
+        hyperparams["mixup"] = MIXUP
+        hyperparams["copy_paste"] = COPY_PASTE
 
         OUTPUT_PROJECT.mkdir(parents=True, exist_ok=True)
         fd, path = tempfile.mkstemp(prefix="hyp_auto_", suffix=".yaml", dir=OUTPUT_PROJECT)
@@ -137,6 +154,8 @@ def treino(data_yaml: Path | None = None):
         "--exist-ok",
         "--hyp",
         str(hyp_file),
+        "--workers",
+        str(WORKERS),
     ]
 
     if SINGLE_CLS:
