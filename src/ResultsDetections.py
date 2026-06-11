@@ -31,6 +31,7 @@ except (FileNotFoundError, ModuleNotFoundError) as _faster_exc:
     faster_config = None
     _FASTER_IMPORT_ERROR = _faster_exc
 from Detectors.Detr.DetectionsDetr import ResultDetr
+from Detectors.ViT.DetectionsViT import ResultViT
 from sage import SageAggregator, detect_sage_dataset
 
 # Constantes
@@ -402,6 +403,9 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
         elif model_name == "Detr":
             print(image_path)
             result = ResultDetr.result(frame, model, LIMIAR_THRESHOLD)
+        elif model_name == "ViT":
+            print(image_path)
+            result = ResultViT.result(frame, model, LIMIAR_THRESHOLD)
         else:
             raise ValueError(f"Modelo de inferência não suportado: {model_name}")
 

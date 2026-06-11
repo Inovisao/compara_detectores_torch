@@ -75,7 +75,7 @@ dataset/
 ```
 
 ### 2. Escolhendo e Configurando os Modelos
-Os modelos disponíveis para treinamento são **YOLOV8**, **YOLOV11**, **YOLO26**, **YOLOV5-TPH**, **FasterRCNN**, **RetinaNet** e **DETR**.
+Os modelos disponíveis para treinamento são **YOLOV8**, **YOLOV11**, **YOLO26**, **YOLOV5-TPH**, **FasterRCNN**, **RetinaNet**, **DETR**, **SSDLite** e **ViT** (YOLOS-small).
 
 #### YOLOV8
 ```
@@ -136,9 +136,20 @@ src/Detectors/RetinaNet
 ```
 O treinamento utiliza o `retinanet_resnet50_fpn` do `torchvision` (>= 0.17). O `config.py` expõe variáveis (`RETINANET_EPOCHS`, `RETINANET_LR`, `RETINANET_BATCH`, etc.) e o `RunRetinaNet.py` monta um `DataLoader` COCO, executa o loop de treino básico e salva o melhor modelo em `best.pth` junto com os nomes das classes.
 
+#### ViT (YOLOS-small)
+```
+src/Detectors/ViT
+├── config.py        — hiperparâmetros (model_name, image_size, epochs, lr, batch…)
+├── GeraLabels.py     — converte anotações COCO para o DataLoader (mapeamento de classes 0-indexado)
+├── RunViT.py         — fine-tuning do `hustvl/yolos-small` via `transformers`
+└── DetectionsViT.py  — inferência → [x, y, w, h, class_id, score]
+```
+Usa `AutoModelForObjectDetection`/`AutoImageProcessor` do pacote `transformers` para fazer fine-tuning de um detector ViT-based (YOLOS) end-to-end. O `config.py` expõe variáveis (`VIT_MODEL_NAME`, `VIT_IMAGE_SIZE`, `VIT_EPOCHS`, `VIT_BATCH`, `VIT_LR`, etc.) e o `RunViT.py` salva o melhor modelo em `best.pth` junto com os nomes das classes e o mapeamento de categorias.
+
 > **Dependências importantes**  
 > - YOLOv11: `pip install "ultralytics>=8.3.0" opencv-python numpy tqdm`  
 > - RetinaNet: `pip install "torchvision>=0.17" pycocotools albumentations` (ou Detectron2 se preferir)  
+> - ViT (YOLOS): `pip install "transformers>=4.48" timm` (requer `torch>=2.1`)  
 > - Certifique-se de que `torch>=2.1` está instalado com suporte a CUDA.
 
 ### 3. Executando o Treinamento

@@ -32,6 +32,7 @@ SUPPORTED_MODELS = (
     "RetinaNet",
     "Detr",
     "SSDLite",
+    "ViT",
 )
 
 MODEL_NAME_ALIASES = {
@@ -47,6 +48,10 @@ MODEL_NAME_ALIASES = {
     "SSDLITE": "SSDLite",
     "SSD-LITE": "SSDLite",
     "SSD_LITE": "SSDLite",
+    "VIT": "ViT",
+    "SMALL_VIT": "ViT",
+    "SMALL-VIT": "ViT",
+    "YOLOS": "ViT",
 }
 
 
@@ -124,6 +129,9 @@ def _get_model_training_params(model: str) -> dict:
         return get_training_params()
     if model == "SSDLite":
         from Detectors.SSDLite.config import get_training_params
+        return get_training_params()
+    if model == "ViT":
+        from Detectors.ViT.config import get_training_params
         return get_training_params()
     raise ValueError(f"Modelo não suportado para log de parâmetros: {model}")
 
@@ -282,6 +290,11 @@ def train_model(model,fold,fold_dir,ROOT_DATA_DIR):
         runSSDLite(fold, fold_dir, ROOT_DATA_DIR)
         model_path = os.path.join(fold_dir, model, 'best.pth')
 
+    elif model == 'ViT':
+        from Detectors.ViT.RunViT import runViT
+        runViT(fold, fold_dir, ROOT_DATA_DIR)
+        model_path = os.path.join(fold_dir, model, 'best.pth')
+
     return model_path
 # Função que server para selecionar os modelos que ja foram treinados
 def test_model(model,fold_dir):
@@ -301,6 +314,8 @@ def test_model(model,fold_dir):
         model_path = os.path.join(fold_dir,model,'training','best_model.pth')
     elif model == 'SSDLite':
         model_path = os.path.join(fold_dir, model, 'best.pth')
+    elif model == 'ViT':
+        model_path = os.path.join(fold_dir, model, 'best.pth')
     else:
         model_path = os.path.join(fold_dir,model,'latest.pth')
     return model_path
@@ -311,8 +326,9 @@ def test_model(model,fold_dir):
 
 # Modelos que serão treinados e avaliados quando MODELS_TO_RUN não for definido
 # via variável de ambiente. Adicione ou remova nomes conforme necessário.
-# Opções disponíveis: YOLOV8 | YOLOV11 | YOLO26 | YOLOV5_TPH | Faster | RetinaNet | Detr | SSDLite
-DEFAULT_MODELS = ['Detr', 'Faster', 'YOLOV8', 'YOLOV5_TPH']
+# Opções disponíveis: YOLOV8 | YOLOV11 | YOLO26 | YOLOV5_TPH | Faster | RetinaNet | Detr | SSDLite | ViT
+# DEFAULT_MODELS = ['Detr', 'Faster', 'YOLOV8', 'YOLOV5_TPH']
+DEFAULT_MODELS = ['Detr', 'Faster', 'YOLOV8']
 #DEFAULT_MODELS = ['YOLOV8', 'Faster', 'Detr']
 #DEFAULT_MODELS = ['YOLOV8', 'Faster', 'Detr']
 
@@ -353,7 +369,7 @@ GeraResultByClass = False
 #         Garante um treino limpo a cada execução.
 # True  → mantém os pesos já treinados e pula o treino daquela dobra/modelo.
 #         Use para retomar uma execução interrompida sem retreinar do zero.
-CONTINUE = False
+CONTINUE = True
 
 # Inicializado vazio; preenchido por main() antes de qualquer treinamento.
 TRAINING_PARAMS_LOG: dict = {}
