@@ -369,7 +369,7 @@ GeraResultByClass = False
 #         Garante um treino limpo a cada execução.
 # True  → mantém os pesos já treinados e pula o treino daquela dobra/modelo.
 #         Use para retomar uma execução interrompida sem retreinar do zero.
-CONTINUE = True
+CONTINUE = False
 
 # Inicializado vazio; preenchido por main() antes de qualquer treinamento.
 TRAINING_PARAMS_LOG: dict = {}

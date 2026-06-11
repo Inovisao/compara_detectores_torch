@@ -99,7 +99,7 @@ if not all([TRAIN_DIR, TRAIN_ANN_PATH, VALID_DIR, VAL_ANN_PATH]):
 train_dataset = get_coco_dataset(
     img_dir=TRAIN_DIR,
     ann_file=TRAIN_ANN_PATH,
-    augment=True,
+    augment=False,
 )
 
 val_dataset = get_coco_dataset(
