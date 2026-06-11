@@ -7,13 +7,15 @@ Estrutura atual (por fold, isolada):
     fold_N/
       filesJSON/fold_N_{train,val,test}.json   ← COCO já pronto
       train/images/   ← tiles 640×640 + FI
-      val/images/     ← imagens originais
-      test/images/    ← imagens originais
+      val/images/     ← imagens originais full-res
+      test/images/    ← imagens originais full-res
 
 main.py espera:
   dataset/all/
     filesJSON/fold_N_{train,val,test}.json     ← link para os JSONs de cada fold
-    train/                                     ← todas as imagens únicas (hardlink)
+    train/            ← tiles 640×640 de todos os folds (hardlink)
+    val/              ← originais full-res de todos os folds (hardlink)
+    test/             ← originais full-res de todos os folds (hardlink)
     train/_annotations.coco.json              ← COCO completo (lido pelo config.py do DETR)
 
 Uso:
@@ -112,11 +114,12 @@ def adapt(dataset_root: Path, dry_run: bool) -> None:
     print(f"[INFO] Folds encontrados : {folds}")
 
     files_json_dir = dataset_root / "filesJSON"
-    train_flat_dir = dataset_root / "train"
+    flat_dirs = {split: dataset_root / split for split in SPLITS}
 
     if not dry_run:
         files_json_dir.mkdir(exist_ok=True)
-        train_flat_dir.mkdir(exist_ok=True)
+        for d in flat_dirs.values():
+            d.mkdir(exist_ok=True)
 
     train_json_paths: list[Path] = []
     total_imgs_linked = 0
@@ -140,16 +143,16 @@ def adapt(dataset_root: Path, dry_run: bool) -> None:
             total_jsons_linked += 1
 
             images_dir = fold_dir / split / "images"
-            n = _link_or_copy_images(images_dir, train_flat_dir, dry_run)
+            n = _link_or_copy_images(images_dir, flat_dirs[split], dry_run)
             total_imgs_linked += n
 
             if split == "train":
                 train_json_paths.append(src_json)
 
-            print(f"  [fold_{fold_n}/{split}] JSON ✓  |  {n} imagens novas → train/")
+            print(f"  [fold_{fold_n}/{split}] JSON ✓  |  {n} imagens novas → {split}/")
 
     # _annotations.coco.json para o config.py do DETR
-    annotations_path = train_flat_dir / "_annotations.coco.json"
+    annotations_path = flat_dirs["train"] / "_annotations.coco.json"
     if not dry_run and not annotations_path.exists():
         combined = _build_combined_coco(train_json_paths)
         annotations_path.write_text(
@@ -159,7 +162,7 @@ def adapt(dataset_root: Path, dry_run: bool) -> None:
         print(f"\n[OK] _annotations.coco.json → {len(combined['images'])} imgs | classes: {cats}")
 
     print(f"\n[OK] filesJSON/  → {total_jsons_linked} JSONs")
-    print(f"[OK] train/      → {total_imgs_linked} imagens novas linkadas")
+    print(f"[OK] train|val|test/ → {total_imgs_linked} imagens novas linkadas")
 
     if dry_run:
         print("\n[DRY-RUN] Nenhum arquivo foi criado ou modificado.")

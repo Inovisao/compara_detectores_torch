@@ -157,7 +157,7 @@ optimizer = torch.optim.SGD(
 
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
 
-_scaler = torch.amp.GradScaler("cuda", enabled=str(DEVICE).startswith("cuda"))
+_scaler = torch.cuda.amp.GradScaler(enabled=str(DEVICE).startswith("cuda"))
 
 
 def train_one_epoch(model, optimizer, data_loader, device, epoch):
