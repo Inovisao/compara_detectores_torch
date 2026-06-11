@@ -14,7 +14,6 @@ import csv
 from pathlib import Path
 
 # Importações dos modelos de detecção
-from Detectors.YOLOV5_TPH.DetectionsYOLOV5TPH import ResultYOLOV5TPH
 from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
 from Detectors.YOLOV11.DetectionsYOLOV11 import ResultYOLOV11
 from Detectors.YOLO26.DetectionsYOLO26 import ResultYOLO26
@@ -31,7 +30,10 @@ except (FileNotFoundError, ModuleNotFoundError) as _faster_exc:
     faster_config = None
     _FASTER_IMPORT_ERROR = _faster_exc
 from Detectors.Detr.DetectionsDetr import ResultDetr
-from Detectors.ViT.DetectionsViT import ResultViT
+try:
+    from Detectors.ViT.DetectionsViT import ResultViT
+except ModuleNotFoundError:
+    ResultViT = None
 from sage import SageAggregator, detect_sage_dataset
 
 # Constantes
@@ -394,6 +396,7 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
             print(image_path)
             result = ResultFaster.resultFaster(frame, model, LIMIAR_THRESHOLD)
         elif model_name == "YOLOV5_TPH":
+            from Detectors.YOLOV5_TPH.DetectionsYOLOV5TPH import ResultYOLOV5TPH
             print(image_path)
             result = ResultYOLOV5TPH.result(frame, model, LIMIAR_THRESHOLD)
         elif model_name == "RetinaNet":
@@ -527,4 +530,6 @@ def create_csv(selected_model, fold, root, model_path, save_imgs, tiling_mode="a
             writer.writerow([selected_model, fold, mAP, mAP50, mAP75, MAE, RMSE, r, precision, recall, fscore])
         print(f"[INFO] Resultados salvos com sucesso em {results_path}")
     except Exception as e:
+        import traceback
         print(f"[ERRO] Falha ao salvar resultados em {results_path}: {e}")
+        traceback.print_exc()

@@ -41,3 +41,4 @@ src/Detectors/YOLOV5_TPH/tph-yolov5
 .env
 results/*
 runs
+src/Detectors/YOLOV5_TPH/tph-yolov5

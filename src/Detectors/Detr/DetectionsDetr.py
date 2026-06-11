@@ -25,6 +25,13 @@ def _ensure_hub_path() -> None:
     hub_str = str(hub_path)
     if hub_path.exists() and hub_str not in sys.path:
         sys.path.insert(0, hub_str)
+    # YOLOV5_TPH adds its own `models/` to sys.path (without backbone.py).
+    # When that package is cached in sys.modules, DETR's hubconf.py fails on
+    # `from models.backbone import ...`.  Evict stale entries so the DETR hub
+    # dir (inserted above at index 0) wins the next import.
+    for key in list(sys.modules):
+        if key == "models" or key.startswith("models."):
+            del sys.modules[key]
 
 
 def _load_model(checkpoint_path: str):
