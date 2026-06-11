@@ -31,7 +31,12 @@ except (FileNotFoundError, ModuleNotFoundError) as _faster_exc:
     faster_config = None
     _FASTER_IMPORT_ERROR = _faster_exc
 from Detectors.Detr.DetectionsDetr import ResultDetr
-from Detectors.ViT.DetectionsViT import ResultViT
+_VIT_IMPORT_ERROR = None
+try:
+    from Detectors.ViT.DetectionsViT import ResultViT
+except (ImportError, ModuleNotFoundError) as _vit_exc:
+    ResultViT = None
+    _VIT_IMPORT_ERROR = _vit_exc
 from sage import SageAggregator, detect_sage_dataset
 
 # Constantes
@@ -404,6 +409,11 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
             print(image_path)
             result = ResultDetr.result(frame, model, LIMIAR_THRESHOLD)
         elif model_name == "ViT":
+            if ResultViT is None:
+                raise RuntimeError(
+                    "ViT indisponível. Instale 'transformers' para usar este modelo. "
+                    f"Detalhes: {_VIT_IMPORT_ERROR}"
+                )
             print(image_path)
             result = ResultViT.result(frame, model, LIMIAR_THRESHOLD)
         else:
@@ -511,6 +521,15 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
 
     return mAP.item(), mAP50.item(), mAP75.item(), mae.item(), rmse.item(), precision, recall, fscore, r.item()
 
+def _sanitize(value):
+    """Substitui NaN/Inf por 0.0 para não corromper o CSV."""
+    try:
+        f = float(value)
+        return 0.0 if (f != f or f == float("inf") or f == float("-inf")) else f
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def create_csv(selected_model, fold, root, model_path, save_imgs, tiling_mode="auto"):
     """Cria um arquivo CSV com os resultados das métricas."""
     results_path = RESULTS_CSV_PATH
@@ -518,13 +537,19 @@ def create_csv(selected_model, fold, root, model_path, save_imgs, tiling_mode="a
         mAP, mAP50, mAP75, MAE, RMSE, precision, recall, fscore, r = generate_results(
             root, fold, model_path, selected_model, save_imgs, tiling_mode=tiling_mode
         )
+        row = [
+            selected_model, fold,
+            _sanitize(mAP), _sanitize(mAP50), _sanitize(mAP75),
+            _sanitize(MAE), _sanitize(RMSE), _sanitize(r),
+            _sanitize(precision), _sanitize(recall), _sanitize(fscore),
+        ]
         results_path.parent.mkdir(parents=True, exist_ok=True)
         file_exists = results_path.exists()
         with results_path.open(mode="a", newline="") as file:
             writer = csv.writer(file)
             if not file_exists:
                 writer.writerow(["ml", "fold", "mAP", "mAP50", "mAP75", "MAE", "RMSE", "accuracy", "precision", "recall", "fscore"])
-            writer.writerow([selected_model, fold, mAP, mAP50, mAP75, MAE, RMSE, r, precision, recall, fscore])
+            writer.writerow(row)
         print(f"[INFO] Resultados salvos com sucesso em {results_path}")
     except Exception as e:
-        print(f"[ERRO] Falha ao salvar resultados em {results_path}: {e}")
+        print(f"[ERRO] Falha ao gerar resultados para {selected_model}/{fold}: {e}")

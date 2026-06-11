@@ -41,3 +41,5 @@ src/Detectors/YOLOV5_TPH/tph-yolov5
 .env
 results/*
 runs
+CLAUDE.md
+.vscode/settings.json

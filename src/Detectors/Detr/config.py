@@ -1,7 +1,7 @@
 import torch
 import json
 import os
-BATCH_SIZE = 16
+BATCH_SIZE = 26
 RESIZE_TO = 640
 NUM_EPOCHS = 150
 NUM_WORKERS = 8
