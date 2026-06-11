@@ -99,7 +99,7 @@ if not all([TRAIN_DIR, TRAIN_ANN_PATH, VALID_DIR, VAL_ANN_PATH]):
 train_dataset = get_coco_dataset(
     img_dir=TRAIN_DIR,
     ann_file=TRAIN_ANN_PATH,
-    augment=True,
+    augment=False,
 )
 
 val_dataset = get_coco_dataset(
@@ -157,7 +157,7 @@ optimizer = torch.optim.SGD(
 
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
 
-_scaler = torch.amp.GradScaler("cuda", enabled=str(DEVICE).startswith("cuda"))
+_scaler = torch.cuda.amp.GradScaler(enabled=str(DEVICE).startswith("cuda"))
 
 
 def train_one_epoch(model, optimizer, data_loader, device, epoch):

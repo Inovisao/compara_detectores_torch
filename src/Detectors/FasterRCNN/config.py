@@ -5,11 +5,11 @@ from typing import Optional
 
 import torch
 
-BATCH_SIZE = 8
+BATCH_SIZE = 16
 RESIZE_TO = 640
-NUM_EPOCHS = 100
+NUM_EPOCHS = 40
 NUM_WORKERS = 8
-PATIENCE = 10
+PATIENCE = 7
 LR = 0.005
 OPTIMIZER = "SGD"
 MOMENTUM = 0.9

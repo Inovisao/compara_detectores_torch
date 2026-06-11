@@ -12,7 +12,7 @@ def runDetr(fold,fold_dir,ROOT_DATA_DIR):
     print(f"[runDetr] DETR_TRAINING_DIR={training_dir}", flush=True)
 
     print(f"[runDetr] Convertendo COCO → VOC para fold={fold}", flush=True)
-    convert_coco_to_voc(fold)
+    convert_coco_to_voc(fold, root_data_dir=ROOT_DATA_DIR)
     print(f"[runDetr] Conversão concluída", flush=True)
 
     treino = os.path.join('Detectors','Detr','TreinoDetr.sh')
