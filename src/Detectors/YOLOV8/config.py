@@ -59,6 +59,15 @@ def get_training_params(data_yaml: str | Path | None = None) -> dict:
 
 
 def treino(data_yaml: str | Path | None = None) -> None:
+    try:
+        import ultralytics.data.augment as _aug
+        class _NoopAlbumentations:
+            def __init__(self, *a, **kw): pass
+            def __call__(self, labels): return labels
+        _aug.Albumentations = _NoopAlbumentations
+    except Exception:
+        pass
+
     model = YOLO(DEFAULT_WEIGHTS)
 
     params = get_training_params(data_yaml)
