@@ -319,7 +319,16 @@ def compute_metrics(preds, targets, num_classes=1):
 
     return precision.item(), recall.item(), fscore.item()
 
-def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto"):
+def generate_results(
+    root,
+    fold,
+    model,
+    model_name,
+    save_imgs,
+    tiling_mode="auto",
+    backbone="",
+    loss_function="",
+):
     """Gera resultados para um modelo específico e salva as métricas por classe."""
     test_json_path, tile_images_dir = _resolve_test_split(root, fold)
     use_sage = _resolve_tiling_mode(root, tiling_mode)
@@ -447,6 +456,8 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
             fold,
             classes_dict,
             cls,
+            backbone,
+            loss_function,
             mAP.item(),
             mAP50.item(),
             mAP75.item(),
@@ -457,7 +468,23 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
             fscore_cls,
             r.item(),
         )
-def create_csv(selected_model, fold,classes_dict,cls,mAP, mAP50, mAP75, MAE, RMSE, precision, recall, fscore, r ):
+def create_csv(
+    selected_model,
+    fold,
+    classes_dict,
+    cls,
+    backbone,
+    loss_function,
+    mAP,
+    mAP50,
+    mAP75,
+    MAE,
+    RMSE,
+    precision,
+    recall,
+    fscore,
+    r,
+):
     """Cria um arquivo CSV com os resultados das métricas."""
     results_path = RESULTS_BY_CLASS_CSV_PATH
     try:
@@ -466,8 +493,15 @@ def create_csv(selected_model, fold,classes_dict,cls,mAP, mAP50, mAP75, MAE, RMS
         with results_path.open(mode="a", newline="") as file:
             writer = csv.writer(file)
             if not file_exists:
-                writer.writerow(["ml", "fold", 'classes',"mAP", "mAP50", "mAP75", "MAE", "RMSE",'r',"precision", "recall", "fscore"])
-            writer.writerow([selected_model, fold, classes_dict[cls] ,mAP, mAP50, mAP75, MAE, RMSE, r, precision, recall, fscore])
+                writer.writerow([
+                    "ml", "fold", "classes", "backbone", "loss_function",
+                    "mAP", "mAP50", "mAP75", "MAE", "RMSE", "r",
+                    "precision", "recall", "fscore",
+                ])
+            writer.writerow([
+                selected_model, fold, classes_dict[cls], backbone, loss_function,
+                mAP, mAP50, mAP75, MAE, RMSE, r, precision, recall, fscore,
+            ])
         print(f"[INFO] Resultados por classe salvos com sucesso em {results_path}")
     except Exception as e:
         print(f"[ERRO] Falha ao salvar resultados por classe em {results_path}: {e}")

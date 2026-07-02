@@ -530,7 +530,16 @@ def _sanitize(value):
         return 0.0
 
 
-def create_csv(selected_model, fold, root, model_path, save_imgs, tiling_mode="auto"):
+def create_csv(
+    selected_model,
+    fold,
+    root,
+    model_path,
+    save_imgs,
+    tiling_mode="auto",
+    backbone="",
+    loss_function="",
+):
     """Cria um arquivo CSV com os resultados das métricas."""
     results_path = RESULTS_CSV_PATH
     try:
@@ -538,7 +547,7 @@ def create_csv(selected_model, fold, root, model_path, save_imgs, tiling_mode="a
             root, fold, model_path, selected_model, save_imgs, tiling_mode=tiling_mode
         )
         row = [
-            selected_model, fold,
+            selected_model, fold, backbone, loss_function,
             _sanitize(mAP), _sanitize(mAP50), _sanitize(mAP75),
             _sanitize(MAE), _sanitize(RMSE), _sanitize(r),
             _sanitize(precision), _sanitize(recall), _sanitize(fscore),
@@ -548,7 +557,11 @@ def create_csv(selected_model, fold, root, model_path, save_imgs, tiling_mode="a
         with results_path.open(mode="a", newline="") as file:
             writer = csv.writer(file)
             if not file_exists:
-                writer.writerow(["ml", "fold", "mAP", "mAP50", "mAP75", "MAE", "RMSE", "accuracy", "precision", "recall", "fscore"])
+                writer.writerow([
+                    "ml", "fold", "backbone", "loss_function",
+                    "mAP", "mAP50", "mAP75", "MAE", "RMSE",
+                    "r", "precision", "recall", "fscore",
+                ])
             writer.writerow(row)
         print(f"[INFO] Resultados salvos com sucesso em {results_path}")
     except Exception as e:

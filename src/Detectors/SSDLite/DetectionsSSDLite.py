@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -35,6 +36,8 @@ class ResultSSDLite:
         label_to_original = {v: k for k, v in category_mapping.items()} if category_mapping else {}
 
         cfg = get_config()
+        if checkpoint.get("backbone"):
+            cfg = replace(cfg, backbone=checkpoint["backbone"])
         model = _build_model(num_classes, cfg)
         model.load_state_dict(checkpoint["model_state"])
         model.eval()

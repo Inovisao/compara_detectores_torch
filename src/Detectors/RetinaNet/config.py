@@ -4,9 +4,12 @@ import os
 from dataclasses import asdict
 from dataclasses import dataclass
 
+from losses import loss_weights_from_env
+
 
 @dataclass(frozen=True)
 class RetinaNetConfig:
+    backbone: str
     epochs: int
     batch_size: int
     learning_rate: float
@@ -16,6 +19,7 @@ class RetinaNetConfig:
     lr_gamma: float
     num_workers: int
     device: str | None
+    loss_weights: dict[str, float]
 
 
 def _get_env_float(name: str, default: float) -> float:
@@ -30,6 +34,7 @@ def _get_env_int(name: str, default: int) -> int:
 
 def get_config() -> RetinaNetConfig:
     return RetinaNetConfig(
+        backbone=os.getenv("RETINANET_BACKBONE", "resnet50_fpn"),
         epochs=_get_env_int("RETINANET_EPOCHS", 1000),
         batch_size=_get_env_int("RETINANET_BATCH", 4),
         learning_rate=_get_env_float("RETINANET_LR", 1e-4),
@@ -39,6 +44,13 @@ def get_config() -> RetinaNetConfig:
         lr_gamma=_get_env_float("RETINANET_LR_GAMMA", 0.1),
         num_workers=_get_env_int("RETINANET_NUM_WORKERS", 4),
         device=os.getenv("RETINANET_DEVICE"),
+        loss_weights=loss_weights_from_env(
+            "RETINANET",
+            {
+                "classification": 1.0,
+                "bbox_regression": 1.0,
+            },
+        ),
     )
 
 

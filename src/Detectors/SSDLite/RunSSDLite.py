@@ -15,7 +15,7 @@ from torchvision.models.detection.anchor_utils import DefaultBoxGenerator
 from torchvision.models.detection.ssd import SSD
 from torchvision.models.detection.ssdlite import SSDLiteHead
 
-from backbones import MobileNetV2SSDLiteBackbone
+from backbones import build_ssdlite_backbone
 from backbones._common import NORM_LAYER
 from Detectors.SSDLite.GeraLabels import (
     CriarLabelsSSDLite,
@@ -23,6 +23,7 @@ from Detectors.SSDLite.GeraLabels import (
     SplitPaths,
 )
 from Detectors.SSDLite.config import get_config
+from losses import compute_weighted_loss
 
 _IMAGENET_MEAN = [0.485, 0.456, 0.406]
 _IMAGENET_STD  = [0.229, 0.224, 0.225]
@@ -67,7 +68,7 @@ def _build_transforms(train: bool) -> A.Compose:
 
 
 def _build_model(num_classes: int, cfg) -> SSD:
-    backbone = MobileNetV2SSDLiteBackbone()
+    backbone = build_ssdlite_backbone(cfg.backbone)
 
     anchor_generator = DefaultBoxGenerator(
         aspect_ratios=[[2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3]],
@@ -256,7 +257,12 @@ def _build_loader(dataset: Dataset, *, cfg, device: torch.device, shuffle: bool)
     return DataLoader(dataset, **loader_kwargs)
 
 
-def _checkpoint_state(model: SSD, num_classes: int, dataset_config: SSDLiteDatasetConfig) -> Dict:
+def _checkpoint_state(
+    model: SSD,
+    num_classes: int,
+    dataset_config: SSDLiteDatasetConfig,
+    backbone: str,
+) -> Dict:
     return {
         "model_state": {
             key: value.detach().cpu().clone()
@@ -265,6 +271,7 @@ def _checkpoint_state(model: SSD, num_classes: int, dataset_config: SSDLiteDatas
         "num_classes": num_classes,
         "class_names": dataset_config.class_names,
         "category_mapping": dataset_config.category_mapping,
+        "backbone": backbone,
     }
 
 
@@ -296,7 +303,7 @@ def runSSDLite(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
 
     print(
         f"[SSDLite] Iniciando treino | device={device} | epochs={cfg.epochs} "
-        f"| batch={cfg.batch_size} | lr={cfg.learning_rate} "
+        f"| backbone={cfg.backbone} | batch={cfg.batch_size} | lr={cfg.learning_rate} "
         f"| workers={cfg.num_workers} | pin_memory={train_loader.pin_memory} "
         f"| classes={len(dataset_config.class_names)}",
         flush=True,
@@ -355,7 +362,7 @@ def runSSDLite(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
             targets = _to_device(targets, device)
 
             loss_dict = model(images, targets)
-            losses = sum(loss for loss in loss_dict.values())
+            losses = compute_weighted_loss(loss_dict, cfg.loss_weights)
 
             optimizer.zero_grad()
             losses.backward()
@@ -383,7 +390,7 @@ def runSSDLite(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
                 # SSD only returns losses in train mode
                 model.train()
                 loss_dict = model(images, targets)
-                losses = sum(loss for loss in loss_dict.values())
+                losses = compute_weighted_loss(loss_dict, cfg.loss_weights)
                 model.eval()
                 val_loss += losses.item()
                 val_batches += 1
@@ -402,7 +409,7 @@ def runSSDLite(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
         if avg_val_loss < best_loss:
             best_loss = avg_val_loss
             epochs_without_improvement = 0
-            best_state = _checkpoint_state(model, num_classes, dataset_config)
+            best_state = _checkpoint_state(model, num_classes, dataset_config, cfg.backbone)
         else:
             epochs_without_improvement += 1
             if cfg.patience > 0 and epochs_without_improvement >= cfg.patience:
@@ -416,7 +423,7 @@ def runSSDLite(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
         lr_scheduler.step()
 
     if best_state is None:
-        best_state = _checkpoint_state(model, num_classes, dataset_config)
+        best_state = _checkpoint_state(model, num_classes, dataset_config, cfg.backbone)
 
     target_dir = Path(fold_dir) / "SSDLite"
     target_dir.mkdir(parents=True, exist_ok=True)

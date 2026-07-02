@@ -5,6 +5,8 @@ from typing import Optional
 
 import torch
 
+from losses import loss_weights_from_env
+
 BATCH_SIZE = 16
 RESIZE_TO = 640
 NUM_EPOCHS = 40
@@ -12,8 +14,18 @@ NUM_WORKERS = 8
 PATIENCE = 7
 LR = 0.005
 OPTIMIZER = "SGD"
+BACKBONE = os.getenv("FASTER_BACKBONE", "resnet50_fpn")
 MOMENTUM = 0.9
 WEIGHT_DECAY = 0.0005
+LOSS_WEIGHTS = loss_weights_from_env(
+    "FASTER",
+    {
+        "loss_classifier": 1.0,
+        "loss_box_reg": 1.0,
+        "loss_objectness": 1.0,
+        "loss_rpn_box_reg": 1.0,
+    },
+)
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -117,8 +129,10 @@ def get_training_params() -> dict:
         "patience": PATIENCE,
         "learning_rate": LR,
         "optimizer": OPTIMIZER,
+        "backbone": BACKBONE,
         "momentum": MOMENTUM,
         "weight_decay": WEIGHT_DECAY,
+        "loss_weights": LOSS_WEIGHTS,
         "device": str(DEVICE),
         "out_dir": OUT_DIR,
         "root_data_dir": ROOT_DATA_DIR,
@@ -146,8 +160,10 @@ __all__ = [
     "NUM_WORKERS",
     "LR",
     "OPTIMIZER",
+    "BACKBONE",
     "MOMENTUM",
     "WEIGHT_DECAY",
+    "LOSS_WEIGHTS",
     "PATIENCE",
     "DEVICE",
     "OUT_DIR",

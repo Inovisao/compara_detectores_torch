@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -70,6 +71,8 @@ def _load_ssd_model(checkpoint_path: Path):
     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
     num_classes = int(checkpoint["num_classes"])
     cfg = get_config()
+    if checkpoint.get("backbone"):
+        cfg = replace(cfg, backbone=checkpoint["backbone"])
     model = _build_model(num_classes, cfg)
     model.load_state_dict(checkpoint["model_state"])
     model.eval()

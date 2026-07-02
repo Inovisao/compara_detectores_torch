@@ -3,9 +3,12 @@ from __future__ import annotations
 import os
 from dataclasses import asdict, dataclass
 
+from losses import loss_weights_from_env
+
 
 @dataclass(frozen=True)
 class SSDLiteConfig:
+    backbone: str
     epochs: int
     batch_size: int
     learning_rate: float
@@ -21,6 +24,7 @@ class SSDLiteConfig:
     detections_per_img: int
     device: str | None
     patience: int
+    loss_weights: dict[str, float]
 
 
 def _get_env_float(name: str, default: float) -> float:
@@ -42,6 +46,7 @@ def _get_env_bool(name: str, default: bool) -> bool:
 
 def get_config() -> SSDLiteConfig:
     return SSDLiteConfig(
+        backbone=os.getenv("SSDLITE_BACKBONE", "mobilenetv2"),
         epochs=_get_env_int("SSDLITE_EPOCHS", 80),
         batch_size=_get_env_int("SSDLITE_BATCH", 8),
         learning_rate=_get_env_float("SSDLITE_LR", 5e-3),
@@ -57,6 +62,13 @@ def get_config() -> SSDLiteConfig:
         detections_per_img=_get_env_int("SSDLITE_DETECTIONS_PER_IMG", 200),
         device=os.getenv("SSDLITE_DEVICE"),
         patience=_get_env_int("SSDLITE_PATIENCE", 15),
+        loss_weights=loss_weights_from_env(
+            "SSDLITE",
+            {
+                "classification": 1.0,
+                "bbox_regression": 1.0,
+            },
+        ),
     )
 
 

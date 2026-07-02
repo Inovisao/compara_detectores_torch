@@ -121,10 +121,7 @@ src/Detectors/FasterRCNN
 ├── train.py
 └── TreinoFaster.sh
 ```
-Os parâmetros podem ser ajustados em `config.py`. Para alterar o otimizador, modifique a linha no arquivo `train.py`:
-```python
-optimizer = torch.optim.SGD(params, lr=LR, momentum=0.9, weight_decay=0.0005)
-```
+Os parâmetros podem ser ajustados em `config.py`. O backbone pode ser alterado por variável de ambiente com `FASTER_BACKBONE`.
 
 #### RetinaNet
 ```
@@ -134,7 +131,7 @@ src/Detectors/RetinaNet
 ├── GeraLabels.py
 └── RunRetinaNet.py
 ```
-O treinamento utiliza o `retinanet_resnet50_fpn` do `torchvision` (>= 0.17). O `config.py` expõe variáveis (`RETINANET_EPOCHS`, `RETINANET_LR`, `RETINANET_BATCH`, etc.) e o `RunRetinaNet.py` monta um `DataLoader` COCO, executa o loop de treino básico e salva o melhor modelo em `best.pth` junto com os nomes das classes.
+O treinamento utiliza modelos RetinaNet do `torchvision` (>= 0.17). O `config.py` expõe variáveis (`RETINANET_BACKBONE`, `RETINANET_EPOCHS`, `RETINANET_LR`, `RETINANET_BATCH`, etc.) e o `RunRetinaNet.py` monta um `DataLoader` COCO, executa o loop de treino básico e salva o melhor modelo em `best.pth` junto com os nomes das classes.
 
 #### ViT (YOLOS-small)
 ```
@@ -151,6 +148,56 @@ Usa `AutoModelForObjectDetection`/`AutoImageProcessor` do pacote `transformers` 
 > - RetinaNet: `pip install "torchvision>=0.17" pycocotools albumentations` (ou Detectron2 se preferir)  
 > - ViT (YOLOS): `pip install "transformers>=4.48" timm` (requer `torch>=2.1`)  
 > - Certifique-se de que `torch>=2.1` está instalado com suporte a CUDA.
+
+### Backbones e Pesos da Loss
+
+As redes baseadas em `torchvision` e o SSDLite agora têm pontos configuráveis por variável de ambiente. Os valores usados aparecem em `results/training_params.json` e nas colunas `backbone` e `loss_function` dos CSVs de resultado (`results.csv`, `resultsbyclass.csv`, `results_base.csv` e `results_finetune.csv`).
+
+#### SSDLite
+- `SSDLITE_BACKBONE`: `mobilenetv2` (padrão) ou `resnet18`
+- `SSDLITE_LOSS_CLASSIFICATION`: peso da loss de classificação (padrão `1.0`)
+- `SSDLITE_LOSS_BBOX_REGRESSION`: peso da loss de regressão das caixas (padrão `1.0`)
+
+Exemplo:
+```bash
+MODELS_TO_RUN="SSDLite" \
+SSDLITE_BACKBONE=resnet18 \
+SSDLITE_LOSS_CLASSIFICATION=1.0 \
+SSDLITE_LOSS_BBOX_REGRESSION=2.0 \
+python main.py
+```
+
+#### RetinaNet
+- `RETINANET_BACKBONE`: `resnet50_fpn` (padrão) ou `resnet50_fpn_v2`
+- `RETINANET_LOSS_CLASSIFICATION`: peso da loss de classificação (padrão `1.0`)
+- `RETINANET_LOSS_BBOX_REGRESSION`: peso da loss de regressão das caixas (padrão `1.0`)
+
+Exemplo:
+```bash
+MODELS_TO_RUN="RetinaNet" \
+RETINANET_BACKBONE=resnet50_fpn_v2 \
+RETINANET_LOSS_CLASSIFICATION=1.5 \
+RETINANET_LOSS_BBOX_REGRESSION=1.0 \
+python main.py
+```
+
+#### FasterRCNN
+- `FASTER_BACKBONE`: `resnet50_fpn` (padrão), `resnet50_fpn_v2` ou `mobilenet_v3_large_fpn`
+- `FASTER_LOSS_CLASSIFIER`: peso da loss do classificador (padrão `1.0`)
+- `FASTER_LOSS_BOX_REG`: peso da loss de regressão das caixas (padrão `1.0`)
+- `FASTER_LOSS_OBJECTNESS`: peso da loss de objectness da RPN (padrão `1.0`)
+- `FASTER_LOSS_RPN_BOX_REG`: peso da loss de regressão das caixas da RPN (padrão `1.0`)
+
+Exemplo:
+```bash
+MODELS_TO_RUN="Faster" \
+FASTER_BACKBONE=mobilenet_v3_large_fpn \
+FASTER_LOSS_CLASSIFIER=1.0 \
+FASTER_LOSS_BOX_REG=2.0 \
+python main.py
+```
+
+> Observação: o SSDLite e o RetinaNet salvam o backbone usado dentro do `best.pth`. No FasterRCNN, mantenha `FASTER_BACKBONE` igual no treino e na inferência, pois o checkpoint atual salva apenas os pesos.
 
 ### 3. Executando o Treinamento
 No arquivo `main.py`, edite a variável `MODELS` ou defina a variável de ambiente `MODELS_TO_RUN` para selecionar os modelos desejados, por exemplo:

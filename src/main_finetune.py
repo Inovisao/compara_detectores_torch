@@ -36,7 +36,7 @@ COUNTING_BASE_CSV = RESULTS_DIR / "counting_base.csv"
 COUNTING_FT_CSV = RESULTS_DIR / "counting_finetune.csv"
 OUTPUT_LOG = RESULTS_DIR / "main_finetune_output.log"
 
-CSV_HEADER = "ml,fold,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore"
+CSV_HEADER = "ml,fold,backbone,loss_function,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore"
 COUNTING_HEADER = "ml,fold,groundtruth,predicted,TP,FP,dif,fileName"
 
 
@@ -169,7 +169,10 @@ def _evaluate(
     )
     with result_csv.open("a", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["YOLO26", fold, mAP, mAP50, mAP75, MAE, RMSE, r, precision, recall, fscore])
+        writer.writerow([
+            "YOLO26", fold, str(DEFAULT_WEIGHTS), "ultralytics-default",
+            mAP, mAP50, mAP75, MAE, RMSE, r, precision, recall, fscore,
+        ])
 
 
 def _run_phase_base() -> None:

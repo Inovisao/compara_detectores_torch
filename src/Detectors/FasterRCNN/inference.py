@@ -5,18 +5,13 @@ from torchvision.models.detection import FasterRCNN
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 import cv2
 import numpy as np
+from backbones import build_fasterrcnn_model
 from Detectors.FasterRCNN import config as faster_config
 # Load Faster R-CNN with ResNet-50 backbone
 def get_model(num_classes=None):
-    # Load pre-trained Faster R-CNN
     if num_classes is None:
         num_classes = faster_config.NUM_CLASSES
-    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights="DEFAULT")
-    # Get the number of input features for the classifier
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    # Replace the pre-trained head with a new one
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-    return model
+    return build_fasterrcnn_model(faster_config.BACKBONE, num_classes)
 
 def prepare_image(frame, device):
     # Load the image using OpenCV (in BGR format)

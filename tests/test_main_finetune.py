@@ -74,9 +74,11 @@ class TestEvaluate:
             main_finetune._evaluate("root", "fold_1", "m.pt", result_csv, counting_csv)
         rows = list(csv.reader(result_csv.open()))
         assert len(rows) == 1
-        ml, fold, mAP, mAP50, mAP75, MAE, RMSE, r, precision, recall, fscore = rows[0]
+        ml, fold, backbone, loss_function, mAP, mAP50, mAP75, MAE, RMSE, r, precision, recall, fscore = rows[0]
         assert ml == "YOLO26"
         assert fold == "fold_1"
+        assert backbone
+        assert loss_function == "ultralytics-default"
         assert float(mAP) == pytest.approx(0.50)
         assert float(r) == pytest.approx(0.90)
         assert float(precision) == pytest.approx(0.80)

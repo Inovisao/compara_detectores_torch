@@ -23,11 +23,15 @@ from config import (
     RESIZE_TO,
     DEVICE,
     LR,
+    BACKBONE,
     MOMENTUM,
     WEIGHT_DECAY,
+    LOSS_WEIGHTS,
     OUT_DIR,
     PATIENCE,
 )
+from backbones import build_fasterrcnn_model
+from losses import compute_weighted_loss
 
 _AUG_PIPELINE = A.Compose(
     [
@@ -120,11 +124,8 @@ val_loader = DataLoader(
     collate_fn=lambda x: tuple(zip(*x)),
 )
 
-# Load Faster R-CNN with ResNet-50 backbone
 def get_model(num_classes):
-    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights="DEFAULT")
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+    model = build_fasterrcnn_model(BACKBONE, num_classes)
     
     checkpoint_path = 'bestFaster.pth'
     if os.path.exists(checkpoint_path):
@@ -138,6 +139,7 @@ def get_model(num_classes):
 # Initialize the model
 model = get_model(NUM_CLASSES)
 model.to(DEVICE)
+print(f"[FasterRCNN] backbone={BACKBONE} | loss_weights={LOSS_WEIGHTS}", flush=True)
 if hasattr(torch, 'compile'):
     try:
         model = torch.compile(model)
@@ -192,7 +194,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch):
         images = valid_images
         with torch.amp.autocast("cuda", enabled=_scaler.is_enabled()):
             loss_dict = model(images, processed_targets)
-            losses = sum(loss for loss in loss_dict.values())
+            losses = compute_weighted_loss(loss_dict, LOSS_WEIGHTS)
 
         optimizer.zero_grad()
         _scaler.scale(losses).backward()

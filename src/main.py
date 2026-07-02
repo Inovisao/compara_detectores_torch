@@ -105,6 +105,40 @@ def _json_safe(value):
         return str(value)
 
 
+def _summarize_result_metadata(model: str) -> tuple[str, str]:
+    try:
+        params = _get_model_training_params(model)
+    except Exception:
+        params = {}
+
+    backbone = (
+        params.get("backbone")
+        or params.get("weights")
+        or params.get("model_name")
+        or ""
+    )
+    loss_weights = params.get("loss_weights")
+    if loss_weights:
+        loss_function = "weighted_loss:" + json.dumps(
+            _json_safe(loss_weights),
+            sort_keys=True,
+            ensure_ascii=False,
+        )
+    else:
+        loss_function = {
+            "YOLOV8": "ultralytics-default",
+            "YOLOV11": "ultralytics-default",
+            "YOLO26": "ultralytics-default",
+            "YOLOV5_TPH": "yolov5-tph-default",
+            "Faster": "torchvision-fasterrcnn-default",
+            "RetinaNet": "torchvision-retinanet-default",
+            "Detr": "detr-set-criterion",
+            "SSDLite": "torchvision-ssd-default",
+            "ViT": "transformers-object-detection-default",
+        }.get(model, "")
+    return str(backbone), loss_function
+
+
 def _get_model_training_params(model: str) -> dict:
     if model == "YOLOV8":
         from Detectors.YOLOV8.config import get_training_params
@@ -405,12 +439,12 @@ def main() -> None:
 
     if GeraRult:
         RESULTS_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
-        print_to_file('ml,fold,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore', RESULTS_CSV_PATH, 'w')
+        print_to_file('ml,fold,backbone,loss_function,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore', RESULTS_CSV_PATH, 'w')
         print_to_file('ml,fold,groundtruth,predicted,TP,FP,dif,fileName', COUNTING_CSV_PATH, 'w')
 
     if GeraResultByClass:
         RESULTS_BY_CLASS_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
-        print_to_file('ml,fold,classes,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore', RESULTS_BY_CLASS_CSV_PATH, 'w')
+        print_to_file('ml,fold,classes,backbone,loss_function,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore', RESULTS_BY_CLASS_CSV_PATH, 'w')
 
     for model in MODELS:
         print(f"[INFO] Processando modelo: {model}")
@@ -445,6 +479,7 @@ def main() -> None:
             )
 
             if GeraRult:
+                backbone, loss_function = _summarize_result_metadata(model)
                 create_csv(
                     root=current_root,
                     fold=fold,
@@ -452,8 +487,11 @@ def main() -> None:
                     model_path=model_path,
                     save_imgs=save_imgs,
                     tiling_mode=TILING_MODE,
+                    backbone=backbone,
+                    loss_function=loss_function,
                 )
             if GeraResultByClass:
+                backbone, loss_function = _summarize_result_metadata(model)
                 generate_results(
                     root=current_root,
                     fold=fold,
@@ -461,6 +499,8 @@ def main() -> None:
                     model_name=model,
                     save_imgs=save_imgs,
                     tiling_mode=TILING_MODE,
+                    backbone=backbone,
+                    loss_function=loss_function,
                 )
 
 

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import torch
-from torchvision.models.detection import RetinaNet_ResNet50_FPN_Weights, retinanet_resnet50_fpn
+from backbones import build_retinanet_model
 from torchvision.transforms.functional import to_tensor
 
 
@@ -30,7 +30,10 @@ class ResultRetinaNet:
         # internal_label (1-indexed) → original COCO category_id
         label_to_original = {v: k for k, v in category_mapping.items()} if category_mapping else {}
 
-        model = retinanet_resnet50_fpn(weights=None, num_classes=num_classes)
+        model = build_retinanet_model(
+            checkpoint.get("backbone", os.getenv("RETINANET_BACKBONE", "resnet50_fpn")),
+            num_classes,
+        )
         model.load_state_dict(checkpoint["model_state"])
         model.eval()
         model.to(device)

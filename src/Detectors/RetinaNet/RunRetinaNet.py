@@ -7,16 +7,17 @@ from typing import Dict, List, Tuple
 import cv2
 import torch
 from torch.utils.data import DataLoader, Dataset
-from torchvision.models import ResNet50_Weights
-from torchvision.models.detection import RetinaNet_ResNet50_FPN_Weights, retinanet_resnet50_fpn
+from torchvision.models.detection import RetinaNet_ResNet50_FPN_Weights
 from torchvision.transforms.functional import to_tensor
 
+from backbones import build_retinanet_model
 from Detectors.RetinaNet.GeraLabels import (
     CriarLabelsRetinaNet,
     RetinaNetDatasetConfig,
     SplitPaths,
 )
 from Detectors.RetinaNet.config import get_config
+from losses import compute_weighted_loss
 
 
 class _CocoDataset(Dataset):
@@ -134,15 +135,15 @@ def runRetinaNet(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
 
     num_classes = len(dataset_config.class_names) + 1  # include background class
     _ = RetinaNet_ResNet50_FPN_Weights.DEFAULT  # ensure weights are downloaded for transforms if needed
-    backbone_weights = ResNet50_Weights.IMAGENET1K_V2
-    model = retinanet_resnet50_fpn(weights=None, num_classes=num_classes, weights_backbone=backbone_weights)
+    model = build_retinanet_model(hyperparams.backbone, num_classes)
 
     device_str = hyperparams.device or ("cuda" if torch.cuda.is_available() else "cpu")
     device = torch.device(device_str)
     model.to(device)
     print(
         f"[RetinaNet] Iniciando treino | device={device} | epochs={hyperparams.epochs} "
-        f"| batch={hyperparams.batch_size} | lr={hyperparams.learning_rate}",
+        f"| backbone={hyperparams.backbone} | batch={hyperparams.batch_size} "
+        f"| lr={hyperparams.learning_rate}",
         flush=True,
     )
 
@@ -171,7 +172,7 @@ def runRetinaNet(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
             targets = _to_device(targets, device)
 
             loss_dict = model(images, targets)
-            losses = sum(loss for loss in loss_dict.values())
+            losses = compute_weighted_loss(loss_dict, hyperparams.loss_weights)
 
             optimizer.zero_grad()
             losses.backward()
@@ -197,7 +198,7 @@ def runRetinaNet(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
                 targets = _to_device(targets, device)
                 model.train()
                 loss_dict = model(images, targets)
-                losses = sum(loss for loss in loss_dict.values())
+                losses = compute_weighted_loss(loss_dict, hyperparams.loss_weights)
                 model.eval()
                 val_loss += losses.item()
                 val_batches += 1
@@ -220,6 +221,7 @@ def runRetinaNet(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
                 "num_classes": num_classes,
                 "class_names": dataset_config.class_names,
                 "category_mapping": dataset_config.category_mapping,
+                "backbone": hyperparams.backbone,
             }
 
         lr_scheduler.step()
@@ -229,6 +231,7 @@ def runRetinaNet(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
             "model_state": model.state_dict(),
             "num_classes": num_classes,
             "class_names": dataset_config.class_names,
+            "backbone": hyperparams.backbone,
         }
 
     target_dir = Path(fold_dir) / "RetinaNet"
