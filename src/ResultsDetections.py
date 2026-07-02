@@ -333,9 +333,9 @@ def generate_results(root, fold, model, model_name, save_imgs):
 
 def create_csv(selected_model, fold, root, model_path, save_imgs):
     """Cria um arquivo CSV com os resultados das métricas."""
+    results_path = os.path.join('..', 'results', 'results.csv')
     try:
         mAP, mAP50, mAP75, MAE, RMSE, precision, recall, fscore, r = generate_results(root, fold, model_path, selected_model, save_imgs)
-        results_path = os.path.join('..', 'results', 'results.csv')
         file_exists = os.path.isfile(results_path)
         dir_path = os.path.dirname(results_path)
         if not os.path.exists(dir_path):
