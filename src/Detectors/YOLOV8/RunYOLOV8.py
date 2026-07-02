@@ -12,6 +12,7 @@ def runYOLOV8(fold, fold_dir, ROOT_DATA_DIR):
     CriarLabelsYOLOV8(fold)  # Função para criar as labels do treino da YOLOV8
 
     src_dir = Path(__file__).resolve().parents[2]
+    repo_root = Path(__file__).resolve().parents[3]
     treino_script = Path(__file__).resolve().parent / 'TreinoYOLOV8.sh'
     output_dir = os.path.join(fold_dir, 'YOLOV8')
 
@@ -19,7 +20,7 @@ def runYOLOV8(fold, fold_dir, ROOT_DATA_DIR):
     if os.path.exists(output_dir):
         shutil.rmtree(output_dir)
 
-    temp_output_dir = os.path.join(src_dir, 'YOLOV8')
+    temp_output_dir = os.path.join(repo_root, 'YOLOV8')
     if os.path.exists(temp_output_dir):
         shutil.rmtree(temp_output_dir)
 
