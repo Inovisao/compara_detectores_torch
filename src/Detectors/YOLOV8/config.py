@@ -1,4 +1,8 @@
+import os
 from pathlib import Path
+
+# Configure o PyTorch para reduzir fragmentação de memória CUDA se necessário.
+os.environ.setdefault('PYTORCH_CUDA_ALLOC_CONF', 'max_split_size_mb:128')
 
 from ultralytics import YOLO
 
@@ -6,6 +10,9 @@ from ultralytics import YOLO
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DATA_YAML = REPO_ROOT / 'dataset' / 'all' / 'data.yaml'
+
+# diminui o batch padrão para evitar estouros de memória em GPUs com menos VRAM
+BATCH_SIZE = int(os.environ.get('YOLOV8_BATCH_SIZE', 16))
 
 model = YOLO('yolov8s.pt')  # load a pretrained model (recommended for training)
 
@@ -16,7 +23,7 @@ def build_train_kwargs():
         epochs=1000,  # Epocas que o Modelo ira Rodar
         imgsz=640,  # Dimeção das imagens
         patience=100,  # paciencia para o modelo parar o treinamento geral mente se usa 10% das epocas
-        batch=64,  # Tamanho do lote da GPU
+        batch=BATCH_SIZE,  # Tamanho do lote da GPU
         project='YOLOV8',  # Nome do Projeto
         exist_ok=True,  # Caso o arquivo ja exista ele sobre escreve
         optimizer='AdamW',  # Optimizador do modelo (SGD, Adam, AdamW, NAdam, RAdam, RMSPro) Talvez tenha mais

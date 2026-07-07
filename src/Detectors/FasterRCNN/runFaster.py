@@ -1,18 +1,30 @@
 import os
-from Detectors.FasterRCNN.geradataset import geredata
 import shutil
 import subprocess
 
-def runFaster(fold,fold_dir,ROOT_DATA_DIR):
-    geredata(fold) # Função para cirar as labels do treino da YOLOV8
-    treino = os.path.join('Detectors', 'FasterRCNN', 'TreinoFaster.sh') 
-    # Remove se over Resultados na pasta model_checkpoints
-    if os.path.exists(os.path.join(fold_dir, 'Faster')):  
-        shutil.rmtree(os.path.join(fold_dir, "Faster")) 
-    subprocess.run([treino]) # Roda o bash para treino
-    # Verifica que a pasta Fold_num existe
-    if not os.path.exists(fold_dir):
-        os.makedirs(fold_dir)
+from Detectors.FasterRCNN.geradataset import geredata
 
-    os.rename('Faster', os.path.join(fold_dir, 'Faster'))# Move os dados Dos treinos para model_checkpoints
-    shutil.rmtree(os.path.join(ROOT_DATA_DIR, 'Faster'))# Remove as labels Geradas
+
+def runFaster(fold, fold_dir, ROOT_DATA_DIR):
+    geredata(fold)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    treino = os.path.join(script_dir, 'TreinoFaster.sh')
+    output_dir = os.path.join(fold_dir, 'Faster')
+
+    if os.path.exists(output_dir):
+        shutil.rmtree(output_dir)
+
+    cwd = os.path.abspath(os.path.join(script_dir, '..', '..'))
+    subprocess.run(['bash', treino], cwd=cwd, check=True)
+
+    if not os.path.exists(fold_dir):
+        os.makedirs(fold_dir, exist_ok=True)
+
+    source_output = os.path.join(cwd, 'Faster')
+    if not os.path.exists(source_output):
+        raise FileNotFoundError(f'Checkpoint do FasterRCNN não encontrado em {source_output}')
+
+    os.rename(source_output, output_dir)
+
+    if os.path.exists(os.path.join(ROOT_DATA_DIR, 'Faster')):
+        shutil.rmtree(os.path.join(ROOT_DATA_DIR, 'Faster'))

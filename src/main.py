@@ -27,6 +27,10 @@ def train_model(model,fold,fold_dir,ROOT_DATA_DIR):
         from Detectors.FasterRCNN.runFaster import runFaster
         runFaster(fold,fold_dir,ROOT_DATA_DIR)
         model_path = os.path.join(fold_dir,model,'best.pth')
+        if not os.path.exists(model_path):
+            fallback_model_path = os.path.join(fold_dir,model,'last_checkpoint.pth')
+            if os.path.exists(fallback_model_path):
+                model_path = fallback_model_path
     
     elif model == 'Detr':
         from Detectors.Detr.runDetr import runDetr
