@@ -23,7 +23,7 @@ from Detectors.SSDLite.GeraLabels import (
     SplitPaths,
 )
 from Detectors.SSDLite.config import get_config
-from losses import compute_weighted_loss
+from losses import compute_weighted_loss, configure_ssd_box_loss
 
 _IMAGENET_MEAN = [0.485, 0.456, 0.406]
 _IMAGENET_STD  = [0.229, 0.224, 0.225]
@@ -82,7 +82,7 @@ def _build_model(num_classes: int, cfg) -> SSD:
         norm_layer=NORM_LAYER,
     )
 
-    return SSD(
+    model = SSD(
         backbone=backbone,
         anchor_generator=anchor_generator,
         size=(320, 320),
@@ -92,6 +92,8 @@ def _build_model(num_classes: int, cfg) -> SSD:
         nms_thresh=cfg.nms_thresh,
         detections_per_img=cfg.detections_per_img,
     )
+    configure_ssd_box_loss(model, cfg.box_loss, inner_ratio=cfg.inner_ratio)
+    return model
 
 
 def _freeze_backbone(model: SSD) -> None:
@@ -304,6 +306,7 @@ def runSSDLite(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
     print(
         f"[SSDLite] Iniciando treino | device={device} | epochs={cfg.epochs} "
         f"| backbone={cfg.backbone} | batch={cfg.batch_size} | lr={cfg.learning_rate} "
+        f"| box_loss={cfg.box_loss} "
         f"| workers={cfg.num_workers} | pin_memory={train_loader.pin_memory} "
         f"| classes={len(dataset_config.class_names)}",
         flush=True,

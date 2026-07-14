@@ -5,6 +5,7 @@ from dataclasses import asdict
 from dataclasses import dataclass
 
 from losses import loss_weights_from_env
+from losses import normalize_box_loss
 
 
 @dataclass(frozen=True)
@@ -20,6 +21,8 @@ class RetinaNetConfig:
     num_workers: int
     device: str | None
     loss_weights: dict[str, float]
+    box_loss: str
+    inner_ratio: float
 
 
 def _get_env_float(name: str, default: float) -> float:
@@ -51,6 +54,8 @@ def get_config() -> RetinaNetConfig:
                 "bbox_regression": 1.0,
             },
         ),
+        box_loss=normalize_box_loss(os.getenv("RETINANET_BOX_LOSS", "ciou")),
+        inner_ratio=_get_env_float("RETINANET_INNER_RATIO", 0.7),
     )
 
 

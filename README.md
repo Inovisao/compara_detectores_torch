@@ -154,9 +154,13 @@ Usa `AutoModelForObjectDetection`/`AutoImageProcessor` do pacote `transformers` 
 As redes baseadas em `torchvision` e o SSDLite agora têm pontos configuráveis por variável de ambiente. Os valores usados aparecem em `results/training_params.json` e nas colunas `backbone` e `loss_function` dos CSVs de resultado (`results.csv`, `resultsbyclass.csv`, `results_base.csv` e `results_finetune.csv`).
 
 #### SSDLite
-- `SSDLITE_BACKBONE`: `mobilenetv2` (padrão) ou `resnet18`
+- `SSDLITE_BACKBONE`: `mobilenetv2` (padrão), `resnet18`, `gelan`,
+  `convnext_tiny` ou `swin_tiny`. `convnext_tiny` e `swin_tiny` usam pesos
+  ImageNet do torchvision; `gelan` inicia do zero.
 - `SSDLITE_LOSS_CLASSIFICATION`: peso da loss de classificação (padrão `1.0`)
 - `SSDLITE_LOSS_BBOX_REGRESSION`: peso da loss de regressão das caixas (padrão `1.0`)
+- `SSDLITE_BOX_LOSS`: `ciou` (padrão), `inner_mpdiou`, `wise_iou` ou `siou`
+- `SSDLITE_INNER_RATIO`: razão das caixas internas do Inner-MPDIoU (padrão `0.7`)
 
 Exemplo:
 ```bash
@@ -171,6 +175,8 @@ python main.py
 - `RETINANET_BACKBONE`: `resnet50_fpn` (padrão) ou `resnet50_fpn_v2`
 - `RETINANET_LOSS_CLASSIFICATION`: peso da loss de classificação (padrão `1.0`)
 - `RETINANET_LOSS_BBOX_REGRESSION`: peso da loss de regressão das caixas (padrão `1.0`)
+- `RETINANET_BOX_LOSS`: `ciou` (padrão), `inner_mpdiou`, `wise_iou` ou `siou`
+- `RETINANET_INNER_RATIO`: razão das caixas internas do Inner-MPDIoU (padrão `0.7`)
 
 Exemplo:
 ```bash

@@ -17,7 +17,7 @@ from Detectors.RetinaNet.GeraLabels import (
     SplitPaths,
 )
 from Detectors.RetinaNet.config import get_config
-from losses import compute_weighted_loss
+from losses import compute_weighted_loss, configure_retinanet_box_loss
 
 
 class _CocoDataset(Dataset):
@@ -136,6 +136,7 @@ def runRetinaNet(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
     num_classes = len(dataset_config.class_names) + 1  # include background class
     _ = RetinaNet_ResNet50_FPN_Weights.DEFAULT  # ensure weights are downloaded for transforms if needed
     model = build_retinanet_model(hyperparams.backbone, num_classes)
+    configure_retinanet_box_loss(model, hyperparams.box_loss, inner_ratio=hyperparams.inner_ratio)
 
     device_str = hyperparams.device or ("cuda" if torch.cuda.is_available() else "cpu")
     device = torch.device(device_str)
@@ -143,7 +144,7 @@ def runRetinaNet(fold: str, fold_dir: str, root_data_dir: str | Path) -> None:
     print(
         f"[RetinaNet] Iniciando treino | device={device} | epochs={hyperparams.epochs} "
         f"| backbone={hyperparams.backbone} | batch={hyperparams.batch_size} "
-        f"| lr={hyperparams.learning_rate}",
+        f"| lr={hyperparams.learning_rate} | box_loss={hyperparams.box_loss}",
         flush=True,
     )
 
