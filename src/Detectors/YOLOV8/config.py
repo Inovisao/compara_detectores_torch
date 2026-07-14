@@ -22,4 +22,5 @@ def treino():
                 lrf = 0.01,# Taxa de Aprendizado Final
                 plots = True, # Usado para salvar os dados do treinamento para salver = True 
     )
-treino()
+if __name__ == '__main__':
+    treino()

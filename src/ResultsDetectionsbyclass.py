@@ -14,9 +14,9 @@ import csv
 
 # Importações dos modelos de detecção
 from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
-from Detectors.FasterRCNN.inference import ResultFaster
-from Detectors.Detr.inference_image_detect import resultDetr
-from Detectors.mminference.inference import runMMdetection
+#from Detectors.FasterRCNN.inference import ResultFaster
+#from Detectors.Detr.inference_image_detect import resultDetr
+#from Detectors.mminference.inference import runMMdetection
 # Constantes
 LIMIAR_THRESHOLD = 0.50
 IOU_THRESHOLD = 0.50
