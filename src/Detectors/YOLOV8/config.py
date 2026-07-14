@@ -27,9 +27,9 @@ def get_training_params(data_yaml: str | Path | None = None) -> dict:
     return {
         "weights": DEFAULT_WEIGHTS,
         "data": str(data_path),
-        "epochs": int(os.getenv("YOLOV8_EPOCHS", "60")),
+        "epochs": int(os.getenv("YOLOV8_EPOCHS", "1000")),
         "imgsz": int(os.getenv("YOLOV8_IMGSZ", "640")),
-        "patience": int(os.getenv("YOLOV8_PATIENCE", "7")),
+        "patience": int(os.getenv("YOLOV8_PATIENCE", "50")),
         "batch": int(os.getenv("YOLOV8_BATCH", "32")),
         "project": os.getenv("YOLOV8_PROJECT", str(DEFAULT_PROJECT)),
         "run_name": os.getenv("YOLOV8_RUN_NAME", "train"),

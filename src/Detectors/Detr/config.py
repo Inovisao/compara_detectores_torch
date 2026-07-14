@@ -1,17 +1,23 @@
 import torch
 import json
 import os
+from pathlib import Path
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
 BATCH_SIZE = 16
 RESIZE_TO = 640
-NUM_EPOCHS = 50
+NUM_EPOCHS = 1000
 NUM_WORKERS = 8
-PATIENCE = 10
+PATIENCE = 50
 LR = 0.0001
 OPTIMIZER = "AdamW"
 WEIGHT_DECAY = 0.0001
-DATA_PATH = os.path.join('..','dataset','all','dataDetr.yaml')
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-ROOT_DATA_DIR = os.path.join('..','dataset','all')
+ROOT_DATA_DIR = os.environ.get(
+    'DATASET_ROOT',
+    str(_PROJECT_ROOT / 'dataset' / 'all')
+)
+DATA_PATH = os.path.join(ROOT_DATA_DIR, 'dataDetr.yaml')
 # training images and XML files directory
 TRAIN_DIR = os.path.join(ROOT_DATA_DIR,'detr','train')
 # validation images and XML files directory
@@ -21,7 +27,16 @@ VALID_DIR = os.path.join(ROOT_DATA_DIR,'detr','valid')
 CLASSES = [
     '__background__'
 ]
-with open(os.path.join(ROOT_DATA_DIR, 'train', '_annotations.coco.json'), 'r') as f:
+_ann_candidates = [
+    os.path.join(ROOT_DATA_DIR, 'train', '_annotations.coco.json'),
+    os.path.join(ROOT_DATA_DIR, '_annotations.coco.json'),
+]
+_ann_path = next((p for p in _ann_candidates if os.path.exists(p)), None)
+if _ann_path is None:
+    raise FileNotFoundError(
+        f"_annotations.coco.json not found. Tried: {_ann_candidates}"
+    )
+with open(_ann_path, 'r') as f:
     data = json.load(f)
 
 ann_ids = []

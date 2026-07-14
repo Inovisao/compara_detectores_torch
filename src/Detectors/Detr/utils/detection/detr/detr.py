@@ -155,8 +155,13 @@ class SetCriterion(nn.Module):
         losses = {}
         losses['loss_bbox'] = loss_bbox.sum() / num_boxes
 
+        src_xyxy = box_ops.box_cxcywh_to_xyxy(src_boxes)
+        src_xyxy = torch.cat([
+            torch.min(src_xyxy[:, :2], src_xyxy[:, 2:]),
+            torch.max(src_xyxy[:, :2], src_xyxy[:, 2:]),
+        ], dim=-1)
         loss_giou = 1 - torch.diag(box_ops.generalized_box_iou(
-            box_ops.box_cxcywh_to_xyxy(src_boxes),
+            src_xyxy,
             box_ops.box_cxcywh_to_xyxy(target_boxes)))
         losses['loss_giou'] = loss_giou.sum() / num_boxes
         return losses

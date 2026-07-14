@@ -1,15 +1,24 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
+SRC = PROJECT_ROOT / "src"
+sys.path.insert(0, str(SRC))
+
+from dataset_contract import split_image_dir
+
 DATASETS = {
     "all":          PROJECT_ROOT / "dataset" / "all",
     "fine_tuning":  PROJECT_ROOT / "dataset" / "fine_tuning",
+    "sahi":         PROJECT_ROOT / "dataset" / "sahi",
+    "asahi":        PROJECT_ROOT / "dataset" / "asahi",
+    "asahi_rect":   PROJECT_ROOT / "dataset" / "asahi_rect",
 }
 EXPECTED_SPLITS  = {"train", "val", "test"}
 EXPECTED_FOLDS   = {f"fold_{i}" for i in range(1, 6)}
@@ -23,6 +32,8 @@ def ds(request):
     root = DATASETS[request.param]
     if not root.exists():
         pytest.skip(f"Dataset not found: {root}")
+    if not (root / "filesJSON").exists():
+        pytest.skip(f"filesJSON/ not set up yet: {root}")
     return root
 
 
@@ -36,8 +47,14 @@ def _all_jsons(ds_root: Path) -> list[Path]:
 
 
 def _images_on_disk(ds_root: Path) -> set[str]:
-    train_dir = ds_root / "train"
-    return {p.name for p in train_dir.iterdir() if p.suffix in IMAGE_EXTENSIONS}
+    result: set[str] = set()
+    for json_path in _all_jsons(ds_root):
+        fold = "_".join(json_path.stem.split("_")[:2])
+        split = json_path.stem.split("_")[-1]
+        split_dir = split_image_dir(ds_root, split, fold)
+        if split_dir.exists():
+            result |= {p.name for p in split_dir.iterdir() if p.suffix in IMAGE_EXTENSIONS}
+    return result
 
 
 # ── structure ─────────────────────────────────────────────────────────────────
@@ -49,12 +66,17 @@ class TestStructure:
     def test_filesjson_dir_exists(self, ds):
         assert (ds / "filesJSON").is_dir()
 
-    def test_train_dir_exists(self, ds):
-        assert (ds / "train").exists()
+    def test_split_image_dirs_exist(self, ds):
+        for fold in EXPECTED_FOLDS:
+            for split in EXPECTED_SPLITS:
+                split_dir = split_image_dir(ds, split, fold)
+                assert split_dir.exists(), f"Missing image dir: {split_dir}"
 
-    def test_train_dir_not_empty(self, ds):
-        imgs = [p for p in (ds / "train").iterdir() if p.suffix in IMAGE_EXTENSIONS]
-        assert len(imgs) > 0, "train/ has no images"
+    def test_train_image_dirs_not_empty(self, ds):
+        for fold in EXPECTED_FOLDS:
+            train_dir = split_image_dir(ds, "train", fold)
+            imgs = [p for p in train_dir.iterdir() if p.suffix in IMAGE_EXTENSIONS]
+            assert len(imgs) > 0, f"{train_dir} has no images"
 
     def test_all_folds_present(self, ds):
         found = {

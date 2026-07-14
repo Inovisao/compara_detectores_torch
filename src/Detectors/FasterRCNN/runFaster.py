@@ -35,8 +35,8 @@ def runFaster(fold, fold_dir, root_data_dir):
     os.makedirs(target_dir, exist_ok=True)
     print(f"[runFaster] OUT_DIR={target_dir}", flush=True)
 
-    treino = os.path.join('Detectors', 'FasterRCNN', 'TreinoFaster.sh')
-    treino_abs = os.path.abspath(treino)
+    treino = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'TreinoFaster.sh')
+    treino_abs = treino
     print(f"[runFaster] script={treino_abs} exists={os.path.exists(treino_abs)}", flush=True)
 
     env = _prepare_environment(dataset_config, fold)

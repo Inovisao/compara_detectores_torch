@@ -15,12 +15,13 @@ def runDetr(fold,fold_dir,ROOT_DATA_DIR):
     convert_coco_to_voc(fold, root_data_dir=ROOT_DATA_DIR)
     print(f"[runDetr] Conversão concluída", flush=True)
 
-    treino = os.path.join('Detectors','Detr','TreinoDetr.sh')
-    treino_abs = os.path.abspath(treino)
+    treino = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'TreinoDetr.sh')
+    treino_abs = treino
     print(f"[runDetr] script={treino_abs} exists={os.path.exists(treino_abs)}", flush=True)
     print(f"[runDetr] Executando subprocess...", flush=True)
     env = os.environ.copy()
     env['DETR_TRAINING_DIR'] = training_dir
+    env['DATASET_ROOT'] = str(ROOT_DATA_DIR)
     result = subprocess.run([treino], check=True, env=env)
     print(f"[runDetr] Concluído, código={result.returncode}, checkpoint em {training_dir}", flush=True)
 

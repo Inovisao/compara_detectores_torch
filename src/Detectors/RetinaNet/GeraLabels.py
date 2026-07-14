@@ -4,6 +4,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from dataset_contract import split_image_dir
 
 
 @dataclass(frozen=True)
@@ -40,10 +41,11 @@ def _resolve_split_paths(root: Path, fold: str) -> List[Tuple[str, Path, Path]]:
         json_paths = sorted(p for p in files_json_dir.glob(f"{fold}_*.json") if p.is_file())
         if not json_paths:
             raise FileNotFoundError(f"No JSON splits found for fold '{fold}' in {files_json_dir}")
-        image_dir = root / "train"
         for json_path in json_paths:
             split_token = json_path.stem.split("_")[-1]
-            splits.append((_normalize_split(split_token), json_path, image_dir))
+            norm = _normalize_split(split_token)
+            image_dir = split_image_dir(root, norm, fold)
+            splits.append((norm, json_path, image_dir))
         return splits
 
     for candidate in ("train", "val", "valid", "test"):

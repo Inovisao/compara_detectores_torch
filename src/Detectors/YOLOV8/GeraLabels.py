@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Tuple
 
 import yaml
+from dataset_contract import split_image_dir
 
 
 def _normalize_split(name: str) -> str:
@@ -30,7 +31,7 @@ def _resolve_split_paths(root: Path, fold: str) -> List[Tuple[str, Path, Path]]:
         for json_path in json_paths:
             split_token = json_path.stem.split("_")[-1]
             norm = _normalize_split(split_token)
-            image_dir = root / norm if norm in {"val", "test"} else root / "train"
+            image_dir = split_image_dir(root, norm, fold)
             splits.append((norm, json_path, image_dir))
         return splits
 
@@ -117,7 +118,7 @@ def _process_split(
 
         source_image = images_src / file_name
         if not source_image.exists():
-            fallback = dataset_root / "train" / file_name
+            fallback = split_image_dir(dataset_root, "train") / file_name
             if fallback.exists():
                 source_image = fallback
             else:

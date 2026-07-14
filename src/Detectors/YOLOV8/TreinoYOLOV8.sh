@@ -1,4 +1,3 @@
 #!/bin/bash
-
-# Executa o arquivo treino.py
+cd "$(dirname "$0")/../.."
 python Detectors/YOLOV8/config.py

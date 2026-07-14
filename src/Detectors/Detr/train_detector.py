@@ -163,7 +163,7 @@ def safe_create_loaders(train_dataset, valid_dataset, batch_size, num_workers, i
             valid_sampler = SequentialSampler(valid_dataset)
 
         train_loader = create_train_loader(train_dataset, batch_size, num_workers, batch_sampler=train_sampler)
-        valid_loader = create_valid_loader(valid_dataset, batch_size, num_workers, batch_sampler=valid_sampler)
+        valid_loader = create_valid_loader(valid_dataset, batch_size, 0, batch_sampler=valid_sampler)
         return train_loader, valid_loader
     except Exception as e:
         error("Falha ao criar data loaders (verifique batch_size/workers/memória).", e)

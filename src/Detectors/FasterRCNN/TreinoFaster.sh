@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
+cd "$(dirname "$0")/../.."
 echo "[TreinoFaster.sh] Iniciando treino FasterRCNN - $(date)"
 echo "[TreinoFaster.sh] CWD=$(pwd)"
 echo "[TreinoFaster.sh] FASTER_TRAIN_DIR=${FASTER_TRAIN_DIR:-<não definido>}"

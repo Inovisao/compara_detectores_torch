@@ -109,6 +109,67 @@ def _build_combined_coco(json_paths: list[Path]) -> dict:
     return combined
 
 
+def _infer_tile_geometry(json_paths: list[Path]) -> tuple[int | None, int | None, bool, list[dict]]:
+    sizes: set[tuple[int, int]] = set()
+    categories: dict[int, dict] = {}
+    for path in json_paths:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        for cat in data.get("categories", []):
+            categories[int(cat["id"])] = cat
+        for image in data.get("images", []):
+            width = image.get("width")
+            height = image.get("height")
+            if width and height:
+                sizes.add((int(width), int(height)))
+
+    if len(sizes) == 1:
+        width, height = next(iter(sizes))
+        return width, height, False, [categories[idx] for idx in sorted(categories)]
+    return None, None, bool(sizes), [categories[idx] for idx in sorted(categories)]
+
+
+def _write_manifest(dataset_root: Path, folds: list[int], train_json_paths: list[Path]) -> None:
+    tile_width, tile_height, variable_tile_size, categories = _infer_tile_geometry(train_json_paths)
+    dataset_name = dataset_root.name
+    tile_shape = "rectangular" if dataset_name == "asahi_rect" else "square"
+    if tile_width is not None and tile_height is not None and tile_width != tile_height:
+        tile_shape = "rectangular"
+
+    manifest = {
+        "contract_version": "1.0",
+        "dataset_name": dataset_name,
+        "dataset_type": "tiled_detection",
+        "annotation_format": "coco",
+        "category_id_base": 1,
+        "splits": list(SPLITS),
+        "folds": [f"fold_{fold_n}" for fold_n in folds],
+        "layout": {
+            "annotations_dir": "filesJSON",
+            "annotation_pattern": "{fold}_{split}.json",
+            "image_dir_pattern": "{fold}/{split}/images",
+            "label_dir_pattern": "{fold}/{split}/labels",
+            "fold_info_dir": "filesJSON_infos",
+            "fold_yaml_pattern": "{fold}.yaml",
+            "fold_stats_pattern": "{fold}_stats.json",
+        },
+        "tiling": {
+            "mode": dataset_name,
+            "evaluation_mode": "basic",
+            "tile_shape": tile_shape,
+            "tile_width": tile_width,
+            "tile_height": tile_height,
+            "variable_tile_size": variable_tile_size,
+            "tiles_are_primary_samples": True,
+            "requires_reconstruction": False,
+        },
+        "classes": categories,
+    }
+    (dataset_root / "dataset_manifest.json").write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
 def adapt(dataset_root: Path, dry_run: bool) -> None:
     folds = _discover_folds(dataset_root)
     print(f"[INFO] Folds encontrados : {folds}")
@@ -160,6 +221,10 @@ def adapt(dataset_root: Path, dry_run: bool) -> None:
         )
         cats = [c["name"] for c in combined["categories"]]
         print(f"\n[OK] _annotations.coco.json → {len(combined['images'])} imgs | classes: {cats}")
+
+    if not dry_run:
+        _write_manifest(dataset_root, folds, train_json_paths)
+        print("[OK] dataset_manifest.json atualizado")
 
     print(f"\n[OK] filesJSON/  → {total_jsons_linked} JSONs")
     print(f"[OK] train|val|test/ → {total_imgs_linked} imagens novas linkadas")

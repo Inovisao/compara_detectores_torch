@@ -12,25 +12,40 @@ Este repositório foi desenvolvido para facilitar a junção de múltiplas redes
 ## Estrutura de Pastas
 ```
 ├── dataset
-│   └── all
-│       ├── filesJSON
-│       └── train
+│   ├── all                   ← dataset original (anotações COCO completas)
+│   │   └── _annotations.coco.json
+│   ├── sahi                  ← tiles 640×640 gerados com SAHI
+│   │   ├── fold_1/ … fold_5/ ← imagens train/val/test por fold
+│   │   ├── fold_N_stats.json ← métricas e lista de imagens por fold
+│   │   ├── filesJSON/        ← JSONs COCO por fold/split (gerado pelos scripts)
+│   │   ├── filesJSON_infos/  ← YAML/stats dos folds
+│   │   ├── fold_1/           ← train|val|test/images e labels
+│   │   └── ...
+│   ├── asahi                 ← idem, tiles com aspect-ratio fixo
+│   └── asahi_rect            ← idem, tiles retangulares
 ├── results
+├── scripts
+│   ├── gen_fold_jsons.py     ← gera filesJSON COCO convertendo as labels YOLO (.txt) de cada split
+│   ├── adapt_yolo_folds.py   ← compatibilidade/manifesto para datasets por fold
+│   └── adapt_all_datasets.sh ← roda adapt_yolo_folds nos 3 datasets de uma vez
 ├── src
-│   └── Detectors
-│      ├── Detr
-│      ├── FasterRCNN
-│      ├── YOLOV8
-│      ├── YOLOV11
-│      └── RetinaNet
+│   └── Detectors
+│      ├── Detr
+│      ├── FasterRCNN
+│      ├── YOLOV8
+│      ├── YOLOV11
+│      └── RetinaNet
+├── tests
 └── utils
-
 ```
+
 ### Diretórios
-- **dataset/**: Contém as imagens e anotações no formato COCO. As imagens devem ter resolução de 640x640 e estar na pasta `train`, junto ao arquivo `coco.json`.
+- **dataset/all/**: Anotações COCO originais (`_annotations.coco.json`) usadas como fonte para geração dos filesJSON.
+- **dataset/sahi|asahi|asahi_rect/**: Datasets tileados com validação cruzada de 5 dobras. O contrato principal usa `filesJSON/` na raiz e imagens por fold em `fold_N/{train,val,test}/images`. O layout achatado `train/`, `val/`, `test/` é apenas fallback legado.
 - **results/**: Armazena os resultados das redes e seus gráficos.
+- **scripts/**: Scripts de preparação de dataset e utilitários de pipeline.
 - **src/**: Contém os códigos das redes.
-- **Detectors/**: Diretório para organização dos modelos de detecção.
+- **tests/**: Testes de integridade do dataset e smoke tests de pipeline.
 - **utils/**: Scripts auxiliares para geração de gráficos, instalação de dependências e outras utilidades.
 ## Instalação
 
@@ -50,29 +65,44 @@ obs : todas as bibliotecas utilzadas estão no arquivo Bibliotecas.yml
 ## Como Usar
 
 ### 1. Preparando o Dataset
-Baixe um dataset no formato COCO e coloque-o na pasta `dataset/all` conforme a estrutura abaixo:
-```
-dataset/
-└── all
-    └── train
-```
 
-Em seguida, execute o script `geraDobras.py` na pasta `utils/` para dividir os dados em dobras:
+#### 1a. Dataset padrão (sem tiling)
+Coloque o dataset no formato COCO em `dataset/all/` e divida em dobras:
 ```sh
 cd utils
 python geraDobras.py --folds 5 --valperc 0.3
 ```
-*Parâmetros:*  
-- `--folds`: Define a quantidade de dobras (padrão: 5).
-- `--valperc`: Percentual de imagens para validação (padrão: 0.3).
+Resultado:
+```
+dataset/all/
+├── filesJSON/   ← fold_N_{train,val,test}.json
+└── train/       ← imagens
+```
 
-Após a execução, a estrutura será:
+#### 1b. Datasets tileados (SAHI)
+Se os datasets já possuem as dobras geradas em `dataset/sahi/`, `dataset/asahi/` e `dataset/asahi_rect/` (com `fold_N_stats.json` e imagens por fold), execute:
+```sh
+# Gera os filesJSON COCO por fold/split para os 3 datasets
+python scripts/gen_fold_jsons.py
+
+# Valida o contrato antes de treinar
+python scripts/validate_dataset_contract.py --root dataset/asahi_rect
 ```
-dataset/
-└── all
-    ├── filesJSON
-    └── train
+
+Para rodar um dataset tileado, defina `DATASET_ROOT` antes de chamar `main.py`:
+```sh
+DATASET_ROOT=dataset/sahi      python src/main.py
+DATASET_ROOT=dataset/asahi     python src/main.py
+DATASET_ROOT=dataset/asahi_rect python src/main.py
 ```
+
+Se `DATASET_ROOT` não for definido, `main.py` usa `dataset/all/` por padrão.
+
+O contrato esperado para novos datasets tileados está em `DATASET_CONTRACT.md`.
+Para `asahi_rect`, o pipeline resolve `fold_N_train.json` em
+`fold_N/train/images`, `fold_N_val.json` em `fold_N/val/images` e
+`fold_N_test.json` em `fold_N/test/images`. O modo recomendado é
+`tiling.evaluation_mode=basic`.
 
 ### 2. Escolhendo e Configurando os Modelos
 Os modelos disponíveis para treinamento são **YOLOV8**, **YOLOV11**, **YOLO26**, **YOLOV5-TPH**, **FasterRCNN**, **RetinaNet**, **DETR**, **SSDLite** e **ViT** (YOLOS-small).

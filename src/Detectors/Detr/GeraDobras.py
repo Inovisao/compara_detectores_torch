@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import cv2
+from dataset_contract import split_image_dir
 
 import importlib.util as _ilu
 
@@ -71,7 +72,8 @@ def _augment_detr_train(train_dir: str, copies: int = 2) -> None:
     train_path = Path(train_dir)
     image_paths = sorted(train_path.glob("*.jpg")) + sorted(train_path.glob("*.png"))
 
-    for image_path in image_paths:
+    print(f"[GeraDobras] Augmentando {len(image_paths)} imagens × {copies} cópias...", flush=True)
+    for image_path in tqdm(image_paths, desc="augment", unit="img"):
         xml_path = train_path / f"{image_path.stem}.xml"
         if not xml_path.exists():
             continue
@@ -109,7 +111,10 @@ def convert_coco_to_voc(fold, root_data_dir=None):
         root_data_dir = os.path.join('..', 'dataset', 'all')
     root_data_dir = str(root_data_dir)
 
-    with open(os.path.join(root_data_dir, 'train', '_annotations.coco.json'), 'r') as f:
+    class_source = os.path.join(root_data_dir, 'filesJSON', f'{fold}_train.json')
+    if not os.path.exists(class_source):
+        class_source = os.path.join(root_data_dir, 'train', '_annotations.coco.json')
+    with open(class_source, 'r') as f:
         data = json.load(f)
 
     ann_ids = []
@@ -199,7 +204,14 @@ def convert_coco_to_voc(fold, root_data_dir=None):
                     f.write('\t</object>\n')
                 f.write('</annotation>')
 
-            image = os.path.join(root_data_dir, 'train', file_name)
+            # Busca na pasta correta do split; tenta também extensão lowercase
+            src_split = 'train' if path == 'train' else ('val' if path == 'val' else 'test')
+            src_dir = split_image_dir(root_data_dir, src_split, fold)
+            image = str(src_dir / file_name)
+            if not os.path.exists(image):
+                image = str(src_dir / file_name.lower())
+            if not os.path.exists(image):
+                image = os.path.join(root_data_dir, 'train', file_name)
             shutil.copy(image, output_dir)
 
     # _augment_detr_train(caminho_train)

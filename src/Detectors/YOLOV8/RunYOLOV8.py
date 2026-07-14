@@ -27,7 +27,7 @@ def _training_output_dir() -> Path:
 def runYOLOV8(fold, fold_dir, root_data_dir):
     dataset_root = Path(root_data_dir).resolve()
     data_yaml_path = CriarLabelsYOLOV8(fold, dataset_root)
-    treino = Path('Detectors') / 'YOLOV8' / 'TreinoYOLOV8.sh'
+    treino = Path(__file__).resolve().parent / 'TreinoYOLOV8.sh'
 
     target_dir = Path(fold_dir) / 'YOLOV8'
     if target_dir.exists():

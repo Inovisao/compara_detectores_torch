@@ -97,16 +97,16 @@ class TestResolveTestSplit:
         fj = tmp_path / "filesJSON"
         fj.mkdir()
         (fj / "fold_1_test.json").touch()
-        (tmp_path / "train").mkdir()
+        (tmp_path / "fold_1" / "test" / "images").mkdir(parents=True)
 
         json_path, images_dir = rd._resolve_test_split(str(tmp_path), "fold_1")
 
         assert Path(json_path) == fj / "fold_1_test.json"
-        assert Path(images_dir) == tmp_path / "train"
+        assert Path(images_dir) == tmp_path / "fold_1" / "test" / "images"
 
     def test_raises_when_test_json_missing(self, rd, tmp_path):
         (tmp_path / "filesJSON").mkdir()
-        (tmp_path / "train").mkdir()
+        (tmp_path / "test").mkdir()
 
         with pytest.raises(FileNotFoundError, match="fold_1_test.json"):
             rd._resolve_test_split(str(tmp_path), "fold_1")

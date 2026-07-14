@@ -12,6 +12,7 @@ import shutil
 import sys
 import csv
 from pathlib import Path
+from dataset_contract import resolve_evaluation_tiling_mode, split_image_dir
 
 # Importações dos modelos de detecção
 from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
@@ -39,9 +40,9 @@ RESULTS_BY_CLASS_CSV_PATH = RESULTS_DIR / "resultsbyclass.csv"
 COUNTING_CSV_PATH = RESULTS_DIR / "counting.csv"
 
 
-def _resolve_tiling_mode(root: str, requested_mode: str = "auto") -> bool:
+def _resolve_tiling_mode(root: str, requested_mode=None) -> bool:
     """Return True if SAGE aggregation should be used based on the desired tiling mode."""
-    normalized = (requested_mode or "auto").strip().lower()
+    normalized = resolve_evaluation_tiling_mode(root, requested_mode)
     if normalized not in {"auto", "sage", "basic", "normal", "none"}:
         raise ValueError(f"Tiling mode inválido: {requested_mode}")
     if normalized == "sage":
@@ -60,8 +61,8 @@ def _resolve_test_split(root: str, fold: str):
         json_path = os.path.join(root, "filesJSON", f"{fold}_test.json")
         if not os.path.exists(json_path):
             raise FileNotFoundError(f"Test JSON not found: {json_path}")
-        images_dir = os.path.join(root, "train")
-        return json_path, images_dir
+        images_dir = split_image_dir(root, "test", fold)
+        return json_path, str(images_dir)
 
     candidates = [
         ("test", os.path.join(root, "test", "_annotations.coco.json")),
@@ -79,7 +80,23 @@ def _resolve_test_split(root: str, fold: str):
     )
 
 
-def _resolve_class_annotations(root: str) -> str:
+def _resolve_class_annotations(root: str, fold=None) -> str:
+    files_json_dir = os.path.join(root, "filesJSON")
+    if os.path.exists(files_json_dir):
+        candidates = []
+        if fold:
+            candidates.extend(
+                os.path.join(files_json_dir, f"{fold}_{split}.json")
+                for split in ("train", "val", "test")
+            )
+        candidates.extend(
+            str(path)
+            for path in sorted(Path(files_json_dir).glob("fold_*_*.json"))
+        )
+        for path in candidates:
+            if os.path.exists(path):
+                return path
+
     candidates = [
         os.path.join(root, "train", "_annotations.coco.json"),
         os.path.join(root, "val", "_annotations.coco.json"),
@@ -319,7 +336,7 @@ def compute_metrics(preds, targets, num_classes=1):
 
     return precision.item(), recall.item(), fscore.item()
 
-def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto"):
+def generate_results(root, fold, model, model_name, save_imgs, tiling_mode=None):
     """Gera resultados para um modelo específico e salva as métricas por classe."""
     test_json_path, tile_images_dir = _resolve_test_split(root, fold)
     use_sage = _resolve_tiling_mode(root, tiling_mode)
@@ -330,7 +347,7 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
         ground_truth = None
         predictions = None
     else:
-        annotations_path = _resolve_class_annotations(root)
+        annotations_path = _resolve_class_annotations(root, fold)
         classes_dict = get_classes(annotations_path)
         ground_truth = {}
         predictions = {}

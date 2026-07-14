@@ -71,7 +71,14 @@ class HungarianMatcher(nn.Module):
         cost_bbox = torch.cdist(out_bbox, tgt_bbox, p=1)
 
         # Compute the giou cost betwen boxes
-        cost_giou = -generalized_box_iou(box_cxcywh_to_xyxy(out_bbox), box_cxcywh_to_xyxy(tgt_bbox))
+        # Clamp predicted boxes to ensure x2>=x1, y2>=y1 (model can predict
+        # negative w/h early in training before it stabilises).
+        out_bbox_xyxy = box_cxcywh_to_xyxy(out_bbox)
+        out_bbox_xyxy = torch.cat([
+            torch.min(out_bbox_xyxy[:, :2], out_bbox_xyxy[:, 2:]),
+            torch.max(out_bbox_xyxy[:, :2], out_bbox_xyxy[:, 2:]),
+        ], dim=-1)
+        cost_giou = -generalized_box_iou(out_bbox_xyxy, box_cxcywh_to_xyxy(tgt_bbox))
 
         # Final cost matrix
         C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou

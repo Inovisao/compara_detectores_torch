@@ -8,10 +8,11 @@ from ResultsDetectionsbyclass import generate_results, RESULTS_BY_CLASS_CSV_PATH
 import shutil
 import time
 from datetime import datetime
+from dataset_contract import resolve_evaluation_tiling_mode, validate_dataset_contract
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATASET_PATH = PROJECT_ROOT / "dataset" / "tiles"
-TILING_MODE = os.getenv("TILING_MODE", "basic")
+REQUESTED_TILING_MODE = os.getenv("TILING_MODE")
 TRAINING_PARAMS_JSON_PATH = PROJECT_ROOT / "results" / "training_params.json"
 DEFAULT_DATASET_CANDIDATES = (
     PROJECT_ROOT / "dataset" / "all_320",
@@ -330,7 +331,6 @@ def test_model(model,fold_dir):
 # DEFAULT_MODELS = ['Detr', 'Faster', 'YOLOV8', 'YOLOV5_TPH']
 DEFAULT_MODELS = ['YOLOV8', 'Faster', 'Detr']
 #DEFAULT_MODELS = ['YOLOV8', 'Faster', 'Detr']
-#DEFAULT_MODELS = ['YOLOV8', 'Faster', 'Detr']
 
 def _get_models_to_run():
     raw = os.getenv('MODELS_TO_RUN')
@@ -347,10 +347,10 @@ MODELS = _get_models_to_run()
 #         Use quando o treinamento já foi feito e só quer rever as métricas.
 APENAS_TESTE = False
 
-# False → usa dataset padrão em dataset/all/ com anotações COCO em filesJSON/.
-# True  → usa dataset tileado em dataset/tiles/<fold_N>/ (imagens recortadas).
-#         Exige que a pasta dataset/tiles/ exista com subpastas fold_1/, fold_2/ ...
-USE_TILED_DATASET = False
+# False → usa DATASET_ROOT (ou dataset/all) com anotações COCO em filesJSON/.
+# True  → compatibilidade legada: usa dataset/tiles/<fold_N>/ (imagens recortadas).
+#         Prefira DATASET_ROOT=dataset/sahi|asahi|asahi_rect para novos datasets.
+USE_TILED_DATASET = os.getenv("USE_TILED_DATASET", "false").lower() in ("1", "true", "yes")
 
 # True  → calcula e salva métricas (mAP, MAE, RMSE, F1 …) em results/results.csv.
 # False → roda só o treinamento, sem gerar arquivos de avaliação.
@@ -369,7 +369,7 @@ GeraResultByClass = False
 #         Garante um treino limpo a cada execução.
 # True  → mantém os pesos já treinados e pula o treino daquela dobra/modelo.
 #         Use para retomar uma execução interrompida sem retreinar do zero.
-CONTINUE = False
+CONTINUE = True
 
 # Inicializado vazio; preenchido por main() antes de qualquer treinamento.
 TRAINING_PARAMS_LOG: dict = {}
@@ -379,6 +379,11 @@ def main() -> None:
     global TRAINING_PARAMS_LOG, FOLD_NAMES, ROOT_DATA_DIR
 
     if USE_TILED_DATASET:
+        print(
+            "[WARN] USE_TILED_DATASET é um modo legado. "
+            "Prefira DATASET_ROOT apontando para um dataset com filesJSON/ e dataset_manifest.json.",
+            flush=True,
+        )
         if not DATASET_PATH.exists():
             raise FileNotFoundError(f"Tiled dataset directory not found: {DATASET_PATH}")
         clear_dataset_cache(DATASET_PATH)
@@ -397,6 +402,16 @@ def main() -> None:
         DIR_PATH = dataset_root / 'filesJSON'
         FOLD_NAMES = _collect_fold_names(DIR_PATH)
         print(f"[INFO] Dataset: {ROOT_DATA_DIR} | folds={len(FOLD_NAMES)}", flush=True)
+        contract_errors = validate_dataset_contract(dataset_root)
+        non_manifest_errors = [
+            error for error in contract_errors
+            if not error.startswith("Missing dataset_manifest.json")
+        ]
+        if non_manifest_errors:
+            preview = "\n".join(f"  - {error}" for error in non_manifest_errors[:20])
+            raise ValueError(f"Dataset inválido para o contrato esperado:\n{preview}")
+        if contract_errors:
+            print("[WARN] dataset_manifest.json não encontrado; usando contrato legado filesJSON/.", flush=True)
 
     TRAINING_PARAMS_LOG = _new_training_params_payload()
     _write_training_params_json(TRAINING_PARAMS_LOG)
@@ -412,10 +427,12 @@ def main() -> None:
         RESULTS_BY_CLASS_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
         print_to_file('ml,fold,classes,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore', RESULTS_BY_CLASS_CSV_PATH, 'w')
 
+    _ckpt_root = os.getenv('MODEL_CHECKPOINTS_ROOT', 'model_checkpoints')
+
     for model in MODELS:
         print(f"[INFO] Processando modelo: {model}")
         for fold in FOLD_NAMES:
-            fold_dir = os.path.join('model_checkpoints', fold)
+            fold_dir = os.path.join(_ckpt_root, fold)
             print(f"[INFO] Iniciando fold {fold} para {model}")
 
             if USE_TILED_DATASET:
@@ -425,6 +442,7 @@ def main() -> None:
                     continue
             else:
                 current_root = ROOT_DATA_DIR
+            tiling_mode = resolve_evaluation_tiling_mode(current_root, REQUESTED_TILING_MODE)
 
             if not APENAS_TESTE:
                 t0 = time.time()
@@ -451,7 +469,7 @@ def main() -> None:
                     selected_model=model,
                     model_path=model_path,
                     save_imgs=save_imgs,
-                    tiling_mode=TILING_MODE,
+                    tiling_mode=tiling_mode,
                 )
             if GeraResultByClass:
                 generate_results(
@@ -460,7 +478,7 @@ def main() -> None:
                     model=model_path,
                     model_name=model,
                     save_imgs=save_imgs,
-                    tiling_mode=TILING_MODE,
+                    tiling_mode=tiling_mode,
                 )
 
 

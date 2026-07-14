@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Tuple, Union
+from dataset_contract import split_image_dir
 
 
 @dataclass(frozen=True)
@@ -21,10 +22,13 @@ def _resolve_from_filesjson(fold: str, dataset_root: Path) -> Optional[FasterDat
 
     train_ann = files_json_dir / f"{fold}_train.json"
     val_ann = files_json_dir / f"{fold}_val.json"
-    images_dir = dataset_root / "train"
+    train_dir = split_image_dir(dataset_root, "train", fold)
+    val_dir = split_image_dir(dataset_root, "val", fold)
 
-    if not images_dir.exists():
-        raise FileNotFoundError(f"Images directory not found for FasterRCNN: {images_dir}")
+    if not train_dir.exists():
+        raise FileNotFoundError(f"Train images directory not found for FasterRCNN: {train_dir}")
+    if not val_dir.exists():
+        raise FileNotFoundError(f"Validation images directory not found for FasterRCNN: {val_dir}")
     if not train_ann.exists():
         raise FileNotFoundError(f"Train annotations not found for fold '{fold}': {train_ann}")
     if not val_ann.exists():
@@ -32,9 +36,9 @@ def _resolve_from_filesjson(fold: str, dataset_root: Path) -> Optional[FasterDat
 
     return FasterDatasetConfig(
         root=dataset_root,
-        train_dir=images_dir,
+        train_dir=train_dir,
         train_annotations=train_ann,
-        val_dir=images_dir,
+        val_dir=val_dir,
         val_annotations=val_ann,
     )
 
