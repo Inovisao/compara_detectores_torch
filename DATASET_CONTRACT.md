@@ -4,11 +4,11 @@ Este repositório consome datasets de detecção em COCO com folds explícitos. 
 datasets tileados gerados pelo `slice_inference_api`, use:
 
 ```bash
-DATASET_ROOT=dataset/asahi_rect python src/main.py
+DATASET_ROOT=dataset/asahi_rect python train_model/compara_detectores_torch/src/main.py
 ```
 
-O contrato principal é cross-fold. O layout achatado `train/`, `val/`, `test/` na
-raiz é aceito apenas como fallback legado do módulo de treinamento.
+O contrato é cross-fold. O layout achatado `train/`, `val/`, `test/` na raiz não
+é aceito neste branch.
 
 ## Layout principal
 
@@ -141,9 +141,9 @@ Para os datasets gerados pelo `slice_inference_api`, o modo recomendado é:
 Isso significa que tiles/imagens do split são avaliados como amostras primárias.
 Não exigir reconstrução/agregação para `asahi_rect` neste contrato.
 
-## Fallback legado
+## Layout não aceito
 
-O layout abaixo não é o contrato principal:
+O layout abaixo não é aceito:
 
 ```text
 dataset/asahi_rect/
@@ -152,13 +152,12 @@ dataset/asahi_rect/
 └── test/
 ```
 
-O módulo de treinamento ainda tenta esse layout como fallback quando não encontra
-`DATASET_ROOT/{fold}/{split}/images`.
+Se esse layout for usado, o treinamento deve falhar na validação do contrato.
 
 ## Validação
 
 Rode:
 
 ```bash
-python scripts/validate_dataset_contract.py --root dataset/asahi_rect
+python train_model/compara_detectores_torch/scripts/validate_dataset_contract.py --root dataset/asahi_rect
 ```

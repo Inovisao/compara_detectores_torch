@@ -5,15 +5,18 @@ from typing import Optional
 
 import torch
 
-BATCH_SIZE = 16
-RESIZE_TO = 640
-NUM_EPOCHS = 1000
-NUM_WORKERS = 8
-PATIENCE = 50
-LR = 0.005
+BATCH_SIZE = int(os.getenv("FASTER_BATCH", "16"))
+RESIZE_TO = int(os.getenv("FASTER_RESIZE_TO", "640"))
+NUM_EPOCHS = int(os.getenv("FASTER_EPOCHS", "1000"))
+NUM_WORKERS = int(os.getenv("FASTER_WORKERS", "8"))
+PATIENCE = int(os.getenv("FASTER_PATIENCE", "50"))
+LR = float(os.getenv("FASTER_LR", "0.005"))
 OPTIMIZER = "SGD"
-MOMENTUM = 0.9
-WEIGHT_DECAY = 0.0005
+MOMENTUM = float(os.getenv("FASTER_MOMENTUM", "0.9"))
+WEIGHT_DECAY = float(os.getenv("FASTER_WEIGHT_DECAY", "0.0005"))
+USE_AMP = os.getenv("FASTER_USE_AMP", "false").strip().lower() in {"1", "true", "yes"}
+USE_COMPILE = os.getenv("FASTER_USE_COMPILE", "false").strip().lower() in {"1", "true", "yes"}
+CLIP_GRAD_NORM = float(os.getenv("FASTER_CLIP_GRAD_NORM", "0.0"))
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -88,22 +91,6 @@ def _try_init_from_env() -> None:
         except FileNotFoundError:
             pass
 
-    fold = os.getenv('FASTER_FOLD')
-    if not fold:
-        return
-
-    tile_root = PROJECT_ROOT / 'dataset' / 'tiles'
-    fold_root = tile_root / fold
-    train_dir = fold_root / 'train'
-    val_dir = fold_root / 'val'
-    train_ann = train_dir / '_annotations.coco.json'
-    val_ann = val_dir / '_annotations.coco.json'
-
-    try:
-        configure_dataset(train_dir, train_ann, val_dir, val_ann)
-    except FileNotFoundError:
-        pass
-
 
 _try_init_from_env()
 
@@ -119,6 +106,7 @@ def get_training_params() -> dict:
         "optimizer": OPTIMIZER,
         "momentum": MOMENTUM,
         "weight_decay": WEIGHT_DECAY,
+        "clip_grad_norm": CLIP_GRAD_NORM,
         "device": str(DEVICE),
         "out_dir": OUT_DIR,
         "root_data_dir": ROOT_DATA_DIR,

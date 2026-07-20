@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import os
 import json
 from pathlib import Path
@@ -11,15 +12,8 @@ from datetime import datetime
 from dataset_contract import resolve_evaluation_tiling_mode, validate_dataset_contract
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DATASET_PATH = PROJECT_ROOT / "dataset" / "tiles"
 REQUESTED_TILING_MODE = os.getenv("TILING_MODE")
 TRAINING_PARAMS_JSON_PATH = PROJECT_ROOT / "results" / "training_params.json"
-DEFAULT_DATASET_CANDIDATES = (
-    PROJECT_ROOT / "dataset" / "all_320",
-    PROJECT_ROOT / "dataset" / "all",
-    Path("/home/neto/development/buracos/dataset_problematico/all_320"),
-    Path("/home/neto/development/buracos/dataset_problematico/all"),
-)
 
 # Disable Weights & Biases logging unless explicitly re-enabled outside.
 os.environ.setdefault("WANDB_DISABLED", "true")
@@ -35,6 +29,12 @@ SUPPORTED_MODELS = (
     "SSDLite",
     "ViT",
 )
+
+EVALUATION_ARCH_DIR = {
+    "YOLOV8": "yolo",
+    "Faster": "faster_rcnn",
+    "Detr": "detr",
+}
 
 MODEL_NAME_ALIASES = {
     "YOLOV8": "YOLOV8",
@@ -171,6 +171,64 @@ def _write_run_training_params_json(run_payload: dict) -> None:
         json.dump(_json_safe(run_payload), f, indent=2, ensure_ascii=False)
 
 
+def _dataset_mode(dataset_root: str | Path) -> str:
+    return Path(dataset_root).resolve().name
+
+
+def _fold_number(fold: str) -> int | None:
+    try:
+        return int(str(fold).removeprefix("fold_"))
+    except ValueError:
+        return None
+
+
+def _canonical_models_root() -> Path:
+    raw = os.getenv("EVAL_MODELS_ROOT", "models")
+    path = Path(raw).expanduser()
+    if path.is_absolute():
+        return path
+    repo_root = PROJECT_ROOT.parents[1]
+    return (repo_root / path).resolve()
+
+
+def _write_checkpoint_manifest(
+    *,
+    model: str,
+    fold: str,
+    dataset_root: str,
+    model_path: str,
+    fold_dir: str,
+) -> None:
+    checkpoint = Path(model_path).resolve()
+    if not checkpoint.is_file():
+        raise FileNotFoundError(f"Checkpoint esperado não encontrado: {checkpoint}")
+
+    mode = _dataset_mode(dataset_root)
+    manifest = {
+        "mode": mode,
+        "fold": _fold_number(fold),
+        "fold_name": fold,
+        "architecture": model,
+        "checkpoint": str(checkpoint),
+        "dataset_root": str(Path(dataset_root).resolve()),
+        "train_annotations": str(Path(dataset_root).resolve() / "filesJSON" / f"{fold}_train.json"),
+        "val_annotations": str(Path(dataset_root).resolve() / "filesJSON" / f"{fold}_val.json"),
+        "test_annotations": str(Path(dataset_root).resolve() / "filesJSON" / f"{fold}_test.json"),
+        "source": "train_model",
+    }
+
+    if os.getenv("WRITE_LOCAL_WEIGHT_MANIFESTS", "false").strip().lower() in {"1", "true", "yes"}:
+        local_manifest = Path(fold_dir) / model / "manifest.json"
+        local_manifest.parent.mkdir(parents=True, exist_ok=True)
+        local_manifest.write_text(json.dumps(_json_safe(manifest), indent=2), encoding="utf-8")
+
+    arch_dir = EVALUATION_ARCH_DIR.get(model)
+    if arch_dir:
+        eval_manifest = _canonical_models_root() / mode / fold / arch_dir / "manifest.json"
+        eval_manifest.parent.mkdir(parents=True, exist_ok=True)
+        eval_manifest.write_text(json.dumps(_json_safe(manifest), indent=2), encoding="utf-8")
+
+
 def register_training_params(model: str, fold: str, root: str, mode: str, model_path: str | None) -> None:
     if model not in TRAINING_PARAMS_LOG["models"]:
         TRAINING_PARAMS_LOG["models"][model] = {
@@ -193,18 +251,19 @@ def register_training_params(model: str, fold: str, root: str, mode: str, model_
 
 def _resolve_dataset_root() -> Path:
     env_root = os.getenv("DATASET_ROOT")
-    candidates = [Path(env_root).expanduser()] if env_root else list(DEFAULT_DATASET_CANDIDATES)
+    if not env_root:
+        raise RuntimeError(
+            "DATASET_ROOT é obrigatório. Aponte para dataset/sahi, "
+            "dataset/asahi ou dataset/asahi_rect."
+        )
 
-    for candidate in candidates:
-        files_json_dir = candidate / "filesJSON"
-        if files_json_dir.exists():
-            return candidate.resolve()
-
-    checked = "\n".join(f"  - {candidate}" for candidate in candidates)
-    raise FileNotFoundError(
-        "Dataset COCO não encontrado. Defina DATASET_ROOT apontando para uma pasta "
-        f"com filesJSON/.\nCaminhos verificados:\n{checked}"
-    )
+    candidate = Path(env_root).expanduser()
+    files_json_dir = candidate / "filesJSON"
+    if not files_json_dir.exists():
+        raise FileNotFoundError(
+            f"DATASET_ROOT inválido: {candidate}. Diretório filesJSON/ não encontrado."
+        )
+    return candidate.resolve()
 
 
 def _collect_fold_names(files_json_dir: Path) -> list[str]:
@@ -347,11 +406,6 @@ MODELS = _get_models_to_run()
 #         Use quando o treinamento já foi feito e só quer rever as métricas.
 APENAS_TESTE = False
 
-# False → usa DATASET_ROOT (ou dataset/all) com anotações COCO em filesJSON/.
-# True  → compatibilidade legada: usa dataset/tiles/<fold_N>/ (imagens recortadas).
-#         Prefira DATASET_ROOT=dataset/sahi|asahi|asahi_rect para novos datasets.
-USE_TILED_DATASET = os.getenv("USE_TILED_DATASET", "false").lower() in ("1", "true", "yes")
-
 # True  → calcula e salva métricas (mAP, MAE, RMSE, F1 …) em results/results.csv.
 # False → roda só o treinamento, sem gerar arquivos de avaliação.
 GeraRult = True
@@ -375,43 +429,67 @@ CONTINUE = True
 TRAINING_PARAMS_LOG: dict = {}
 
 
-def main() -> None:
-    global TRAINING_PARAMS_LOG, FOLD_NAMES, ROOT_DATA_DIR
+def _apply_smoke_test_env() -> None:
+    smoke_defaults = {
+        "YOLOV8_EPOCHS": "1",
+        "YOLOV8_BATCH": "2",
+        "YOLOV8_WORKERS": "0",
+        "YOLOV8_PATIENCE": "1",
+        "YOLOV8_PLOTS": "false",
+        "FASTER_EPOCHS": "1",
+        "FASTER_BATCH": "2",
+        "FASTER_WORKERS": "0",
+        "FASTER_PATIENCE": "1",
+        "FASTER_LR": "0.0001",
+        "FASTER_CLIP_GRAD_NORM": "1.0",
+        "DETR_EPOCHS": "1",
+        "DETR_BATCH": "2",
+        "DETR_WORKERS": "0",
+        "DETR_PATIENCE": "1",
+    }
+    for key, value in smoke_defaults.items():
+        os.environ.setdefault(key, value)
 
-    if USE_TILED_DATASET:
-        print(
-            "[WARN] USE_TILED_DATASET é um modo legado. "
-            "Prefira DATASET_ROOT apontando para um dataset com filesJSON/ e dataset_manifest.json.",
-            flush=True,
-        )
-        if not DATASET_PATH.exists():
-            raise FileNotFoundError(f"Tiled dataset directory not found: {DATASET_PATH}")
-        clear_dataset_cache(DATASET_PATH)
-        fold_dirs = sorted(
-            d.name for d in DATASET_PATH.iterdir()
-            if d.is_dir() and d.name.startswith('fold_')
-        )
-        if not fold_dirs:
-            raise FileNotFoundError(f"No folds found inside tiled dataset directory: {DATASET_PATH}")
-        tiles_root = str(DATASET_PATH)
-        ROOT_DATA_DIR = None
-        FOLD_NAMES = fold_dirs
-    else:
-        dataset_root = _resolve_dataset_root()
-        ROOT_DATA_DIR = str(dataset_root)
-        DIR_PATH = dataset_root / 'filesJSON'
-        FOLD_NAMES = _collect_fold_names(DIR_PATH)
-        print(f"[INFO] Dataset: {ROOT_DATA_DIR} | folds={len(FOLD_NAMES)}", flush=True)
-        contract_errors = validate_dataset_contract(dataset_root)
-        non_manifest_errors = [
-            error for error in contract_errors
-            if not error.startswith("Missing dataset_manifest.json")
-        ]
-        if non_manifest_errors:
-            preview = "\n".join(f"  - {error}" for error in non_manifest_errors[:20])
-            raise ValueError(f"Dataset inválido para o contrato esperado:\n{preview}")
-        if contract_errors:
-            print("[WARN] dataset_manifest.json não encontrado; usando contrato legado filesJSON/.", flush=True)
+
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Train detectors on explicit dataset folds.")
+    parser.add_argument(
+        "--smoke-test",
+        action="store_true",
+        help="Run a lightweight 1-epoch training pass per selected model/fold.",
+    )
+    parser.add_argument(
+        "--no-eval",
+        action="store_true",
+        help="Skip metric/image generation after training.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> None:
+    global TRAINING_PARAMS_LOG, FOLD_NAMES, ROOT_DATA_DIR, GeraRult, GeraResultByClass, save_imgs
+
+    args = _parse_args(argv)
+    if args.smoke_test:
+        _apply_smoke_test_env()
+        GeraRult = False
+        GeraResultByClass = False
+        save_imgs = False
+        print("[SMOKE] 1 época por fold; avaliação e visualizações desativadas.", flush=True)
+    if args.no_eval:
+        GeraRult = False
+        GeraResultByClass = False
+        save_imgs = False
+
+    dataset_root = _resolve_dataset_root()
+    ROOT_DATA_DIR = str(dataset_root)
+    DIR_PATH = dataset_root / 'filesJSON'
+    FOLD_NAMES = _collect_fold_names(DIR_PATH)
+    print(f"[INFO] Dataset: {ROOT_DATA_DIR} | folds={len(FOLD_NAMES)}", flush=True)
+    contract_errors = validate_dataset_contract(dataset_root)
+    if contract_errors:
+        preview = "\n".join(f"  - {error}" for error in contract_errors[:20])
+        raise ValueError(f"Dataset inválido para o contrato esperado:\n{preview}")
 
     TRAINING_PARAMS_LOG = _new_training_params_payload()
     _write_training_params_json(TRAINING_PARAMS_LOG)
@@ -435,13 +513,7 @@ def main() -> None:
             fold_dir = os.path.join(_ckpt_root, fold)
             print(f"[INFO] Iniciando fold {fold} para {model}")
 
-            if USE_TILED_DATASET:
-                current_root = os.path.join(tiles_root, fold)
-                if not os.path.exists(current_root):
-                    print(f"Warning: Tiled dataset not found for {fold} at {current_root}, skipping...")
-                    continue
-            else:
-                current_root = ROOT_DATA_DIR
+            current_root = ROOT_DATA_DIR
             tiling_mode = resolve_evaluation_tiling_mode(current_root, REQUESTED_TILING_MODE)
 
             if not APENAS_TESTE:
@@ -453,6 +525,14 @@ def main() -> None:
                     continue
             else:
                 model_path = test_model(model, fold_dir)
+
+            _write_checkpoint_manifest(
+                model=model,
+                fold=fold,
+                dataset_root=current_root,
+                model_path=model_path,
+                fold_dir=fold_dir,
+            )
 
             register_training_params(
                 model=model,

@@ -31,7 +31,7 @@ class SaveBestModel:
     model state.
     """
     def __init__(
-        self, best_valid_map=float(0)
+        self, best_valid_map=float("-inf")
     ):
         self.best_valid_map = best_valid_map
         
@@ -44,7 +44,7 @@ class SaveBestModel:
         config,
         model_name
     ):
-        if current_valid_map > self.best_valid_map:
+        if current_valid_map >= self.best_valid_map:
             self.best_valid_map = current_valid_map
             print(f"\nBEST VALIDATION mAP: {self.best_valid_map}")
             print(f"\nSAVING BEST MODEL FOR EPOCH: {epoch+1}\n")

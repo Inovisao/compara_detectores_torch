@@ -48,18 +48,7 @@ def _resolve_split_paths(root: Path, fold: str) -> List[Tuple[str, Path, Path]]:
             splits.append((norm, json_path, image_dir))
         return splits
 
-    for candidate in ("train", "val", "valid", "test"):
-        split_dir = root / candidate
-        json_path = split_dir / "_annotations.coco.json"
-        if json_path.exists():
-            splits.append((_normalize_split(candidate), json_path, split_dir))
-
-    if not splits:
-        raise FileNotFoundError(
-            "Unable to locate annotation files. "
-            f"Expected a 'filesJSON' directory or split folders in {root}"
-        )
-    return splits
+    raise FileNotFoundError(f"Expected filesJSON/ in DATASET_ROOT: {root}")
 
 
 def _collect_categories(annotation_paths: List[Path]) -> Tuple[List[str], Dict[int, int]]:

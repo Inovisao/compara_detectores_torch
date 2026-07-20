@@ -39,9 +39,17 @@ def _load_model(checkpoint_path: str):
         return _model_cache[checkpoint_path]
 
     _ensure_hub_path()
-    model = DETRModel(num_classes=NUM_CLASSES, model="detr_resnet50")
-    state = torch.load(checkpoint_path, map_location="cpu")
-    state = state.get("model_state_dict", state)
+    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    checkpoint_config = checkpoint.get("config", {}) if isinstance(checkpoint, dict) else {}
+    checkpoint_classes = checkpoint_config.get("CLASSES") or checkpoint_config.get("classes")
+    checkpoint_num_classes = (
+        checkpoint_config.get("NC")
+        or checkpoint_config.get("num_classes")
+        or (len(checkpoint_classes) if checkpoint_classes else None)
+        or NUM_CLASSES
+    )
+    model = DETRModel(num_classes=int(checkpoint_num_classes), model="detr_resnet50")
+    state = checkpoint.get("model_state_dict", checkpoint)
     # torch.compile() wraps the model and prefixes all state_dict keys with
     # "_orig_mod.", which would silently fail to match anything under
     # strict=False, leaving the model with its untrained head.

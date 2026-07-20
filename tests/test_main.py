@@ -185,3 +185,25 @@ class TestTrainModelDispatch:
             main_mod.train_model("YOLOV8", "fold_1", str(tmp_path), str(tmp_path))
 
         mock_rm.assert_called_once_with(str(checkpoint_dir))
+
+
+class TestCheckpointManifest:
+    def test_writes_local_and_evaluation_manifests(self, main_mod, tmp_path, monkeypatch):
+        dataset_root = tmp_path / "dataset" / "asahi_rect"
+        checkpoint = tmp_path / "model_checkpoints" / "fold_1" / "YOLOV8" / "train" / "weights" / "best.pt"
+        checkpoint.parent.mkdir(parents=True)
+        checkpoint.write_bytes(b"weights")
+        eval_models = tmp_path / "models"
+
+        monkeypatch.setenv("EVAL_MODELS_ROOT", str(eval_models))
+
+        main_mod._write_checkpoint_manifest(
+            model="YOLOV8",
+            fold="fold_1",
+            dataset_root=str(dataset_root),
+            model_path=str(checkpoint),
+            fold_dir=str(tmp_path / "model_checkpoints" / "fold_1"),
+        )
+
+        assert (tmp_path / "model_checkpoints" / "fold_1" / "YOLOV8" / "manifest.json").is_file()
+        assert (eval_models / "asahi_rect" / "fold_1" / "yolo" / "manifest.json").is_file()

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 from dataset_contract import split_image_dir
 
 
@@ -43,31 +43,6 @@ def _resolve_from_filesjson(fold: str, dataset_root: Path) -> Optional[FasterDat
     )
 
 
-def _find_split_dir(dataset_root: Path, candidates: Tuple[str, ...]) -> Tuple[Path, Path]:
-    for name in candidates:
-        split_dir = dataset_root / name
-        annotations = split_dir / "_annotations.coco.json"
-        if split_dir.exists() and annotations.exists():
-            return split_dir, annotations
-    raise FileNotFoundError(
-        f"Unable to locate split directory with annotations under {dataset_root}. "
-        f"Tried: {', '.join(str(dataset_root / c) for c in candidates)}"
-    )
-
-
-def _resolve_from_split_dirs(dataset_root: Path) -> FasterDatasetConfig:
-    train_dir, train_ann = _find_split_dir(dataset_root, ("train", "training"))
-    val_dir, val_ann = _find_split_dir(dataset_root, ("val", "valid", "validation"))
-
-    return FasterDatasetConfig(
-        root=dataset_root,
-        train_dir=train_dir,
-        train_annotations=train_ann,
-        val_dir=val_dir,
-        val_annotations=val_ann,
-    )
-
-
 def geredata(fold: str, dataset_root: Union[str, Path]) -> FasterDatasetConfig:
     root_path = Path(dataset_root).resolve()
     if not root_path.exists():
@@ -77,7 +52,7 @@ def geredata(fold: str, dataset_root: Union[str, Path]) -> FasterDatasetConfig:
     if config:
         return config
 
-    return _resolve_from_split_dirs(root_path)
+    raise FileNotFoundError(f"Expected filesJSON/ in DATASET_ROOT: {root_path}")
 
 
 __all__ = ["FasterDatasetConfig", "geredata"]

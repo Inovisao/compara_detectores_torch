@@ -4,14 +4,14 @@ import os
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
-BATCH_SIZE = 16
-RESIZE_TO = 640
-NUM_EPOCHS = 1000
-NUM_WORKERS = 8
-PATIENCE = 50
-LR = 0.0001
+BATCH_SIZE = int(os.getenv("DETR_BATCH", "16"))
+RESIZE_TO = int(os.getenv("DETR_RESIZE_TO", "640"))
+NUM_EPOCHS = int(os.getenv("DETR_EPOCHS", "1000"))
+NUM_WORKERS = int(os.getenv("DETR_WORKERS", "8"))
+PATIENCE = int(os.getenv("DETR_PATIENCE", "50"))
+LR = float(os.getenv("DETR_LR", "0.0001"))
 OPTIMIZER = "AdamW"
-WEIGHT_DECAY = 0.0001
+WEIGHT_DECAY = float(os.getenv("DETR_WEIGHT_DECAY", "0.0001"))
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 ROOT_DATA_DIR = os.environ.get(
     'DATASET_ROOT',
@@ -23,30 +23,39 @@ TRAIN_DIR = os.path.join(ROOT_DATA_DIR,'detr','train')
 # validation images and XML files directory
 VALID_DIR = os.path.join(ROOT_DATA_DIR,'detr','valid')
 
+def _load_classes_from_contract(root_data_dir: str) -> list[str]:
+    files_json_dir = Path(root_data_dir) / 'filesJSON'
+    if not files_json_dir.exists():
+        raise FileNotFoundError(
+            f"Expected DATASET_ROOT/filesJSON for DETR class loading: {files_json_dir}"
+        )
+
+    json_paths = sorted(files_json_dir.glob('fold_*_train.json'))
+    if not json_paths:
+        json_paths = sorted(files_json_dir.glob('fold_*_*.json'))
+    if not json_paths:
+        raise FileNotFoundError(f"No fold COCO JSONs found in {files_json_dir}")
+
+    with json_paths[0].open('r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    categories_by_id = {
+        int(category['id']): category['name']
+        for category in data.get('categories', [])
+    }
+    present_ids = sorted({
+        int(annotation['category_id'])
+        for annotation in data.get('annotations', [])
+    })
+    selected_ids = present_ids or sorted(categories_by_id)
+    if not selected_ids:
+        raise ValueError(f"No categories found in {json_paths[0]}")
+
+    return ['__background__'] + [categories_by_id[idx] for idx in selected_ids]
+
+
 # classes: 0 index is reserved for background
-CLASSES = [
-    '__background__'
-]
-_ann_candidates = [
-    os.path.join(ROOT_DATA_DIR, 'train', '_annotations.coco.json'),
-    os.path.join(ROOT_DATA_DIR, '_annotations.coco.json'),
-]
-_ann_path = next((p for p in _ann_candidates if os.path.exists(p)), None)
-if _ann_path is None:
-    raise FileNotFoundError(
-        f"_annotations.coco.json not found. Tried: {_ann_candidates}"
-    )
-with open(_ann_path, 'r') as f:
-    data = json.load(f)
-
-ann_ids = []
-for anotation in data["annotations"]:
-    if anotation["category_id"] not in ann_ids:
-        ann_ids.append(anotation["category_id"])
-
-for category in data["categories"]:
-    if category["id"] in ann_ids:
-        CLASSES.append(category["name"],)
+CLASSES = _load_classes_from_contract(ROOT_DATA_DIR)
 
 NUM_CLASSES = len(CLASSES)
 

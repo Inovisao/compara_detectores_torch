@@ -113,7 +113,7 @@ def convert_coco_to_voc(fold, root_data_dir=None):
 
     class_source = os.path.join(root_data_dir, 'filesJSON', f'{fold}_train.json')
     if not os.path.exists(class_source):
-        class_source = os.path.join(root_data_dir, 'train', '_annotations.coco.json')
+        raise FileNotFoundError(f"Expected fold train annotations: {class_source}")
     with open(class_source, 'r') as f:
         data = json.load(f)
 
@@ -211,7 +211,10 @@ def convert_coco_to_voc(fold, root_data_dir=None):
             if not os.path.exists(image):
                 image = str(src_dir / file_name.lower())
             if not os.path.exists(image):
-                image = os.path.join(root_data_dir, 'train', file_name)
+                raise FileNotFoundError(
+                    f"Image '{file_name}' referenced in fold {fold}/{src_split} "
+                    f"not found in {src_dir}"
+                )
             shutil.copy(image, output_dir)
 
     # _augment_detr_train(caminho_train)

@@ -12,11 +12,10 @@ Este repositório foi desenvolvido para facilitar a junção de múltiplas redes
 ## Estrutura de Pastas
 ```
 ├── dataset
-│   ├── all                   ← dataset original (anotações COCO completas)
+│   ├── all                   ← dataset original usado pelo gerador de recortes
 │   │   └── _annotations.coco.json
 │   ├── sahi                  ← tiles 640×640 gerados com SAHI
 │   │   ├── fold_1/ … fold_5/ ← imagens train/val/test por fold
-│   │   ├── fold_N_stats.json ← métricas e lista de imagens por fold
 │   │   ├── filesJSON/        ← JSONs COCO por fold/split (gerado pelos scripts)
 │   │   ├── filesJSON_infos/  ← YAML/stats dos folds
 │   │   ├── fold_1/           ← train|val|test/images e labels
@@ -25,9 +24,8 @@ Este repositório foi desenvolvido para facilitar a junção de múltiplas redes
 │   └── asahi_rect            ← idem, tiles retangulares
 ├── results
 ├── scripts
-│   ├── gen_fold_jsons.py     ← gera filesJSON COCO convertendo as labels YOLO (.txt) de cada split
-│   ├── adapt_yolo_folds.py   ← compatibilidade/manifesto para datasets por fold
-│   └── adapt_all_datasets.sh ← roda adapt_yolo_folds nos 3 datasets de uma vez
+│   ├── validate_dataset_contract.py
+│   └── gen_fold_jsons.py     ← utilitário auxiliar; o gerador principal já cria filesJSON/
 ├── src
 │   └── Detectors
 │      ├── Detr
@@ -40,8 +38,8 @@ Este repositório foi desenvolvido para facilitar a junção de múltiplas redes
 ```
 
 ### Diretórios
-- **dataset/all/**: Anotações COCO originais (`_annotations.coco.json`) usadas como fonte para geração dos filesJSON.
-- **dataset/sahi|asahi|asahi_rect/**: Datasets tileados com validação cruzada de 5 dobras. O contrato principal usa `filesJSON/` na raiz e imagens por fold em `fold_N/{train,val,test}/images`. O layout achatado `train/`, `val/`, `test/` é apenas fallback legado.
+- **dataset/all/**: fonte bruta do `slice_inference_api`. Este módulo de treino não deve consumir essa pasta diretamente.
+- **dataset/sahi|asahi|asahi_rect/**: datasets tileados com validação cruzada de 5 dobras. O contrato usa `filesJSON/` na raiz e imagens por fold em `fold_N/{train,val,test}/images`.
 - **results/**: Armazena os resultados das redes e seus gráficos.
 - **scripts/**: Scripts de preparação de dataset e utilitários de pipeline.
 - **src/**: Contém os códigos das redes.
@@ -66,37 +64,25 @@ obs : todas as bibliotecas utilzadas estão no arquivo Bibliotecas.yml
 
 ### 1. Preparando o Dataset
 
-#### 1a. Dataset padrão (sem tiling)
-Coloque o dataset no formato COCO em `dataset/all/` e divida em dobras:
+Este módulo espera receber um dataset tileado já gerado pelo `slice_inference_api`.
+Não use `dataset/all/` como `DATASET_ROOT` para os experimentos tileados.
+
+Valide o contrato antes de treinar:
+
 ```sh
-cd utils
-python geraDobras.py --folds 5 --valperc 0.3
-```
-Resultado:
-```
-dataset/all/
-├── filesJSON/   ← fold_N_{train,val,test}.json
-└── train/       ← imagens
+python train_model/compara_detectores_torch/scripts/validate_dataset_contract.py --root dataset/asahi_rect
 ```
 
-#### 1b. Datasets tileados (SAHI)
-Se os datasets já possuem as dobras geradas em `dataset/sahi/`, `dataset/asahi/` e `dataset/asahi_rect/` (com `fold_N_stats.json` e imagens por fold), execute:
-```sh
-# Gera os filesJSON COCO por fold/split para os 3 datasets
-python scripts/gen_fold_jsons.py
-
-# Valida o contrato antes de treinar
-python scripts/validate_dataset_contract.py --root dataset/asahi_rect
-```
-
+Os comandos abaixo assumem execução a partir da raiz do `slice_inference_api`.
 Para rodar um dataset tileado, defina `DATASET_ROOT` antes de chamar `main.py`:
+
 ```sh
-DATASET_ROOT=dataset/sahi      python src/main.py
-DATASET_ROOT=dataset/asahi     python src/main.py
-DATASET_ROOT=dataset/asahi_rect python src/main.py
+DATASET_ROOT=dataset/sahi       python train_model/compara_detectores_torch/src/main.py
+DATASET_ROOT=dataset/asahi      python train_model/compara_detectores_torch/src/main.py
+DATASET_ROOT=dataset/asahi_rect python train_model/compara_detectores_torch/src/main.py
 ```
 
-Se `DATASET_ROOT` não for definido, `main.py` usa `dataset/all/` por padrão.
+`DATASET_ROOT` é obrigatório. Se ele não for definido, o treinamento falha.
 
 O contrato esperado para novos datasets tileados está em `DATASET_CONTRACT.md`.
 Para `asahi_rect`, o pipeline resolve `fold_N_train.json` em
@@ -185,16 +171,15 @@ Usa `AutoModelForObjectDetection`/`AutoImageProcessor` do pacote `transformers` 
 ### 3. Executando o Treinamento
 No arquivo `main.py`, edite a variável `MODELS` ou defina a variável de ambiente `MODELS_TO_RUN` para selecionar os modelos desejados, por exemplo:
 ```bash
-MODELS_TO_RUN="YOLO26,YOLOV11,RetinaNet" python main.py
+DATASET_ROOT=dataset/asahi_rect \
+MODEL_CHECKPOINTS_ROOT=pesos/asahi_rect/model_checkpoints \
+EVAL_MODELS_ROOT=models \
+MODELS_TO_RUN="YOLO26,YOLOV11,RetinaNet" \
+python train_model/compara_detectores_torch/src/main.py
 ```
 
-Agora, execute o treinamento manualmente (caso não use a variável de ambiente):
-```sh
-cd src
-python main.py
-```
-
-Os resultados serão salvos na pasta `results/`.
+Os checkpoints devem ficar em `pesos/<modo>/model_checkpoints/`. Os manifestos
+compatíveis com o avaliador principal serão salvos em `models/<modo>/fold_N/<arquitetura>/manifest.json`.
 
 ---
 
@@ -213,10 +198,8 @@ src/Detectors/SSDLite
 ### Exportar para ONNX
 
 ```bash
-cd /home/neto/development/compara_detectores_torch
-
-python src/Detectors/SSDLite/export_onnx.py \
-    --checkpoint src/model_checkpoints/fold_1/SSDLite/best.pth \
+python train_model/compara_detectores_torch/src/Detectors/SSDLite/export_onnx.py \
+    --checkpoint pesos/asahi_rect/model_checkpoints/fold_1/SSDLite/best.pth \
     --output ssdlite.onnx
 ```
 
@@ -268,7 +251,7 @@ frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
 detections = ResultSSDLite.result(
     frame_rgb,
-    model_path="src/model_checkpoints/fold_1/SSDLite/best.pth",
+    model_path="pesos/asahi_rect/model_checkpoints/fold_1/SSDLite/best.pth",
     threshold=0.5,
 )
 # detections: [[x, y, w, h, class_id, score], ...]
@@ -293,7 +276,7 @@ Cada pasta em `src/Detectors/<Modelo>` possui, no mínimo, os arquivos abaixo:
 
 - **config.py** – define hiperparâmetros padrão e lê sobrescritas via variáveis de ambiente.  
 - **GeraLabels.py** – converte as anotações COCO para o formato consumido pelo modelo (YOLO txt, COCO padronizado / DataLoader, etc).  
-- **Run<Model>.py** – prepara o dataset, chama o pipeline de treino e move os artefatos para `src/model_checkpoints/fold_<n>/<Modelo>/`.  
+- **Run<Model>.py** – prepara o dataset, chama o pipeline de treino e salva os artefatos no diretório configurado por `MODEL_CHECKPOINTS_ROOT`.  
 - **Detections<Model>.py** – executa a inferência no formato `[x, y, w, h, class_id, score]`, com `class_id` iniciando em 1.
 
 Modelos como YOLOV8/YOLOV11 também possuem scripts auxiliares (`TreinoYOLOV*.sh`) para compatibilidade com execuções antigas.

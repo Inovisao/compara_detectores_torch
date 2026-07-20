@@ -335,7 +335,7 @@ def main(args):
     save_best_model = SaveBestModel()
 
     val_map_05, val_map = [], []
-    best_map = 0.0
+    best_map = float("-inf")
     patience_counter = 0
 
     # Loop de treino
@@ -378,7 +378,7 @@ def main(args):
             try:
                 val_map_05.append(stats['coco_eval_bbox'][1])
                 val_map.append(stats['coco_eval_bbox'])
-                if val_map_05[-1] > best_map:
+                if val_map_05[-1] >= best_map:
                     best_map = val_map_05[-1]
                     patience_counter = 0
                 else:

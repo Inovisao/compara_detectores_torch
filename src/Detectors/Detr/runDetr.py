@@ -25,6 +25,15 @@ def runDetr(fold,fold_dir,ROOT_DATA_DIR):
     result = subprocess.run([treino], check=True, env=env)
     print(f"[runDetr] Concluído, código={result.returncode}, checkpoint em {training_dir}", flush=True)
 
+    best_model = os.path.join(training_dir, 'best_model.pth')
+    last_model = os.path.join(training_dir, 'last_model_state.pth')
+    if not os.path.exists(best_model) and os.path.exists(last_model):
+        print(
+            f"[runDetr] best_model.pth ausente; usando last_model_state.pth como checkpoint smoke.",
+            flush=True,
+        )
+        shutil.copy2(last_model, best_model)
+
     detr_data = os.path.join(ROOT_DATA_DIR, 'detr')
     if os.path.exists(detr_data):
         print(f"[runDetr] Removendo dados VOC temporários: {detr_data}", flush=True)

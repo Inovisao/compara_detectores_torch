@@ -57,27 +57,15 @@ def _has_filesjson(root: str) -> bool:
 
 
 def _resolve_test_split(root: str, fold: str):
-    if _has_filesjson(root):
-        json_path = os.path.join(root, "filesJSON", f"{fold}_test.json")
-        if not os.path.exists(json_path):
-            raise FileNotFoundError(f"Test JSON not found: {json_path}")
-        images_dir = split_image_dir(root, "test", fold)
-        return json_path, str(images_dir)
-
-    candidates = [
-        ("test", os.path.join(root, "test", "_annotations.coco.json")),
-        ("val", os.path.join(root, "val", "_annotations.coco.json")),
-        ("valid", os.path.join(root, "valid", "_annotations.coco.json")),
-    ]
-    for split_name, json_path in candidates:
-        if os.path.exists(json_path):
-            images_dir = os.path.join(root, split_name if split_name != "valid" else "val")
-            return json_path, images_dir
-
-    raise FileNotFoundError(
-        "Could not locate evaluation annotations for per-class metrics. "
-        "Expected split JSONs in 'filesJSON' or '_annotations.coco.json' inside split folders."
-    )
+    if not _has_filesjson(root):
+        raise FileNotFoundError(f"Expected filesJSON/ in DATASET_ROOT: {root}")
+    json_path = os.path.join(root, "filesJSON", f"{fold}_test.json")
+    if not os.path.exists(json_path):
+        raise FileNotFoundError(f"Test JSON not found: {json_path}")
+    images_dir = split_image_dir(root, "test", fold)
+    if not images_dir.exists():
+        raise FileNotFoundError(f"Test images directory not found: {images_dir}")
+    return json_path, str(images_dir)
 
 
 def _resolve_class_annotations(root: str, fold=None) -> str:
@@ -97,17 +85,8 @@ def _resolve_class_annotations(root: str, fold=None) -> str:
             if os.path.exists(path):
                 return path
 
-    candidates = [
-        os.path.join(root, "train", "_annotations.coco.json"),
-        os.path.join(root, "val", "_annotations.coco.json"),
-        os.path.join(root, "valid", "_annotations.coco.json"),
-        os.path.join(root, "test", "_annotations.coco.json"),
-    ]
-    for path in candidates:
-        if os.path.exists(path):
-            return path
     raise FileNotFoundError(
-        "Unable to locate a COCO annotations file for class discovery in the dataset root."
+        "Unable to locate fold COCO annotations in DATASET_ROOT/filesJSON."
     )
 
 def print_to_file(line: str = '', file_path: Path = RESULTS_CSV_PATH, mode: str = 'a'):

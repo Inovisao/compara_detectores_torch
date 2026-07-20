@@ -27,6 +27,9 @@ from config import (
     WEIGHT_DECAY,
     OUT_DIR,
     PATIENCE,
+    USE_AMP,
+    USE_COMPILE,
+    CLIP_GRAD_NORM,
 )
 
 _AUG_PIPELINE = A.Compose(
@@ -59,7 +62,11 @@ class CocoTransform:
             if target:
                 for obj in target:
                     x, y, bw, bh = obj["bbox"]
-                    obj["bbox"] = [x * scale, y * scale, bw * scale, bh * scale]
+                    x1 = max(0.0, min(float(new_w), x * scale))
+                    y1 = max(0.0, min(float(new_h), y * scale))
+                    x2 = max(0.0, min(float(new_w), (x + bw) * scale))
+                    y2 = max(0.0, min(float(new_h), (y + bh) * scale))
+                    obj["bbox"] = [x1, y1, max(0.0, x2 - x1), max(0.0, y2 - y1)]
 
         if self.augment and target:
             bboxes = [obj["bbox"] for obj in target]
@@ -138,7 +145,7 @@ def get_model(num_classes):
 # Initialize the model
 model = get_model(NUM_CLASSES)
 model.to(DEVICE)
-if hasattr(torch, 'compile'):
+if USE_COMPILE and hasattr(torch, 'compile'):
     try:
         model = torch.compile(model)
     except Exception:
@@ -157,7 +164,7 @@ optimizer = torch.optim.SGD(
 
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
 
-_scaler = torch.cuda.amp.GradScaler(enabled=str(DEVICE).startswith("cuda"))
+_scaler = torch.cuda.amp.GradScaler(enabled=USE_AMP and str(DEVICE).startswith("cuda"))
 
 
 def train_one_epoch(model, optimizer, data_loader, device, epoch):
@@ -175,8 +182,13 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch):
             for obj in target:
                 bbox = obj["bbox"]
                 x, y, w, h = bbox
-                if w > 0 and h > 0:
-                    boxes.append([x, y, x + w, y + h])
+                img_h, img_w = images[i].shape[-2:]
+                x1 = max(0.0, min(float(img_w), float(x)))
+                y1 = max(0.0, min(float(img_h), float(y)))
+                x2 = max(0.0, min(float(img_w), float(x + w)))
+                y2 = max(0.0, min(float(img_h), float(y + h)))
+                if x2 > x1 and y2 > y1:
+                    boxes.append([x1, y1, x2, y2])
                     labels.append(obj["category_id"])
             if boxes:
                 processed_target = {
@@ -194,8 +206,17 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch):
             loss_dict = model(images, processed_targets)
             losses = sum(loss for loss in loss_dict.values())
 
+        if not torch.isfinite(losses):
+            raise FloatingPointError(
+                f"Loss não finita no FasterRCNN: {losses.item()} | "
+                f"componentes={ {key: float(value.detach().cpu()) for key, value in loss_dict.items()} }"
+            )
+
         optimizer.zero_grad()
         _scaler.scale(losses).backward()
+        if CLIP_GRAD_NORM > 0:
+            _scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), CLIP_GRAD_NORM)
         _scaler.step(optimizer)
         _scaler.update()
 
@@ -237,6 +258,9 @@ try:
                 print("Parando o treinamento por falta de melhoria.")
                 break
             print(f"[INFO] Época {epoch+1}/{NUM_EPOCHS} finalizada com sucesso.")
+        except FloatingPointError as e:
+            print(f"[ERRO] {e}")
+            sys.exit(1)
         except Exception as e:
             print(f"[ERRO] Falha durante a época {epoch+1}: {e}")
             continue

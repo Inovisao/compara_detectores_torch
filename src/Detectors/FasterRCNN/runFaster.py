@@ -43,4 +43,14 @@ def runFaster(fold, fold_dir, root_data_dir):
     env['FASTER_OUT_DIR'] = target_dir
     print(f"[runFaster] Executando subprocess: {treino}", flush=True)
     result = subprocess.run([treino], check=True, env=env)
+
+    best_model = os.path.join(target_dir, 'best.pth')
+    last_model = os.path.join(target_dir, 'last_checkpoint.pth')
+    if not os.path.exists(best_model) and os.path.exists(last_model):
+        print(
+            "[runFaster] best.pth ausente; usando last_checkpoint.pth como checkpoint.",
+            flush=True,
+        )
+        shutil.copy2(last_model, best_model)
+
     print(f"[runFaster] Concluído, código={result.returncode}, checkpoint em {target_dir}", flush=True)
