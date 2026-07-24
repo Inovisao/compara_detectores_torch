@@ -30,7 +30,6 @@ except (FileNotFoundError, ModuleNotFoundError) as _faster_exc:
     faster_geradata = None
     faster_config = None
     _FASTER_IMPORT_ERROR = _faster_exc
-from Detectors.Detr.DetectionsDetr import ResultDetr
 try:
     from Detectors.ViT.DetectionsViT import ResultViT
 except ModuleNotFoundError:
@@ -383,6 +382,8 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode=None)
         elif model_name == "SSDLite":
             result = ResultSSDLite.result(frame, model, LIMIAR_THRESHOLD)
         elif model_name == "Detr":
+            from Detectors.Detr.DetectionsDetr import ResultDetr
+
             print(image_path)
             result = ResultDetr.result(frame, model, LIMIAR_THRESHOLD)
         elif model_name == "ViT":

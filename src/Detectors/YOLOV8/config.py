@@ -11,7 +11,7 @@ from ultralytics import YOLO
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SRC_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATA = PROJECT_ROOT / "dataset" / "all" / "data.yaml"
-DEFAULT_WEIGHTS = os.getenv("YOLOV8_WEIGHTS", "yolov8s.pt")
+DEFAULT_WEIGHTS = os.getenv("YOLOV8_WEIGHTS", "yolov8l.pt")
 DEFAULT_PROJECT = SRC_ROOT / "runs" / "detect" / "YOLOV8"
 
 
@@ -30,7 +30,7 @@ def get_training_params(data_yaml: str | Path | None = None) -> dict:
         "epochs": int(os.getenv("YOLOV8_EPOCHS", "1000")),
         "imgsz": int(os.getenv("YOLOV8_IMGSZ", "640")),
         "patience": int(os.getenv("YOLOV8_PATIENCE", "50")),
-        "batch": int(os.getenv("YOLOV8_BATCH", "32")),
+        "batch": int(os.getenv("YOLOV8_BATCH", "16")),
         "project": os.getenv("YOLOV8_PROJECT", str(DEFAULT_PROJECT)),
         "run_name": os.getenv("YOLOV8_RUN_NAME", "train"),
         "optimizer": os.getenv("YOLOV8_OPTIMIZER", "SGD"),
