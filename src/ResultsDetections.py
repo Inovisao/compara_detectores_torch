@@ -13,14 +13,15 @@ import sys
 import csv
 
 # Importações dos modelos de detecção
+# YOLOV8 e FasterRCNN no topo (deps sempre presentes). Detr e mminference
+# sao lazy-importados dentro dos branches para nao exigir vision_transformers/mmdet
+# quando esses modelos nao forem usados.
 from Detectors.YOLOV8.DetectionsYolov8 import resultYOLO
 from Detectors.FasterRCNN.inference import ResultFaster
-from Detectors.Detr.inference_image_detect import resultDetr
-from Detectors.mminference.inference import runMMdetection
 
 # Constantes
-LIMIAR_THRESHOLD = 0.50
-IOU_THRESHOLD = 0.50
+LIMIAR_THRESHOLD = 0.2
+IOU_THRESHOLD = 0.2
 RESULTS_PATH = os.path.join("..", "results", "prediction")
 os.makedirs(RESULTS_PATH, exist_ok=True)  # Garante que a pasta existe
 
@@ -261,9 +262,11 @@ def generate_results(root, fold, model, model_name, save_imgs):
             print(image_path)
             result = ResultFaster.resultFaster(frame,model,LIMIAR_THRESHOLD)
         elif model_name == "Detr":
+            from Detectors.Detr.inference_image_detect import resultDetr
             print(image_path)
             result = resultDetr(fold,frame,LIMIAR_THRESHOLD)
         else:
+            from Detectors.mminference.inference import runMMdetection
             print(image_path)
             result = runMMdetection(model,frame,LIMIAR_THRESHOLD)
         predictions[image['file_name']] = result
