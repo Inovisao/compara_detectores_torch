@@ -1,9 +1,50 @@
+import argparse
 import os
 import numpy as np
 from ResultsDetections import create_csv, print_to_file
 from ResultsDetectionsbyclass import generate_results
 import shutil
 import time
+
+# --------------------------------------------------------------------------- #
+# Linha de comando: permite escolher os modelos sem editar o arquivo.
+#
+#   python main.py                          -> usa o MODELS definido abaixo
+#   python main.py --models YOLOV8           -> só o YOLOv8
+#   python main.py --models Faster           -> só o Faster
+#   python main.py --models YOLOV8 Faster    -> os dois (ordem = ordem de treino)
+#
+# Valores aceitos: YOLOV8, Faster, Detr (os mesmos nomes que o if/elif de
+# train_model reconhece). Qualquer outro nome é rejeitado na hora, com uma
+# mensagem clara, em vez de travar depois com UnboundLocalError.
+# --------------------------------------------------------------------------- #
+MODELOS_VALIDOS = ['YOLOV8', 'Faster', 'Detr']
+
+
+def parse_args():
+    ap = argparse.ArgumentParser(
+        description="Treina e avalia detectores por validação cruzada."
+    )
+    ap.add_argument(
+        '--models', '--model', dest='models', nargs='+', default=None,
+        metavar='MODELO',
+        help=(
+            "Quais modelos rodar, em ordem, separados por espaço. "
+            f"Valores aceitos: {', '.join(MODELOS_VALIDOS)}. "
+            "Se omitido, usa a lista MODELS definida no topo do main.py."
+        ),
+    )
+    args = ap.parse_args()
+    if args.models is not None:
+        invalidos = [m for m in args.models if m not in MODELOS_VALIDOS]
+        if invalidos:
+            ap.error(
+                f"Modelo(s) inválido(s): {invalidos}. "
+                f"Valores aceitos: {MODELOS_VALIDOS}."
+            )
+    return args
+
+
 # Remove todos os resultados presentes dos outros treinamentos
 def resetar_pasta(caminho):
     shutil.rmtree(caminho, ignore_errors=True)  # Remove a pasta inteira
@@ -45,10 +86,16 @@ def test_model(model,fold_dir):
         model_path = os.path.join(fold_dir,model,'latest.pth')
     return model_path
 
-# YOLOV8, Faster, Detr
-MODELS = ['YOLOV8'] #Variavel para selecionar os modelos
+_args = parse_args()
 
-APENAS_TESTE = False # True para apenas testar modelos treinados False para Treinar e Testar.
+# YOLOV8, Faster, Detr
+MODELS = ['YOLOV8', 'Faster'] #Variavel para selecionar os modelos (usada se --models não for passado)
+
+if _args.models is not None:
+    MODELS = _args.models
+    print(f"Modelos selecionados via linha de comando: {MODELS}")
+
+APENAS_TESTE = True # True para apenas testar modelos treinados False para Treinar e Testar.
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
 DOBRAS = int(len(os.listdir(DIR_PATH))/3)
