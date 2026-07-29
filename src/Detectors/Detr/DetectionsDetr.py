@@ -54,7 +54,12 @@ def _load_model(checkpoint_path: str):
     # "_orig_mod.", which would silently fail to match anything under
     # strict=False, leaving the model with its untrained head.
     state = {k.removeprefix("_orig_mod."): v for k, v in state.items()}
-    model.load_state_dict(state, strict=False)
+    missing, unexpected = model.load_state_dict(state, strict=False)
+    critical_missing = [k for k in missing if k.startswith("out.")]
+    if critical_missing:
+        raise RuntimeError(f"DETR checkpoint missing trained head keys: {critical_missing}")
+    if unexpected:
+        raise RuntimeError(f"DETR checkpoint has unexpected keys: {unexpected[:5]}")
     model.to(DEVICE).eval()
     _model_cache[checkpoint_path] = model
     return model
@@ -67,7 +72,7 @@ class ResultDetr:
 
         orig_h, orig_w = frame.shape[:2]
 
-        img = resize(frame, 640, square=True)
+        img = resize(frame, 640, square=False)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = img.astype(np.float32) / 255.0
         img = infer_transforms(img)

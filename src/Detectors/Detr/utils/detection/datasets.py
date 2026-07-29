@@ -79,6 +79,8 @@ class DETRDataset(Dataset):
 
         # Read the image.
         image = cv2.imread(image_path)
+        if image is None:
+            raise FileNotFoundError(f"Could not read DETR image: {image_path}")
         # Convert BGR to RGB color format.
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
         image_resized = self.resize(image, square=self.square_training)
@@ -99,64 +101,64 @@ class DETRDataset(Dataset):
         # Box coordinates for xml files are extracted and corrected for image size given.
         try:
             tree = et.parse(annot_file_path)
-            root = tree.getroot()
-            for member in root.findall('object'):
-                # Map the current object name to `classes` list to get
-                # the label index and append to `labels` list.
-                labels.append(self.classes.index(member.find('name').text) - 1)
-                
-                # xmin = left corner x-coordinates
-                xmin = int(float(member.find('bndbox').find('xmin').text))
-                # xmax = right corner x-coordinates
-                xmax = int(float(member.find('bndbox').find('xmax').text))
-                # ymin = left corner y-coordinates
-                ymin = int(float(member.find('bndbox').find('ymin').text))
-                # ymax = right corner y-coordinates
-                ymax = int(float(member.find('bndbox').find('ymax').text))
+        except Exception as exc:
+            raise RuntimeError(f"Failed to parse DETR annotation XML: {annot_file_path}") from exc
 
-                xmin, ymin, xmax, ymax = self.check_image_and_annotation(
-                    xmin, 
-                    ymin, 
-                    xmax, 
-                    ymax, 
-                    image_width, 
-                    image_height, 
-                    orig_data=True
+        root = tree.getroot()
+        for member in root.findall('object'):
+            class_name = member.findtext('name')
+            if class_name not in self.classes:
+                raise ValueError(
+                    f"Class {class_name!r} in {annot_file_path} is not present in DETR classes: {self.classes}"
                 )
+            labels.append(self.classes.index(class_name) - 1)
 
-                orig_boxes.append([xmin, ymin, xmax, ymax])
-                
-                # Resize the bounding boxes according to the
-                # desired `width`, `height`.
-                xmin_final = (xmin/image_width)*image_resized.shape[1]
-                xmax_final = (xmax/image_width)*image_resized.shape[1]
-                ymin_final = (ymin/image_height)*image_resized.shape[0]
-                ymax_final = (ymax/image_height)*image_resized.shape[0]
+            bndbox = member.find('bndbox')
+            if bndbox is None:
+                raise ValueError(f"Missing bndbox in DETR annotation XML: {annot_file_path}")
 
-                xmin_final, ymin_final, xmax_final, ymax_final = self.check_image_and_annotation(
-                    xmin_final, 
-                    ymin_final, 
-                    xmax_final, 
-                    ymax_final, 
-                    image_resized.shape[1], 
-                    image_resized.shape[0],
-                    orig_data=False
-                )
+            # xmin/ymin/xmax/ymax are Pascal VOC absolute coordinates.
+            xmin = int(float(bndbox.findtext('xmin', 0)))
+            xmax = int(float(bndbox.findtext('xmax', 0)))
+            ymin = int(float(bndbox.findtext('ymin', 0)))
+            ymax = int(float(bndbox.findtext('ymax', 0)))
 
-                bw = xmax_final - xmin_final
-                bh = ymax_final - ymin_final
-                # Normalize.
-                h, w, _ = image_resized.shape
-                final_coords = [xmin_final, ymin_final, bw, bh]
-                    
-                boxes.append(final_coords)
-        except:
-            pass
+            xmin, ymin, xmax, ymax = self.check_image_and_annotation(
+                xmin,
+                ymin,
+                xmax,
+                ymax,
+                image_width,
+                image_height,
+                orig_data=True
+            )
+
+            orig_boxes.append([xmin, ymin, xmax, ymax])
+
+            # Resize the bounding boxes according to the desired width/height.
+            xmin_final = (xmin/image_width)*image_resized.shape[1]
+            xmax_final = (xmax/image_width)*image_resized.shape[1]
+            ymin_final = (ymin/image_height)*image_resized.shape[0]
+            ymax_final = (ymax/image_height)*image_resized.shape[0]
+
+            xmin_final, ymin_final, xmax_final, ymax_final = self.check_image_and_annotation(
+                xmin_final,
+                ymin_final,
+                xmax_final,
+                ymax_final,
+                image_resized.shape[1],
+                image_resized.shape[0],
+                orig_data=False
+            )
+
+            bw = xmax_final - xmin_final
+            bh = ymax_final - ymin_final
+            boxes.append([xmin_final, ymin_final, bw, bh])
         # Bounding box to tensor.
         boxes_length = len(boxes)
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         # Area of the bounding boxes.
-        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0]) if boxes_length > 0 else torch.as_tensor(boxes, dtype=torch.float32)
+        area = boxes[:, 2] * boxes[:, 3] if boxes_length > 0 else torch.zeros((0,), dtype=torch.float32)
         # No crowd instances.
         iscrowd = torch.zeros((boxes.shape[0],), dtype=torch.int64) if boxes_length > 0 else torch.as_tensor(boxes, dtype=torch.float32)
         # Labels to tensor.

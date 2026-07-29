@@ -427,6 +427,87 @@ CONTINUE = True
 
 # Inicializado vazio; preenchido por main() antes de qualquer treinamento.
 TRAINING_PARAMS_LOG: dict = {}
+TRAINING_DURATION_HISTORY: dict[tuple[str, str], list[float]] = {}
+
+# Estimativas conservadoras para o primeiro fold, antes de existir histórico da
+# execução atual. Depois disso, o tempo real dos folds concluídos passa a guiar o
+# ETA.
+DEFAULT_FOLD_TRAIN_SECONDS = {
+    "YOLOV8": 45 * 60,
+    "YOLOV11": 45 * 60,
+    "YOLO26": 45 * 60,
+    "YOLOV5_TPH": 45 * 60,
+    "Faster": 35 * 60,
+    "RetinaNet": 35 * 60,
+    "Detr": 45 * 60,
+    "SSDLite": 30 * 60,
+    "ViT": 35 * 60,
+}
+
+
+def _format_duration(seconds: float) -> str:
+    seconds = max(0, int(round(seconds)))
+    hours, remainder = divmod(seconds, 3600)
+    minutes, secs = divmod(remainder, 60)
+
+    if hours:
+        return f"{hours}h {minutes:02d}min"
+    if minutes:
+        return f"{minutes}min {secs:02d}s"
+    return f"{secs}s"
+
+
+def _training_history_key(dataset_root: str | Path, model: str) -> tuple[str, str]:
+    return (_dataset_mode(dataset_root), model)
+
+
+def _training_will_skip(model: str, fold_dir: str) -> bool:
+    check_save_path = os.path.join(fold_dir, model)
+    if not CONTINUE or not os.path.exists(check_save_path):
+        return False
+    return os.path.exists(test_model(model, fold_dir))
+
+
+def _estimated_fold_seconds(model: str, dataset_root: str | Path) -> tuple[float, str]:
+    history = TRAINING_DURATION_HISTORY.get(_training_history_key(dataset_root, model), [])
+    if history:
+        return sum(history) / len(history), f"historico desta execucao ({len(history)} fold(s))"
+    return DEFAULT_FOLD_TRAIN_SECONDS.get(model, 40 * 60), "fallback por arquitetura"
+
+
+def _print_training_eta(
+    *,
+    model: str,
+    fold: str,
+    fold_dir: str,
+    dataset_root: str | Path,
+    fold_names: list[str],
+) -> None:
+    if _training_will_skip(model, fold_dir):
+        print(
+            f"[ETA] {model} | {fold}: checkpoint existente; treino deve ser pulado.",
+            flush=True,
+        )
+        return
+
+    seconds_per_fold, source = _estimated_fold_seconds(model, dataset_root)
+    try:
+        current_index = fold_names.index(fold)
+    except ValueError:
+        current_index = 0
+
+    remaining_train_folds = 0
+    for remaining_fold in fold_names[current_index:]:
+        remaining_fold_dir = os.path.join(os.path.dirname(fold_dir), remaining_fold)
+        if not _training_will_skip(model, remaining_fold_dir):
+            remaining_train_folds += 1
+
+    estimated_remaining = seconds_per_fold * max(remaining_train_folds, 1)
+    print(
+        f"[ETA] {model} | {fold}: estimado {_format_duration(seconds_per_fold)} por fold; "
+        f"restante ~{_format_duration(estimated_remaining)} ({source}).",
+        flush=True,
+    )
 
 
 def _apply_smoke_test_env() -> None:
@@ -517,10 +598,23 @@ def main(argv: list[str] | None = None) -> None:
             tiling_mode = resolve_evaluation_tiling_mode(current_root, REQUESTED_TILING_MODE)
 
             if not APENAS_TESTE:
+                will_skip_training = _training_will_skip(model, fold_dir)
+                _print_training_eta(
+                    model=model,
+                    fold=fold,
+                    fold_dir=fold_dir,
+                    dataset_root=current_root,
+                    fold_names=FOLD_NAMES,
+                )
                 t0 = time.time()
                 model_path = train_model(model, fold, fold_dir, current_root)
                 elapsed = time.time() - t0
                 print(f"[TEMPO] {model} | {fold}: {elapsed/60:.1f} min ({elapsed:.0f}s)", flush=True)
+                if not will_skip_training:
+                    TRAINING_DURATION_HISTORY.setdefault(
+                        _training_history_key(current_root, model),
+                        [],
+                    ).append(elapsed)
                 if model_path is None:
                     continue
             else:
