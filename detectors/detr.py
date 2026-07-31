@@ -15,6 +15,8 @@ class DETRDetector(Detector):
     def __init__(self):
         self.model: torch.nn.Module | None = None
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._arch: str | None = None
+        self._num_classes: int = 1
 
     @classmethod
     def architectures(cls) -> list[str]:
@@ -52,7 +54,9 @@ class DETRDetector(Detector):
         return model
 
     def train(self, train_loader, val_loader, config: dict, output_dir: Path) -> Path:
-        model = self._build_model(config["architecture"], config["num_classes"])
+        self._arch = config["architecture"]
+        self._num_classes = config["num_classes"]
+        model = self._build_model(self._arch, self._num_classes)
         self.model = model
 
         config = dict(config)
@@ -78,6 +82,12 @@ class DETRDetector(Detector):
 
     def load(self, path: Path) -> None:
         checkpoint = torch.load(path, map_location=self.device, weights_only=True)
+        if self.model is None:
+            nc = checkpoint.get("config", {}).get("num_classes", self._num_classes)
+            arch = checkpoint.get("config", {}).get("architecture", self._arch or "detr_resnet50")
+            self._num_classes = nc
+            self._arch = arch
+            self.model = self._build_model(arch, nc)
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.to(self.device)
         self.model.eval()

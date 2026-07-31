@@ -1,0 +1,20 @@
+experiment: baseline_v2
+
+folds:
+  n_folds: 5
+  val_ratio: 0.2
+
+detectors:
+  yolov8:
+    architectures: [yolov8n, yolov8s]
+    hparams:
+      lr: [0.0001, 0.001]
+      epochs: 50
+      batch_size: 16
+  faster_rcnn:
+    architectures: [resnet50]
+    hparams:
+      lr: [0.0001, 0.001]
+      epochs: 30
+      batch_size: 8
+  detr: ~

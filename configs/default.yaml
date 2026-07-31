@@ -1,0 +1,79 @@
+# =============================================================================
+# Config-Driven Detector Benchmark — Generated Configuration
+# =============================================================================
+# All values shown are factory defaults from each detector's implementation.
+# Uncomment and edit any parameter to override.
+# =============================================================================
+
+experiment: default
+
+dataset:
+  coco_json: dataset/all/train/_annotations.coco.json
+  images_dir: dataset/all/train
+
+folds:
+  n_folds: 5
+  val_ratio: 0.2
+  seed: 42
+
+output_dir: results
+seed: 42
+device: cuda
+
+# --------------------------------------------------------------------
+# DETECTOR HYPERPARAMETERS
+# Uncomment any parameter to override the default.
+# --------------------------------------------------------------------
+
+detectors:
+  faster_rcnn:
+    architectures: ['resnet50', 'resnet101']
+    # hparams: ------------------------------------------
+    #   lr: 0.0001            # (float) initial learning rate
+    #   epochs: 30            # (int)
+    #   batch_size: 8         # (int)
+    #   optimizer: 'SGD'      # SGD | AdamW | Adam
+    #   weight_decay: 0.0005  # (float)
+    #   momentum: 0.9         # (float) SGD momentum
+    #   scheduler: 'step'     # step | cosine | plateau | none
+    #   step_size: 10         # (int) for step scheduler
+    #   gamma: 0.1            # (float) LR decay factor
+    #   patience: 5           # (int) early stopping, 0 = disabled
+
+  yolov8:
+    architectures: ['yolov8n', 'yolov8s', 'yolov8m', 'yolov8l', 'yolov8x']
+    # hparams: ------------------------------------------
+    #   lr: 0.001             # (float) initial learning rate
+    #   epochs: 100           # (int)
+    #   batch_size: 16        # (int)
+    #   optimizer: 'AdamW'    # AdamW | SGD | Adam
+    #   weight_decay: 0.0005  # (float)
+    #   momentum: 0.937       # (float) SGD momentum
+    #   scheduler: 'cosine'   # cosine | linear | step | none
+    #   warmup_epochs: 3      # (int)
+    #   patience: 10          # (int) early stopping, 0 = disabled
+    #   imgsz: 640            # (int) input image size
+    #   workers: 8            # (int) dataloader workers
+
+  detr:
+    architectures: ['detr_resnet50', 'detr_resnet101']
+    # hparams: ------------------------------------------
+    #   lr: 0.0001            # (float) initial learning rate (backbone lr = lr/10)
+    #   epochs: 150           # (int)
+    #   batch_size: 8         # (int)
+    #   optimizer: 'AdamW'    # AdamW | Adam
+    #   weight_decay: 0.0001  # (float)
+    #   scheduler: 'step'     # step | cosine | none
+    #   lr_drop: 100          # (int) epoch to drop LR by 10x (DETR convention)
+    #   patience: 20          # (int) early stopping, 0 = disabled
+
+# --------------------------------------------------------------------
+# SWEEP MODE
+# Replace scalar values with lists to create a grid sweep.
+# Example:
+#   yolov8:
+#     architectures: [yolov8n, yolov8s, yolov8m]
+#     hparams:
+#       lr: [0.0001, 0.001, 0.01]
+#       batch_size: [16, 32]
+# --------------------------------------------------------------------
