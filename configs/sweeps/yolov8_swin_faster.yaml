@@ -1,0 +1,31 @@
+experiment: yolov8_swin_faster
+
+dataset:
+  coco_json: dataset/all/train/_annotations.coco.json
+  images_dir: dataset/all/train
+
+folds:
+  n_folds: 5
+  val_ratio: 0.2
+  seed: 42
+
+output_dir: results
+seed: 42
+device: cuda
+
+detectors:
+  yolov8:
+    architectures: [yolov8s]
+    hparams:
+      epochs: 100
+      batch_size: 16
+      imgsz: 640
+
+  faster_rcnn:
+    architectures: [swin_base, resnet50]
+    hparams:
+      epochs: 30
+      batch_size: 8
+      imgsz: 640
+
+  detr: ~

@@ -68,7 +68,7 @@ def generate_experiment_grid(config: dict) -> list[dict]:
         for key in sweep_keys:
             sweep_values.append([(key, v) for v in hparams[key]])
         if not sweep_values:
-            sweep_values = [[]]
+            sweep_values = []
 
         for arch in architectures:
             for sweep_combo in itertools.product(*sweep_values):
