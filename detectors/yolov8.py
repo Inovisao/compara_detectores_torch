@@ -41,10 +41,11 @@ class YOLOV8Detector(Detector):
         }
 
     def _build_data_yaml(self, train_dir: str, val_dir: str, num_classes: int) -> str:
+        import os
         data = {
-            "path": ".",
-            "train": train_dir,
-            "val": val_dir,
+            "path": os.path.abspath(train_dir).rsplit("/", 1)[0],
+            "train": os.path.abspath(train_dir),
+            "val": os.path.abspath(val_dir),
             "names": {i: str(i) for i in range(num_classes)},
             "nc": num_classes,
         }
