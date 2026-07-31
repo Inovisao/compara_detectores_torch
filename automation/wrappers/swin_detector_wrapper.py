@@ -19,4 +19,8 @@ class SwinDetectorWrapper(BaseWrapper):
         )
         
         best_model_path = "SwinDetector/best_model.pth"
+        # TODO: Integrate metrics collection from ResultsDetections.py.
+        # The orchestrator infrastructure already collects and writes metrics,
+        # but the actual metric computation (mAP, precision, recall, etc.)
+        # needs to be connected here.
         return best_model_path, {}

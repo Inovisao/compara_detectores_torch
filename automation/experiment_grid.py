@@ -39,10 +39,10 @@ class Experiment:
         return result
 
 def generate_experiment_id(model: str, architecture: str, lr: float, optimizer: str,
-                          batch_size: int, scheduler: str, fold: int, seed: int,
+                          batch_size: int, weight_decay: float, scheduler: str, fold: int, seed: int,
                           augmentations: Dict[str, Any]) -> str:
     aug_str = "_".join(f"{k}{v}" for k, v in sorted(augmentations.items()))
-    return f"{model}_{architecture}_lr{lr}_{optimizer}_bs{batch_size}_{scheduler}_{aug_str}_fold{fold}_seed{seed}"
+    return f"{model}_{architecture}_lr{lr}_{optimizer}_bs{batch_size}_wd{weight_decay}_{scheduler}_{aug_str}_fold{fold}_seed{seed}"
 
 def generate_experiments(config: ExperimentConfig) -> List[Experiment]:
     experiments = []
@@ -70,7 +70,7 @@ def generate_experiments(config: ExperimentConfig) -> List[Experiment]:
             for aug_combo in aug_combos:
                 for fold in range(1, config.folds.n_folds + 1):
                     exp_id = generate_experiment_id(
-                        model_name, arch, lr, opt, bs, sched, fold, config.seed, aug_combo
+                        model_name, arch, lr, opt, bs, wd, sched, fold, config.seed, aug_combo
                     )
                     
                     experiments.append(Experiment(

@@ -14,3 +14,4 @@ results
 *.pt
 Faster
 *.pdf
+automation/state/*.json

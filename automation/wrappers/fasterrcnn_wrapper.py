@@ -28,6 +28,10 @@ class FasterRCNNWrapper(BaseWrapper):
             model = self._build_resnet_model(experiment)
         
         best_model_path = "Faster/best.pth"
+        # TODO: Integrate metrics collection from ResultsDetections.py.
+        # The orchestrator infrastructure already collects and writes metrics,
+        # but the actual metric computation (mAP, precision, recall, etc.)
+        # needs to be connected here.
         return best_model_path, {}, architecture_type
     
     def _build_resnet_model(self, experiment: Experiment):
