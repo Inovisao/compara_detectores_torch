@@ -1,4 +1,4 @@
-experiment: yolov8_swin_faster
+experiment: yolov8_faster
 
 dataset:
   coco_json: dataset/all/train/_annotations.coco.json
@@ -22,7 +22,7 @@ detectors:
       imgsz: 640
 
   faster_rcnn:
-    architectures: [swin_base, resnet50]
+    architectures: [resnet50, resnet101]
     hparams:
       epochs: 30
       batch_size: 8

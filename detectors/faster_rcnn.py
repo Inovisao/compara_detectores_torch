@@ -21,7 +21,7 @@ class FasterRCNNDetector(Detector):
 
     @classmethod
     def architectures(cls) -> list[str]:
-        return ["resnet50", "resnet101", "swin_tiny", "swin_small", "swin_base"]
+        return ["resnet50", "resnet101"]
 
     @classmethod
     def default_hparams(cls) -> dict:
@@ -48,52 +48,12 @@ class FasterRCNNDetector(Detector):
                 "resnet101", weights=None
             )
             model.backbone = backbone
-        elif arch.startswith("swin_"):
-            backbone = self._build_swin_backbone(arch)
-            model = torchvision.models.detection.FasterRCNN(
-                backbone, num_classes=nc
-            )
         else:
             raise ValueError(f"Unknown architecture: {arch}")
 
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, nc)
         return model
-
-    def _build_swin_backbone(self, arch: str):
-        import timm
-        from torchvision.ops.feature_pyramid_network import FeaturePyramidNetwork, LastLevelMaxPool
-
-        variant_map = {
-            "swin_tiny": "swin_tiny_patch4_window7_224",
-            "swin_small": "swin_small_patch4_window7_224",
-            "swin_base": "swin_base_patch4_window7_224",
-        }
-        swin = timm.create_model(
-            variant_map[arch],
-            features_only=True,
-            out_indices=(0, 1, 2, 3),
-            pretrained=True,
-        )
-        swin.eval()
-
-        return_channels = swin.feature_info.channels()
-        in_channels_list = [return_channels[i] for i in range(4)]
-        fpn = FeaturePyramidNetwork(in_channels_list, 256, extra_blocks=LastLevelMaxPool())
-
-        class SwinBackboneWithFPN(torch.nn.Module):
-            def __init__(self, swin, fpn):
-                super().__init__()
-                self.body = swin
-                self.fpn = fpn
-                self.out_channels = 256
-
-            def forward(self, x):
-                feats = self.body(x)
-                named = {str(i): f for i, f in enumerate(feats)}
-                return self.fpn(named)
-
-        return SwinBackboneWithFPN(swin, fpn)
 
     def train(self, train_loader, val_loader, config: dict, output_dir: Path) -> Path:
         self._arch = config["architecture"]
