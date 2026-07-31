@@ -1,0 +1,13 @@
+{
+  "experiment_name": "javalis_detection_v1",
+  "total_experiments": 1,
+  "completed": [],
+  "failed": [
+    {
+      "id": "YOLOV8_yolov8s_lr0.001_AdamW_bs32_cosine__fold1_seed42",
+      "status": "failed",
+      "error": "[Errno 2] No such file or directory: '../dataset/all/train/_annotations.coco.json'",
+      "timestamp": "2026-07-30T21:59:26.457951"
+    }
+  ]
+}

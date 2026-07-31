@@ -1,0 +1,16 @@
+[
+  {
+    "experiment_id": "YOLOV8_yolov8s_lr0.001_AdamW_bs32_cosine__fold1_seed42",
+    "model": "YOLOV8",
+    "architecture": "yolov8s",
+    "learning_rate": 0.001,
+    "optimizer": "AdamW",
+    "batch_size": 32,
+    "weight_decay": 0.0005,
+    "scheduler": "cosine",
+    "epochs": 1,
+    "patience": 1,
+    "fold": 1,
+    "seed": 42
+  }
+]

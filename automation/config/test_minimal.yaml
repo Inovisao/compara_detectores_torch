@@ -1,0 +1,27 @@
+experiment_name: "test_minimal"
+seed: 42
+
+dataset:
+  coco_json: "../anotacoes_andre_08.06.2026/Anotacao_Javalis_Coco_Json/annotations.coco.json"
+  images_dir: "../anotacoes_andre_08.06.2026/Anotacao_Javalis_Coco_Json/images"
+  output_dir: "../dataset/all"
+
+folds:
+  n_folds: 1
+  val_percentage: 0.3
+
+models:
+  YOLOV8:
+    architectures: [yolov8s]
+    learning_rates: [0.001]
+    optimizers: [AdamW]
+    batch_sizes: [32]
+    weight_decays: [0.0005]
+    schedulers: [cosine]
+    epochs: [1]
+    patience: [1]
+    augmentations: {}
+
+execution:
+  dry_run: false
+  continue_on_error: true
