@@ -1,0 +1,26 @@
+[project]
+name = "compara-detectores"
+version = "0.2.0"
+description = "Config-driven benchmarking framework for object detectors"
+requires-python = ">=3.9"
+dependencies = [
+    "torch>=2.1",
+    "torchvision>=0.16",
+    "ultralytics>=8.2",
+    "PyYAML>=6.0",
+    "typer>=0.9",
+    "pycocotools>=2.0",
+    "torchmetrics>=1.6",
+    "albumentations>=1.4",
+    "scikit-learn>=1.6",
+    "pandas>=2.2",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+swin = ["timm>=0.9"]
+dev = ["matplotlib", "seaborn", "pytest"]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
