@@ -72,7 +72,7 @@ class FasterRCNNDetector(Detector):
         swin = timm.create_model(
             variant_map[arch],
             features_only=True,
-            out_indices=(1, 2, 3, 4),
+            out_indices=(0, 1, 2, 3),
             pretrained=True,
         )
         swin.eval()

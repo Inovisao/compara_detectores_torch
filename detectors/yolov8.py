@@ -40,12 +40,13 @@ class YOLOV8Detector(Detector):
             "workers": {"default": 8, "help": "(int) dataloader workers"},
         }
 
-    def _build_data_yaml(self, train_dir: str, val_dir: str, num_classes: int) -> str:
+    def _build_data_yaml(self, dataset_dir: str, num_classes: int) -> str:
         import os
+        root = os.path.abspath(dataset_dir)
         data = {
-            "path": os.path.abspath(train_dir).rsplit("/", 1)[0],
-            "train": os.path.abspath(train_dir),
-            "val": os.path.abspath(val_dir),
+            "path": root,
+            "train": "images/train",
+            "val": "images/val",
             "names": {i: str(i) for i in range(num_classes)},
             "nc": num_classes,
         }
@@ -60,16 +61,16 @@ class YOLOV8Detector(Detector):
         img_size = config.get("imgsz", 640)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        train_img_dir = output_dir / "train_images"
-        val_img_dir = output_dir / "val_images"
-        train_label_dir = output_dir / "train_labels"
-        val_label_dir = output_dir / "val_labels"
-        for d in [train_img_dir, val_img_dir, train_label_dir, val_label_dir]:
+        train_img_dir = output_dir / "images" / "train"
+        val_img_dir = output_dir / "images" / "val"
+        train_lbl_dir = output_dir / "labels" / "train"
+        val_lbl_dir = output_dir / "labels" / "val"
+        for d in [train_img_dir, val_img_dir, train_lbl_dir, val_lbl_dir]:
             d.mkdir(parents=True, exist_ok=True)
 
         for loader, img_dir, lbl_dir in [
-            (train_loader, train_img_dir, train_label_dir),
-            (val_loader, val_img_dir, val_label_dir),
+            (train_loader, train_img_dir, train_lbl_dir),
+            (val_loader, val_img_dir, val_lbl_dir),
         ]:
             for images, targets in loader:
                 for img_tensor, target in zip(images, targets):
@@ -92,7 +93,7 @@ class YOLOV8Detector(Detector):
                             f.write(f"{int(label) - 1} {cx:.6f} {cy:.6f} {bw:.6f} {bh:.6f}\n")
 
         data_yaml = self._build_data_yaml(
-            str(train_img_dir), str(val_img_dir), num_classes
+            str(output_dir), num_classes
         )
 
         model = YOLO(f"{arch}.pt")
