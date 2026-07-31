@@ -1,0 +1,73 @@
+# automation/config/experiment.yaml
+experiment_name: "javalis_detection_v1"
+seed: 42
+
+dataset:
+  coco_json: "../anotacoes_andre_08.06.2026/Anotacao_Javalis_Coco_Json/annotations.coco.json"
+  images_dir: "../anotacoes_andre_08.06.2026/Anotacao_Javalis_Coco_Json/images"
+  output_dir: "../dataset/all"
+
+folds:
+  n_folds: 5
+  val_percentage: 0.3
+
+models:
+  YOLOV8:
+    architectures: [yolov8s, yolov8m]
+    learning_rates: [0.001, 0.0001, 0.00001]
+    optimizers: [AdamW, SGD]
+    batch_sizes: [32, 64]
+    weight_decays: [0.0005]
+    schedulers: [cosine]
+    epochs: [100]
+    patience: [50]
+    augmentations:
+      mosaic: [0.0, 1.0]
+      flipud: [0.0, 0.5]
+      degrees: [0.0, 10.0]
+  
+  Faster:
+    architectures: 
+      - resnet50
+      - resnet101
+      - swin_tiny
+      - swin_small
+    learning_rates: [0.001, 0.0001]
+    optimizers: [SGD, Adam]
+    batch_sizes: [8, 16]
+    weight_decays: [0.0005, 0.001]
+    schedulers: [step]
+    epochs: [30]
+    patience: [5]
+    augmentations:
+      horizontal_flip: [true, false]
+  
+  Detr:
+    architectures: [detr_resnet50, detr_resnet101]
+    learning_rates: [0.0001, 0.00001]
+    optimizers: [AdamW]
+    batch_sizes: [4, 8]
+    weight_decays: [0.0001]
+    schedulers: [multi_step]
+    epochs: [50]
+    patience: [10]
+    augmentations:
+      mosaic: [0.0]
+  
+  SwinDetector:
+    architectures: [swin_tiny, swin_small]
+    learning_rates: [0.0001, 0.00001]
+    optimizers: [AdamW]
+    batch_sizes: [4, 8]
+    weight_decays: [0.0001]
+    schedulers: [cosine]
+    epochs: [50]
+    patience: [10]
+    augmentations:
+      horizontal_flip: [true, false]
+
+execution:
+  dry_run: false
+  continue_on_error: true
+  retry_failed: false
+  log_level: INFO
