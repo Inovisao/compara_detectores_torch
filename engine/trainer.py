@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import csv
 import logging
+import os
 from pathlib import Path
+
+os.environ.setdefault("PYTORCH_NVML_BASED_CUDA_CHECK", "0")
 
 import torch
 from tqdm import tqdm

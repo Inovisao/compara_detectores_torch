@@ -5,7 +5,10 @@ from __future__ import annotations
 import itertools
 import json
 import logging
+import os
 from pathlib import Path
+
+os.environ.setdefault("PYTORCH_NVML_BASED_CUDA_CHECK", "0")
 
 from torch.utils.data import DataLoader
 

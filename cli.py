@@ -3,6 +3,10 @@
 
 from __future__ import annotations
 
+import os
+
+os.environ.setdefault("PYTORCH_NVML_BASED_CUDA_CHECK", "0")
+
 import json
 import logging
 from pathlib import Path
