@@ -12,9 +12,9 @@ def get_train_transforms(img_size: int = 640) -> A.Compose:
             ToTensorV2(),
         ],
         bbox_params=A.BboxParams(
-            format="coco",
+            format="pascal_voc",
             label_fields=["labels"],
-            min_visibility=0.3,
+            min_visibility=0.0,
         ),
     )
 
@@ -26,8 +26,8 @@ def get_val_transforms(img_size: int = 640) -> A.Compose:
             ToTensorV2(),
         ],
         bbox_params=A.BboxParams(
-            format="coco",
+            format="pascal_voc",
             label_fields=["labels"],
-            min_visibility=0.3,
+            min_visibility=0.0,
         ),
     )

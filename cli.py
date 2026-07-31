@@ -111,5 +111,17 @@ def train(
     typer.echo("Training complete.")
 
 
+@app.command()
+def eval_cmd(
+    detector: str = typer.Option(..., "--detector", "-d"),
+    weights: Path = typer.Option(..., "--weights", "-w", help="Path to best.pth checkpoint"),
+    config_path: Optional[Path] = typer.Option(None, "--config", "-c"),
+    fold: int = typer.Option(1, "--fold", "-f", help="Fold index (1-based)"),
+    iou: float = typer.Option(0.2, "--iou", help="IoU threshold for classification matching"),
+):
+    """Evaluate a trained detector checkpoint on its test fold."""
+    typer.echo("Eval not yet implemented — will be added in a later task.")
+
+
 if __name__ == "__main__":
     app()

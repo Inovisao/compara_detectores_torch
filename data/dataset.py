@@ -26,6 +26,11 @@ class COCODataset(torch.utils.data.Dataset):
         if image_ids is not None:
             self.images = {k: v for k, v in self.images.items() if k in image_ids}
 
+        missing = [img_id for img_id, info in self.images.items()
+                   if not (self.images_dir / info["file_name"]).exists()]
+        for img_id in missing:
+            del self.images[img_id]
+
         self._anns_by_image: dict[int, list] = {}
         for ann in coco["annotations"]:
             img_id = ann["image_id"]
@@ -44,6 +49,7 @@ class COCODataset(torch.utils.data.Dataset):
 
         image = cv2.imread(str(self.images_dir / img_info["file_name"]))
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = image.astype("float32") / 255.0
 
         anns = self._anns_by_image.get(img_id, [])
         boxes = []
