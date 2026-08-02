@@ -32,3 +32,9 @@ def test_continuation_config_disables_yolo():
     assert config["resume"] is True
     assert config["detectors"]["yolov8"] is None
     assert config["detectors"]["faster_rcnn"]["hparams"]["batch_size"] == 1
+
+
+def test_cuda_allocator_config_avoids_expandable_segments():
+    from cli import CUDA_ALLOCATOR_CONFIG
+
+    assert "expandable_segments" not in CUDA_ALLOCATOR_CONFIG

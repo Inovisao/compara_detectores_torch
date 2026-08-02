@@ -6,8 +6,9 @@ from __future__ import annotations
 import os
 
 os.environ.setdefault("PYTORCH_NVML_BASED_CUDA_CHECK", "0")
+CUDA_ALLOCATOR_CONFIG = "max_split_size_mb:128"
 os.environ.setdefault(
-    "PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True,max_split_size_mb:128"
+    "PYTORCH_CUDA_ALLOC_CONF", CUDA_ALLOCATOR_CONFIG
 )
 
 import json
