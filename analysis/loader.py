@@ -22,19 +22,18 @@ METRICS = [
 
 def normalize_results(frame: pd.DataFrame) -> pd.DataFrame:
     result = frame.copy()
-    legacy_detector = "detector" not in result and "ml" in result
-    if "detector" not in result and "ml" in result:
-        result["detector"] = result["ml"]
+    detector_missing = "detector" not in result
+    if detector_missing:
+        result["detector"] = result["ml"] if "ml" in result else "unknown"
     if "architecture" not in result:
         result["architecture"] = result.get("detector", "unknown")
     if "fold" not in result:
         result["fold"] = "unknown"
-    if legacy_detector:
+    result["model_id"] = (
+        result["detector"].astype(str) + "/" + result["architecture"].astype(str)
+    )
+    if detector_missing and "ml" in frame:
         result["model_id"] = result["detector"].astype(str)
-    else:
-        result["model_id"] = (
-            result["detector"].astype(str) + "/" + result["architecture"].astype(str)
-        )
     for metric in METRICS:
         if metric in result:
             result[metric] = pd.to_numeric(result[metric], errors="coerce")
@@ -56,9 +55,9 @@ def _metadata_from_path(relative_path: Path) -> Dict[str, str]:
     return {"detector": detector, "architecture": architecture, "fold": fold}
 
 
-def _load_json_results(results_dir: Path) -> pd.DataFrame:
+def _load_json_results(results_dir: Path, paths: List[Path]) -> pd.DataFrame:
     rows: List[Dict[str, Any]] = []
-    for path in sorted(results_dir.rglob("metrics.json")):
+    for path in paths:
         with path.open(encoding="utf-8") as handle:
             metrics = json.load(handle)
         if not isinstance(metrics, dict):
@@ -73,11 +72,17 @@ def load_results(results_dir: Path) -> pd.DataFrame:
     results_dir = Path(results_dir)
     summary_path = results_dir / "summary.csv"
     if summary_path.is_file():
-        return normalize_results(pd.read_csv(summary_path))
+        try:
+            summary = pd.read_csv(summary_path)
+        except (pd.errors.EmptyDataError, pd.errors.ParserError, UnicodeDecodeError):
+            summary = None
+        if summary is not None and not summary.empty and len(summary.columns) > 0:
+            return normalize_results(summary)
 
-    if any(results_dir.rglob("metrics.json")):
-        return _load_json_results(results_dir)
+    json_paths = sorted(results_dir.rglob("metrics.json"))
+    if json_paths:
+        return _load_json_results(results_dir, json_paths)
 
     raise FileNotFoundError(
-        "No summary.csv or metrics.json found in results directory: %s" % results_dir
+        "No usable results source found in results directory: %s" % results_dir
     )
