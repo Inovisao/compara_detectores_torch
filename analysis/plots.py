@@ -83,4 +83,37 @@ def create_plots(frame: pd.DataFrame, output_dir: Path) -> List[Path]:
         plt.close(figure)
         created.append(path)
 
+        classification = [item for item in usable if item[0] in {"precision", "recall", "f1"}]
+        if classification:
+            models = []
+            for _, labels, _ in classification:
+                for label in labels:
+                    if label not in models:
+                        models.append(label)
+            figure, axis = plt.subplots(figsize=(8, 4))
+            width = 0.8 / len(classification)
+            positions = list(range(len(models)))
+            for index, (metric, labels, means) in enumerate(classification):
+                by_model = dict(zip(labels, means))
+                offsets = [position + index * width for position in positions]
+                axis.bar(
+                    offsets,
+                    [by_model.get(model, float("nan")) for model in models],
+                    width,
+                    label=metric,
+                )
+            axis.set_title("Classification metrics by model")
+            axis.set_xlabel("Model")
+            axis.set_ylabel("Mean value")
+            axis.set_xticks(
+                [position + width * (len(classification) - 1) / 2 for position in positions]
+            )
+            axis.set_xticklabels(models)
+            axis.legend()
+            figure.tight_layout()
+            path = output_dir / "classification_metrics.png"
+            figure.savefig(path, dpi=150)
+            plt.close(figure)
+            created.append(path)
+
     return created

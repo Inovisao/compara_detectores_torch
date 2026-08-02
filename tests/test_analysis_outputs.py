@@ -13,6 +13,9 @@ def test_outputs_charts_and_report(tmp_path: Path):
             "fold": [1, 2, 1, 2],
             "mAP": [0.4, 0.6, 0.7, 0.8],
             "MAE": [4.0, 3.0, 2.0, 1.0],
+            "precision": [0.5, 0.6, 0.7, 0.8],
+            "recall": [0.6, 0.7, 0.8, 0.9],
+            "f1": [0.55, 0.65, 0.75, 0.85],
         }
     )
     charts = create_plots(frame, tmp_path / "charts")
@@ -20,6 +23,7 @@ def test_outputs_charts_and_report(tmp_path: Path):
     assert any(path.name == "boxplot_map.png" for path in charts)
     assert any(path.name == "boxplot_mae.png" for path in charts)
     assert any(path.name == "metric_means.png" for path in charts)
+    assert any(path.name == "classification_metrics.png" for path in charts)
     assert all(path.is_file() for path in charts)
 
     report = tmp_path / "findings.md"
@@ -34,6 +38,10 @@ def test_outputs_charts_and_report(tmp_path: Path):
     assert "## Charts" in content
     assert "higher is better" in content
     assert "lower is better" in content
+    assert "mAP50" in content
+    assert "mAP50 column is absent" in content
+    assert "](/" not in content
+    assert "](charts/boxplot_map.png)" in content
 
 
 def test_outputs_skip_empty_metrics_and_warn_about_missing_data(tmp_path: Path):

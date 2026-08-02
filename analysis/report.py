@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import Iterable
+import os
 
 import pandas as pd
 
@@ -49,7 +50,18 @@ def write_report(
             "- Rows: %d" % len(frame),
             "- Models: %d" % frame["model_id"].nunique() if "model_id" in frame else "- Models: N/A",
             "- Folds: %d" % frame["fold"].nunique() if "fold" in frame else "- Folds: N/A",
+            "- Expected metrics: %s" % ", ".join(METRICS),
             "- Metrics found: %s" % (", ".join(metrics) if metrics else "none"),
+            "",
+            "Metric availability:",
+        ]
+    )
+    lines.extend(
+        "- %s: %s" % (metric, "present" if metric in frame.columns else "absent")
+        for metric in METRICS
+    )
+    lines.extend(
+        [
             "",
             "## Best Models Per Metric",
             "",
@@ -67,7 +79,10 @@ def write_report(
     lines.extend(_rows(stability, ["model_id", "metric", "count", "std", "iqr"]))
     lines.extend(["", "## Warnings", ""])
     warnings = []
-    for metric in metrics:
+    for metric in METRICS:
+        if metric not in frame.columns:
+            warnings.append("- %s column is absent from the input results." % metric)
+            continue
         values = pd.to_numeric(frame[metric], errors="coerce")
         missing = int(values.isna().sum())
         if missing:
@@ -79,7 +94,10 @@ def write_report(
             warnings.append("- Model %s is missing fold(s): %s." % (row["model_id"], _value(row.get("missing_folds"))))
     lines.extend(warnings or ["No missing-data warnings were generated."])
     lines.extend(["", "No statistical significance claims are made; results are descriptive and based on the available folds.", "", "## Charts", ""])
-    lines.extend("- [%s](%s)" % (path.name, path.as_posix()) for path in chart_paths)
+    for path in chart_paths:
+        chart_path = Path(path)
+        link = os.path.relpath(chart_path, output_path.parent) if chart_path.is_absolute() else chart_path.as_posix()
+        lines.append("- [%s](%s)" % (chart_path.name, Path(link).as_posix()))
     if not chart_paths:
         lines.append("No charts were created because no metric had usable data.")
     output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
