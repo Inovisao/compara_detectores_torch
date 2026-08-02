@@ -43,6 +43,19 @@ def test_statistics_ignore_missing_values_and_unknown_columns():
     assert "not_a_metric" not in set(result["metric"])
 
 
+def test_statistics_preserve_all_missing_model_metric_combination():
+    frame = pd.DataFrame(
+        {"model_id": ["c", "c"], "fold": [1, 2], "mAP": [None, None]}
+    )
+
+    result = descriptive_statistics(frame)
+    row = result[(result.model_id == "c") & (result.metric == "mAP")].iloc[0]
+
+    assert row["count"] == 0
+    assert pd.isna(row["mean"])
+    assert pd.isna(row["iqr"])
+
+
 def test_error_metric_is_ranked_lower_is_better():
     result = model_ranking(sample_results())
     mae = result[result.metric == "MAE"].sort_values("rank")
@@ -75,3 +88,14 @@ def test_fold_completeness_infers_observed_fold_set_when_unspecified():
 
     assert set(result["missing_folds"][0]) == set()
     assert result["complete"].all()
+
+
+def test_fold_completeness_normalizes_numeric_string_folds():
+    frame = pd.DataFrame(
+        {"model_id": ["a", "a", "b", "b"], "fold": ["1", "2", 1, 2]}
+    )
+
+    result = fold_completeness(frame, expected_folds=2).set_index("model_id")
+
+    assert result.loc["a", "missing_folds"] == []
+    assert result.loc["a", "complete"]

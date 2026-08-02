@@ -30,7 +30,7 @@ def _metric_frame(frame: pd.DataFrame) -> pd.DataFrame:
         id_vars=["model_id"], var_name="metric", value_name="value"
     )
     values["value"] = pd.to_numeric(values["value"], errors="coerce")
-    return values.dropna(subset=["value"])
+    return values
 
 
 def descriptive_statistics(frame: pd.DataFrame) -> pd.DataFrame:
@@ -42,7 +42,7 @@ def descriptive_statistics(frame: pd.DataFrame) -> pd.DataFrame:
 
     rows = []
     for (model_id, metric), group in values.groupby(["model_id", "metric"], sort=False):
-        series = group["value"]
+        series = group["value"].dropna()
         q1 = series.quantile(0.25)
         q3 = series.quantile(0.75)
         rows.append(
@@ -65,7 +65,7 @@ def descriptive_statistics(frame: pd.DataFrame) -> pd.DataFrame:
 
 def model_ranking(frame: pd.DataFrame) -> pd.DataFrame:
     """Rank model means and provide an overall direction-normalized score."""
-    values = _metric_frame(frame)
+    values = _metric_frame(frame).dropna(subset=["value"])
     columns = ["model_id", "metric", "mean", "rank", "normalized_score", "overall_score"]
     if values.empty:
         return pd.DataFrame(columns=columns)
@@ -131,6 +131,8 @@ def _fold_key(value) -> object:
         suffix = text[5:]
         if suffix.isdigit():
             return int(suffix)
+    if text.isdigit():
+        return int(text)
     return value
 
 

@@ -99,3 +99,52 @@ missing `cv2` and `sklearn`.
   min-max normalization has no distinguishing range.
 - Explicit `expected_folds=N` represents the conventional fold identifiers
   `1..N`; labels such as `fold_1` are normalized to the corresponding integer.
+
+## Review Fix Report
+
+### Status
+
+Fixed both Task 2 review findings.
+
+- `_metric_frame` now preserves every model/metric combination after numeric
+  coercion. Descriptive statistics emits an all-missing row with count `0`
+  and NaN statistics instead of dropping the combination. Ranking continues to
+  exclude missing observations from score calculations.
+- `_fold_key` now normalizes numeric strings such as `"1"` to integer fold
+  identifiers, in addition to the existing `fold_1` form.
+
+### Added Regression Tests
+
+- `test_statistics_preserve_all_missing_model_metric_combination`
+- `test_fold_completeness_normalizes_numeric_string_folds`
+
+### Verification
+
+```text
+$ pytest tests/test_analysis_statistics.py -q
+........                                                                 [100%]
+8 passed in 0.18s
+```
+
+```text
+$ pytest tests/test_analysis_loader.py tests/test_analysis_statistics.py -q
+....................                                                     [100%]
+20 passed in 0.20s
+```
+
+```text
+$ /home/maxfukui/miniconda3/envs/compara_detectores/bin/python -m py_compile analysis/statistics.py tests/test_analysis_statistics.py
+```
+
+Completed with exit code 0 and no output.
+
+```text
+$ git diff --check
+```
+
+Completed with exit code 0 and no output before the fix commit.
+
+### Concerns
+
+- The full repository suite remains blocked by the pre-existing environment
+  omissions of `cv2` and `sklearn`.
