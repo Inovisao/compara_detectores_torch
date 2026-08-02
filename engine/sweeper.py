@@ -6,6 +6,7 @@ import itertools
 import json
 import logging
 import os
+import gc
 from pathlib import Path
 
 os.environ.setdefault("PYTORCH_NVML_BASED_CUDA_CHECK", "0")
@@ -27,6 +28,20 @@ def _is_list(v):
 
 def _collate_fn(batch):
     return tuple(zip(*batch))
+
+
+def experiment_output_dir(output_root: Path, experiment: dict) -> Path:
+    return (
+        output_root
+        / experiment["experiment"]
+        / f"fold_{experiment['fold'] + 1}"
+        / experiment["architecture"]
+        / experiment["combo_name"]
+    )
+
+
+def is_experiment_complete(output_dir: Path) -> bool:
+    return (output_dir / "best.pth").exists() and (output_dir / "metrics.json").exists()
 
 
 def generate_experiment_grid(config: dict) -> list[dict]:
@@ -113,7 +128,8 @@ def run_sweep(experiments: list[dict], config: dict) -> None:
         n_folds, config["folds"]["val_ratio"], base_seed,
     )
 
-    output_dir = Path(config["output_dir"]) / config.get("experiment", "sweep")
+    output_root = Path(config["output_dir"])
+    resume = config.get("resume", True)
 
     for exp in experiments:
         det_name = exp["detector"]
@@ -125,7 +141,10 @@ def run_sweep(experiments: list[dict], config: dict) -> None:
         hps["device"] = config.get("device", "cuda")
         img_size = hps.get("imgsz", 640)
 
-        fold_dir = output_dir / f"fold_{fi + 1}" / arch
+        fold_dir = experiment_output_dir(output_root, exp)
+        if resume and is_experiment_complete(fold_dir):
+            logger.info("Skipping completed experiment: %s", fold_dir)
+            continue
         fold_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"[{det_name}/{arch}] Fold {fi + 1}/{n_folds}")
 
@@ -134,24 +153,34 @@ def run_sweep(experiments: list[dict], config: dict) -> None:
         f = folds[fi]
         train_ds = COCODataset(coco_json, images_dir, f["train"], get_train_transforms(img_size))
         val_ds = COCODataset(coco_json, images_dir, f["val"], get_val_transforms(img_size))
-        train_loader = DataLoader(train_ds, batch_size=hps.get("batch_size", 8), shuffle=True, collate_fn=_collate_fn)
-        val_loader = DataLoader(val_ds, batch_size=hps.get("batch_size", 8), shuffle=False, collate_fn=_collate_fn)
+        workers = hps.get("workers", 0)
+        train_loader = DataLoader(train_ds, batch_size=hps.get("batch_size", 8), shuffle=True, num_workers=workers, pin_memory=False, collate_fn=_collate_fn)
+        val_loader = DataLoader(val_ds, batch_size=hps.get("batch_size", 8), shuffle=False, num_workers=workers, pin_memory=False, collate_fn=_collate_fn)
 
-        best_path = det_instance.train(train_loader, val_loader, hps, fold_dir)
+        try:
+            best_path = det_instance.train(train_loader, val_loader, hps, fold_dir)
 
-        test_ds = COCODataset(coco_json, images_dir, f["test"], get_val_transforms(img_size))
-        test_loader = DataLoader(test_ds, batch_size=1, shuffle=False, collate_fn=_collate_fn)
+            test_ds = COCODataset(coco_json, images_dir, f["test"], get_val_transforms(img_size))
+            test_loader = DataLoader(test_ds, batch_size=1, shuffle=False, num_workers=workers, pin_memory=False, collate_fn=_collate_fn)
 
-        det_instance.load(best_path)
-        metrics = evaluate_detector(det_instance, test_loader, classes)
+            det_instance.load(best_path)
+            metrics = evaluate_detector(det_instance, test_loader, classes)
 
-        save_metrics(metrics, fold_dir / "metrics.json")
-        append_csv_row(output_dir / "summary.csv", {
-            "detector": det_name,
-            "architecture": arch,
-            "fold": f"fold_{fi + 1}",
-            **{k: v for k, v in hps.items() if k not in ("architecture", "num_classes", "device")},
-            **metrics,
-        })
+            save_metrics(metrics, fold_dir / "metrics.json")
+            append_csv_row(output_root / config.get("experiment", "sweep") / "summary.csv", {
+                "detector": det_name,
+                "architecture": arch,
+                "fold": f"fold_{fi + 1}",
+                **{k: v for k, v in hps.items() if k not in ("architecture", "num_classes", "device")},
+                **metrics,
+            })
+        finally:
+            del det_instance, train_loader, val_loader
+            if "test_loader" in locals():
+                del test_loader
+            gc.collect()
+            if hps.get("device", "cuda").startswith("cuda"):
+                import torch
+                torch.cuda.empty_cache()
 
-    logger.info(f"Sweep complete. Results: {output_dir}")
+    logger.info(f"Sweep complete. Results: {output_root / config.get('experiment', 'sweep')}")

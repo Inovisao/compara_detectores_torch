@@ -25,3 +25,10 @@ def test_cli_overrides():
     config = load_config(cli_overrides={"experiment": "cli_test", "seed": 999})
     assert config["experiment"] == "cli_test"
     assert config["seed"] == 999
+
+
+def test_continuation_config_disables_yolo():
+    config = load_config("configs/sweeps/faster_rcnn_continue.yaml")
+    assert config["resume"] is True
+    assert config["detectors"]["yolov8"] is None
+    assert config["detectors"]["faster_rcnn"]["hparams"]["batch_size"] == 1

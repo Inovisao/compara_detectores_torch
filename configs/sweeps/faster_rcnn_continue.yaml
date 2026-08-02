@@ -1,0 +1,28 @@
+experiment: faster_rcnn_continue
+resume: true
+
+dataset:
+  coco_json: dataset/all/train/_annotations.coco.json
+  images_dir: dataset/all/train
+
+folds:
+  n_folds: 5
+  val_ratio: 0.2
+  seed: 42
+
+output_dir: results
+seed: 42
+
+detectors:
+  yolov8: ~
+  faster_rcnn:
+    architectures: [resnet50]
+    hparams:
+      epochs: 300
+      lr: [0.0001, 0.001]
+      batch_size: 1
+      optimizer: [SGD]
+      imgsz: 512
+      patience: 30
+      workers: 0
+  detr: ~
