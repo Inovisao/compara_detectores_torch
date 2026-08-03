@@ -40,6 +40,19 @@ def normalize_results(frame: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
+def _require_usable_metrics(frame: pd.DataFrame, source: Path) -> pd.DataFrame:
+    usable = []
+    for metric in METRICS:
+        if metric in frame.columns:
+            usable.append(frame[metric].notna())
+    if not usable or not pd.concat(usable, axis=1).any(axis=None):
+        raise ValueError(
+            "No usable metric data found in results source: %s; expected at least "
+            "one recognized metric with a numeric value" % source
+        )
+    return frame
+
+
 def _metadata_from_path(relative_path: Path) -> Dict[str, str]:
     parts = relative_path.parts[:-1]
     fold_index = next(
@@ -77,11 +90,13 @@ def load_results(results_dir: Path) -> pd.DataFrame:
         except (pd.errors.EmptyDataError, pd.errors.ParserError, UnicodeDecodeError):
             summary = None
         if summary is not None and not summary.empty and len(summary.columns) > 0:
-            return normalize_results(summary)
+            return _require_usable_metrics(normalize_results(summary), summary_path)
 
     json_paths = sorted(results_dir.rglob("metrics.json"))
     if json_paths:
-        return _load_json_results(results_dir, json_paths)
+        return _require_usable_metrics(
+            _load_json_results(results_dir, json_paths), results_dir
+        )
 
     raise FileNotFoundError(
         "No usable results source found in results directory: %s" % results_dir

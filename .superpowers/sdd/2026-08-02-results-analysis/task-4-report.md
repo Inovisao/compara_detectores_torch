@@ -19,3 +19,16 @@ Implemented the analysis pipeline and registered the `analyze` CLI command.
 - `python -m compileall -q analysis/pipeline.py cli.py`: passed with Python 3.13.12.
 - `python3.9 -m compileall ...`: not run because Python 3.9 is unavailable.
 - Repository-wide `pytest -q`: blocked during collection by missing pre-existing `cv2` and `sklearn` dependencies in unrelated tests.
+
+## Review Fixes
+
+- Loader validation now rejects non-empty CSV or JSON results with no recognized metric containing a numeric value.
+- The pipeline validates the output path before creating it and rejects output directories equal to or contained by the raw results directory.
+- The CLI catches input-related loader and pipeline errors, prints `Analysis failed: ...` to stderr, and exits nonzero.
+- Added integration coverage for output creation, expected-fold propagation, no-usable-data failures, CLI errors, and raw/output collisions.
+
+## Fix Verification
+
+- `pytest tests/test_analysis_loader.py tests/test_analysis_statistics.py tests/test_analysis_outputs.py -q`: 29 passed.
+- Synthetic CLI smoke analysis: passed; all requested artifacts created and raw input unchanged.
+- `python -m compileall -q analysis/loader.py analysis/pipeline.py cli.py`: passed with Python 3.13.12.

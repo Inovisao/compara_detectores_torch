@@ -264,7 +264,11 @@ def analyze(
     """Analyze detector results without changing the raw results."""
     from analysis.pipeline import run_analysis
 
-    paths = run_analysis(results_dir, output_dir, expected_folds)
+    try:
+        paths = run_analysis(results_dir, output_dir, expected_folds)
+    except (OSError, ValueError) as error:
+        typer.echo("Analysis failed: %s" % error, err=True)
+        raise typer.Exit(1)
     for name, path in paths.items():
         typer.echo("%s: %s" % (name, path))
 

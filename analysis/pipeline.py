@@ -15,10 +15,19 @@ def run_analysis(
     expected_folds: Optional[int] = None,
 ) -> Dict[str, Path]:
     """Load results and write analysis tables, charts, and findings."""
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    results_dir = Path(results_dir).resolve()
+    output_dir = Path(output_dir).resolve()
+    try:
+        output_dir.relative_to(results_dir)
+    except ValueError:
+        pass
+    else:
+        raise ValueError(
+            "output directory must not be equal to or inside results directory"
+        )
 
-    frame = load_results(Path(results_dir))
+    frame = load_results(results_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
     stats = descriptive_statistics(frame)
     rankings = model_ranking(frame)
     completeness = fold_completeness(frame, expected_folds)
