@@ -99,3 +99,20 @@ def test_fold_completeness_normalizes_numeric_string_folds():
 
     assert result.loc["a", "missing_folds"] == []
     assert result.loc["a", "complete"]
+
+
+def test_duplicate_model_fold_observations_are_excluded_from_statistics():
+    frame = pd.DataFrame(
+        {
+            "model_id": ["a", "a", "a"],
+            "fold": [1, 1, 2],
+            "mAP": [0.4, 0.9, 0.6],
+            "duplicate_observation": [True, True, False],
+        }
+    )
+
+    result = descriptive_statistics(frame)
+    row = result[(result.model_id == "a") & (result.metric == "mAP")].iloc[0]
+
+    assert row["count"] == 2
+    assert row["mean"] == pytest.approx(0.5)

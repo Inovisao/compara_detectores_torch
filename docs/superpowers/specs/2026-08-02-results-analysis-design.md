@@ -12,10 +12,12 @@ Add a reproducible CLI-driven data science analysis for detector results. The an
 ```bash
 python cli.py analyze \
   --results results/yolov8_faster \
-  --output results/yolov8_faster/analysis
+  --output analysis/yolov8_faster
 ```
 
 The command is read-only with respect to raw result files.
+The output directory must be outside the raw results directory so generated files
+cannot be discovered as input results on a later run.
 
 ## Input Data
 

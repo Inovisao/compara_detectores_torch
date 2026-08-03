@@ -79,6 +79,19 @@ def write_report(
     lines.extend(_rows(stability, ["model_id", "metric", "count", "std", "iqr"]))
     lines.extend(["", "## Warnings", ""])
     warnings = []
+    if "duplicate_observation" in frame.columns:
+        duplicate_rows = int(frame["duplicate_observation"].fillna(False).sum())
+        if duplicate_rows:
+            duplicate_groups = int(
+                frame.loc[frame["duplicate_observation"], ["model_id", "fold"]]
+                .drop_duplicates()
+                .shape[0]
+            )
+            warnings.append(
+                "- %d duplicate model/fold observation row(s) detected across %d "
+                "model/fold group(s); duplicates were excluded from aggregate statistics."
+                % (duplicate_rows, duplicate_groups)
+            )
     for metric in METRICS:
         if metric not in frame.columns:
             warnings.append("- %s column is absent from the input results." % metric)

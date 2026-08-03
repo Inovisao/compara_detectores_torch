@@ -95,6 +95,54 @@ def test_run_analysis_rejects_output_inside_raw_results(tmp_path: Path, output_n
         run_analysis(results_dir, tmp_path / output_name)
 
 
+def test_run_analysis_flags_duplicate_model_fold_observations(tmp_path: Path):
+    results_dir = tmp_path / "results"
+    output_dir = tmp_path / "analysis"
+    results_dir.mkdir()
+    pd.DataFrame(
+        {
+            "detector": ["yolo", "yolo", "yolo"],
+            "architecture": ["s", "s", "s"],
+            "fold": [1, 1, 2],
+            "mAP": [0.4, 0.9, 0.6],
+        }
+    ).to_csv(results_dir / "summary.csv", index=False)
+
+    paths = run_analysis(results_dir, output_dir)
+
+    normalized = pd.read_csv(paths["normalized_results"])
+    assert normalized["duplicate_observation"].tolist() == [True, True, False]
+    stats = pd.read_csv(paths["descriptive_statistics"])
+    row = stats[(stats.model_id == "yolo/s") & (stats.metric == "mAP")].iloc[0]
+    assert row["count"] == 2
+    assert row["mean"] == pytest.approx(0.5)
+    assert "duplicate model/fold observation" in paths["findings"].read_text()
+
+
+def test_many_model_boxplot_labels_are_wrapped_or_rotated(tmp_path: Path, monkeypatch):
+    from analysis import plots
+
+    captured = []
+    original = plots.plt.Axes.set_xticklabels
+
+    def capture(axis, labels, *args, **kwargs):
+        captured.append((list(labels), kwargs.get("rotation", 0)))
+        return original(axis, labels, *args, **kwargs)
+
+    monkeypatch.setattr(plots.plt.Axes, "set_xticklabels", capture)
+    frame = pd.DataFrame(
+        {
+            "model_id": ["detector/architecture/config_%d" % i for i in range(12)],
+            "fold": list(range(12)),
+            "mAP": [0.4 + i / 100 for i in range(12)],
+        }
+    )
+
+    create_plots(frame, tmp_path / "charts")
+
+    assert any(rotation or any("\n" in label for label in labels) for labels, rotation in captured)
+
+
 def test_outputs_charts_and_report(tmp_path: Path):
     frame = pd.DataFrame(
         {

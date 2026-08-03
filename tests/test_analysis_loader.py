@@ -70,6 +70,19 @@ def test_falls_back_to_json_for_malformed_summary_csv(tmp_path: Path):
     assert result.loc[0, "fold"] == "fold_4"
 
 
+def test_falls_back_to_json_when_summary_has_no_numeric_metrics(tmp_path: Path):
+    pd.DataFrame({"detector": ["yolo"], "architecture": ["s"], "mAP": ["invalid"]}).to_csv(
+        tmp_path / "summary.csv", index=False
+    )
+    run = tmp_path / "fold_5" / "s" / "yolo_s"
+    run.mkdir(parents=True)
+    (run / "metrics.json").write_text('{"mAP": 0.95}')
+
+    result = load_results(tmp_path)
+
+    assert result.loc[0, "mAP"] == 0.95
+
+
 def test_normalizes_missing_identity_columns_to_unknown():
     result = normalize_results(pd.DataFrame({"mAP": ["0.5"]}))
 
@@ -106,6 +119,20 @@ def test_preserves_multiple_json_folds(tmp_path: Path):
 
     assert set(result["fold"]) == {"fold_1", "fold_2"}
     assert set(result["mAP"]) == {0.4, 0.6}
+
+
+def test_infers_sweep_detector_architecture_and_combo_from_json_path(tmp_path: Path):
+    run = tmp_path / "fold_1" / "yolov8s" / "YOLOV8_yolov8s_lr=0.01"
+    run.mkdir(parents=True)
+    (run / "metrics.json").write_text('{"mAP": 0.7}')
+
+    result = load_results(tmp_path)
+
+    row = result.iloc[0]
+    assert row["detector"] == "YOLOV8"
+    assert row["architecture"] == "yolov8s"
+    assert row["config"] == "YOLOV8_yolov8s_lr=0.01"
+    assert row["model_id"] == "YOLOV8/yolov8s/YOLOV8_yolov8s_lr=0.01"
 
 
 def test_raises_clear_error_when_no_usable_source(tmp_path: Path):

@@ -47,7 +47,7 @@ def create_plots(frame: pd.DataFrame, output_dir: Path) -> List[Path]:
 
         figure, axis = plt.subplots(figsize=(7, 4))
         axis.boxplot(grouped)
-        axis.set_xticklabels(labels)
+        axis.set_xticklabels(labels, rotation=45 if len(labels) > 5 else 0, ha="right")
         axis.set_title("%s by model and fold" % metric)
         axis.set_xlabel("Model")
         axis.set_ylabel(metric)
@@ -75,7 +75,7 @@ def create_plots(frame: pd.DataFrame, output_dir: Path) -> List[Path]:
         axis.set_xlabel("Model")
         axis.set_ylabel("Mean value")
         axis.set_xticks([position + width * (len(usable) - 1) / 2 for position in positions])
-        axis.set_xticklabels(models)
+        axis.set_xticklabels(models, rotation=45 if len(models) > 5 else 0, ha="right")
         axis.legend()
         figure.tight_layout()
         path = output_dir / "metric_means.png"
@@ -108,7 +108,7 @@ def create_plots(frame: pd.DataFrame, output_dir: Path) -> List[Path]:
             axis.set_xticks(
                 [position + width * (len(classification) - 1) / 2 for position in positions]
             )
-            axis.set_xticklabels(models)
+            axis.set_xticklabels(models, rotation=45 if len(models) > 5 else 0, ha="right")
             axis.legend()
             figure.tight_layout()
             path = output_dir / "classification_metrics.png"

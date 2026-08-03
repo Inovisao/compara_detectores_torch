@@ -32,11 +32,22 @@ def normalize_results(frame: pd.DataFrame) -> pd.DataFrame:
     result["model_id"] = (
         result["detector"].astype(str) + "/" + result["architecture"].astype(str)
     )
+    if "config" in result:
+        has_config = result["config"].notna() & result["config"].astype(str).ne("")
+        result.loc[has_config, "model_id"] = (
+            result.loc[has_config, "model_id"]
+            + "/"
+            + result.loc[has_config, "config"].astype(str)
+        )
     if detector_missing and "ml" in frame:
         result["model_id"] = result["detector"].astype(str)
     for metric in METRICS:
         if metric in result:
             result[metric] = pd.to_numeric(result[metric], errors="coerce")
+    duplicate_key = result["model_id"].astype(str) + "\x00" + result["fold"].astype(str)
+    duplicate_count = duplicate_key.groupby(duplicate_key).transform("size")
+    result["duplicate_observation"] = duplicate_count.gt(1)
+    result["duplicate_count"] = duplicate_count.astype(int)
     return result
 
 
@@ -63,9 +74,16 @@ def _metadata_from_path(relative_path: Path) -> Dict[str, str]:
         return {"detector": "unknown", "architecture": "unknown", "fold": "unknown"}
 
     fold = parts[fold_index]
-    detector = parts[fold_index - 1] if fold_index else "unknown"
-    architecture = parts[fold_index + 1] if fold_index + 1 < len(parts) else detector
-    return {"detector": detector, "architecture": architecture, "fold": fold}
+    architecture = parts[fold_index + 1] if fold_index + 1 < len(parts) else "unknown"
+    config = parts[fold_index + 2] if fold_index + 2 < len(parts) else ""
+    if config:
+        detector = config.split("_", 1)[0]
+    else:
+        detector = parts[fold_index - 1] if fold_index else "unknown"
+    metadata = {"detector": detector, "architecture": architecture, "fold": fold}
+    if config:
+        metadata["config"] = config
+    return metadata
 
 
 def _load_json_results(results_dir: Path, paths: List[Path]) -> pd.DataFrame:
@@ -84,19 +102,26 @@ def _load_json_results(results_dir: Path, paths: List[Path]) -> pd.DataFrame:
 def load_results(results_dir: Path) -> pd.DataFrame:
     results_dir = Path(results_dir)
     summary_path = results_dir / "summary.csv"
+    summary_error = None
     if summary_path.is_file():
         try:
             summary = pd.read_csv(summary_path)
         except (pd.errors.EmptyDataError, pd.errors.ParserError, UnicodeDecodeError):
             summary = None
         if summary is not None and not summary.empty and len(summary.columns) > 0:
-            return _require_usable_metrics(normalize_results(summary), summary_path)
+            try:
+                return _require_usable_metrics(normalize_results(summary), summary_path)
+            except ValueError as error:
+                summary_error = error
 
     json_paths = sorted(results_dir.rglob("metrics.json"))
     if json_paths:
         return _require_usable_metrics(
             _load_json_results(results_dir, json_paths), results_dir
         )
+
+    if summary_error is not None:
+        raise summary_error
 
     raise FileNotFoundError(
         "No usable results source found in results directory: %s" % results_dir

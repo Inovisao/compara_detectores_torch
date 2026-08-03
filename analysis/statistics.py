@@ -22,6 +22,10 @@ _STAT_COLUMNS = [
 
 
 def _metric_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    if {"model_id", "fold"}.issubset(frame.columns):
+        # Keep the first row for each observation key while the normalized output
+        # and report retain the duplicate flag for auditability.
+        frame = frame.drop_duplicates(subset=["model_id", "fold"], keep="first")
     metric_columns = [metric for metric in METRICS if metric in frame.columns]
     if not metric_columns:
         return pd.DataFrame(columns=["model_id", "metric", "value"])
