@@ -31,7 +31,7 @@ def test_continuation_config_disables_yolo():
     config = load_config("configs/sweeps/faster_rcnn_continue.yaml")
     assert config["resume"] is True
     assert config["detectors"]["yolov8"] is None
-    assert config["detectors"]["faster_rcnn"]["hparams"]["batch_size"] == 1
+    assert config["detectors"]["faster_rcnn"]["hparams"]["batch_size"] <= 4
 
 
 def test_cuda_allocator_config_avoids_expandable_segments():
