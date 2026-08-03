@@ -1,9 +1,17 @@
 from pathlib import Path
 
 import pandas as pd
+from typer.testing import CliRunner
 
 from analysis.plots import create_plots
 from analysis.report import write_report
+from cli import app
+
+
+def test_analyze_command_is_registered():
+    result = CliRunner().invoke(app, ["analyze", "--help"])
+    assert result.exit_code == 0
+    assert "--results" in result.stdout
 
 
 def test_outputs_charts_and_report(tmp_path: Path):

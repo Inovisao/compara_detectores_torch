@@ -17,16 +17,8 @@ from pathlib import Path
 from typing import Optional
 
 import typer
-from torch.utils.data import DataLoader
 
 from utils.logging import setup_logging
-from utils.config import load_config, dump_commented_config
-from utils.folds import split_folds
-from data.dataset import COCODataset
-from data.transforms import get_train_transforms, get_val_transforms
-from detectors import DETECTOR_REGISTRY
-from engine.evaluator import evaluate_detector, save_metrics, append_csv_row
-from engine.sweeper import generate_experiment_grid, run_sweep
 
 app = typer.Typer()
 logger = logging.getLogger(__name__)
@@ -48,6 +40,14 @@ def train(
     seed: Optional[int] = typer.Option(None, "--seed", help="Random seed override"),
 ):
     """Train a single detector architecture."""
+    from torch.utils.data import DataLoader
+
+    from data.dataset import COCODataset
+    from data.transforms import get_train_transforms, get_val_transforms
+    from detectors import DETECTOR_REGISTRY
+    from utils.config import load_config
+    from utils.folds import split_folds
+
     setup_logging("INFO")
 
     cli_overrides = {"seed": seed} if seed is not None else {}
@@ -126,6 +126,15 @@ def eval_cmd(
     iou: float = typer.Option(0.2, "--iou", help="IoU threshold for classification matching"),
 ):
     """Evaluate a trained detector checkpoint on its test fold."""
+    from torch.utils.data import DataLoader
+
+    from data.dataset import COCODataset
+    from data.transforms import get_val_transforms
+    from detectors import DETECTOR_REGISTRY
+    from engine.evaluator import append_csv_row, evaluate_detector, save_metrics
+    from utils.config import load_config
+    from utils.folds import split_folds
+
     setup_logging("INFO")
 
     config = load_config(str(config_path) if config_path else None)
@@ -182,6 +191,9 @@ def sweep(
     dry_run: bool = typer.Option(False, "--dry-run", help="Print grid without running"),
 ):
     """Run a hyperparameter sweep."""
+    from engine.sweeper import generate_experiment_grid, run_sweep
+    from utils.config import load_config
+
     setup_logging("INFO")
     config = load_config(str(config_path))
     grid = generate_experiment_grid(config)
@@ -200,6 +212,8 @@ def config_cmd(
     dump: bool = typer.Option(False, "--dump", help="Write commented default config to stdout"),
 ):
     """Generate and inspect configuration."""
+    from utils.config import dump_commented_config, load_config
+
     if dump:
         import sys, tempfile
         fd, path = tempfile.mkstemp(suffix=".yaml")
@@ -237,6 +251,22 @@ def aggregate(
     result.to_csv(out_path, index=False)
     typer.echo(f"Aggregated results saved to {out_path}")
     typer.echo(result.to_string())
+
+
+@app.command()
+def analyze(
+    results_dir: Path = typer.Option(..., "--results", help="Path to experiment results directory"),
+    output_dir: Path = typer.Option(..., "--output", help="Directory for analysis outputs"),
+    expected_folds: Optional[int] = typer.Option(
+        None, "--expected-folds", help="Expected number of folds"
+    ),
+):
+    """Analyze detector results without changing the raw results."""
+    from analysis.pipeline import run_analysis
+
+    paths = run_analysis(results_dir, output_dir, expected_folds)
+    for name, path in paths.items():
+        typer.echo("%s: %s" % (name, path))
 
 
 if __name__ == "__main__":
