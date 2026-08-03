@@ -123,6 +123,58 @@ python main.py
 
 Os resultados serão salvos na pasta `results/`.
 
+### 4. Analisando os Resultados
+
+Depois de executar as avaliações, use o comando `analyze` para gerar tabelas,
+gráficos e um relatório descritivo sem alterar os resultados brutos:
+
+```sh
+python cli.py analyze --results results/<experimento> --output analysis/<experimento>
+```
+
+Para verificar a cobertura esperada de dobras, informe também o número esperado:
+
+```sh
+python cli.py analyze \
+    --results results/<experimento> \
+    --output analysis/<experimento> \
+    --expected-folds 5
+```
+
+O diretório informado em `--results` deve conter um `summary.csv` com pelo menos
+uma métrica numérica reconhecida. As colunas de identificação esperadas são
+`detector`, `architecture` e `fold`; quando ausentes, elas são inferidas ou
+preenchidas com `unknown`. As métricas reconhecidas são `mAP`, `mAP50`, `mAP75`,
+`MAE`, `RMSE`, `precision`, `recall`, `f1` e `pearson_r`. Se `summary.csv` não
+estiver disponível ou não for utilizável, o comando procura arquivos
+`metrics.json` recursivamente, usando o caminho `.../<detector>/fold_N/<architecture>/metrics.json`
+para inferir os identificadores. O diretório de saída deve ser separado de
+`--results` e não pode ficar dentro dele.
+
+Os arquivos são gerados na seguinte estrutura:
+
+```text
+analysis/<experimento>/
+├── normalized_results.csv       # resultados normalizados
+├── descriptive_statistics.csv   # média, mediana, dispersão e quartis
+├── model_ranking.csv             # rankings por métrica e ranking geral
+├── fold_completeness.csv         # cobertura e dobras ausentes por modelo
+├── findings.md                   # relatório interpretativo e avisos
+└── charts/
+    ├── boxplot_<metrica>.png     # quando a métrica tiver dados utilizáveis
+    ├── metric_means.png
+    └── classification_metrics.png
+```
+
+Os gráficos específicos de cada métrica só são criados quando há valores
+numéricos utilizáveis. No `model_ranking.csv`, valores maiores são melhores para
+`mAP`, `mAP50`, `mAP75`, `precision`, `recall`, `f1` e `pearson_r`; valores
+menores são melhores para `MAE` e `RMSE`. Use `fold_completeness.csv` e a seção
+de avisos de `findings.md` para identificar métricas ausentes, valores não
+numéricos e dobras faltantes antes de comparar modelos. As estatísticas e os
+rankings são descritivos, dependem das dobras disponíveis e não constituem
+afirmações de significância estatística.
+
 ## Adição de Novos Modelos
 
 ### 1. Estrutura de Pastas
@@ -160,5 +212,4 @@ Em todas as pastas das redes há três arquivos principais: `config.py`, `GeraLa
 ### 3. Verificação de Dependências
 
 Antes de rodar um novo modelo, é essencial verificar se todas as dependências necessárias estão instaladas e compatíveis com os modelos já existentes. Certifique-se de que bibliotecas como `torch`, `numpy`, `opencv`, entre outras, estejam na versão correta para evitar conflitos entre os modelos.
-
 
