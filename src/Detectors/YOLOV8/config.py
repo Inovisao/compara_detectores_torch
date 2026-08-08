@@ -11,7 +11,7 @@ from ultralytics import YOLO
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SRC_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATA = PROJECT_ROOT / "dataset" / "all" / "data.yaml"
-DEFAULT_WEIGHTS = os.getenv("YOLOV8_WEIGHTS", "yolov8l.pt")
+DEFAULT_WEIGHTS = os.getenv("YOLOV8_WEIGHTS", "yolov8n.pt")
 DEFAULT_PROJECT = SRC_ROOT / "runs" / "detect" / "YOLOV8"
 
 

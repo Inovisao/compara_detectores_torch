@@ -10,6 +10,20 @@ from utils.detection.metrics.coco_eval import CocoEvaluator
 from utils.detection.metrics.panoptic_eval import PanopticEvaluator
 from utils.detection.metrics.coco_utils import get_coco_api_from_dataset
 
+def _assert_finite_tensor(name: str, tensor: torch.Tensor, epoch: int, batch_idx: int) -> None:
+    if torch.isfinite(tensor).all():
+        return
+
+    finite = tensor[torch.isfinite(tensor)]
+    if finite.numel() > 0:
+        detail = f"finite_min={finite.min().item():.6g}, finite_max={finite.max().item():.6g}"
+    else:
+        detail = "all values are non-finite"
+    raise RuntimeError(
+        f"Non-finite tensor during DETR training: {name} "
+        f"(epoch={epoch + 1}, batch={batch_idx}, shape={tuple(tensor.shape)}, {detail})"
+    )
+
 def train(
     data_loader: Iterable,
     model: torch.nn.Module,
@@ -36,6 +50,10 @@ def train(
 
         with torch.amp.autocast("cuda", enabled=scaler is not None):
             outputs = model(samples)
+            _assert_finite_tensor("outputs['pred_logits']", outputs["pred_logits"], epoch, counter)
+            _assert_finite_tensor("outputs['pred_boxes']", outputs["pred_boxes"], epoch, counter)
+            for target_idx, target in enumerate(targets):
+                _assert_finite_tensor(f"targets[{target_idx}]['boxes']", target["boxes"], epoch, counter)
             loss_dict = criterion(outputs, targets)
             weight_dict = criterion.weight_dict
             losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)

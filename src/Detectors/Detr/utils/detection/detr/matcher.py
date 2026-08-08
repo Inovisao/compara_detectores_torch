@@ -9,6 +9,18 @@ from torch import nn
 from utils.detection.detr.box_ops import box_cxcywh_to_xyxy, generalized_box_iou
 
 
+def _ensure_finite(name: str, tensor: torch.Tensor) -> None:
+    if torch.isfinite(tensor).all():
+        return
+
+    finite = tensor[torch.isfinite(tensor)]
+    if finite.numel() > 0:
+        detail = f"finite_min={finite.min().item():.6g}, finite_max={finite.max().item():.6g}"
+    else:
+        detail = "all values are non-finite"
+    raise ValueError(f"Non-finite DETR matcher tensor: {name} shape={tuple(tensor.shape)} {detail}")
+
+
 class HungarianMatcher(nn.Module):
     """This class computes an assignment between the targets and the predictions of the network
 
@@ -57,10 +69,13 @@ class HungarianMatcher(nn.Module):
         # We flatten to compute the cost matrices in a batch
         out_prob = outputs["pred_logits"].flatten(0, 1).softmax(-1)  # [batch_size * num_queries, num_classes]
         out_bbox = outputs["pred_boxes"].flatten(0, 1)  # [batch_size * num_queries, 4]
+        _ensure_finite("out_prob", out_prob)
+        _ensure_finite("out_bbox", out_bbox)
 
         # Also concat the target labels and boxes
         tgt_ids = torch.cat([v["labels"] for v in targets])
         tgt_bbox = torch.cat([v["boxes"] for v in targets])
+        _ensure_finite("tgt_bbox", tgt_bbox)
 
         # Compute the classification cost. Contrary to the loss, we don't use the NLL,
         # but approximate it in 1 - proba[target class].
@@ -82,6 +97,7 @@ class HungarianMatcher(nn.Module):
 
         # Final cost matrix
         C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou
+        _ensure_finite("cost_matrix", C)
         C = C.view(bs, num_queries, -1).cpu()
 
         sizes = [len(v["boxes"]) for v in targets]

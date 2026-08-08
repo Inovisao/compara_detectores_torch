@@ -13,7 +13,8 @@ from config import (
     NUM_WORKERS as CFG_NUM_WORKERS, LR as CFG_LR, DEVICE as CFG_DEVICE, ROOT_DATA_DIR,
     TRAIN_DIR, VALID_DIR, CLASSES as CFG_CLASSES, NUM_CLASSES as CFG_NUM_CLASSES,
     VISUALIZE_TRANSFORMED_IMAGES as CFG_VIS, OUT_DIR as CFG_OUT_DIR, DATA_PATH as CFG_DATA_PATH,
-    PATIENCE as CFG_PATIENCE,
+    PATIENCE as CFG_PATIENCE, CLIP_GRAD_NORM as CFG_CLIP_GRAD_NORM,
+    USE_AMP as CFG_USE_AMP, USE_COMPILE as CFG_USE_COMPILE,
 )
 from utils.detection.datasets import (
     create_train_dataset, create_valid_dataset,
@@ -298,15 +299,18 @@ def main(args):
     except Exception as e:
         error("Falha ao mover o modelo para o dispositivo.", e)
 
-    if hasattr(torch, 'compile'):
+    if CFG_USE_COMPILE and hasattr(torch, 'compile'):
         try:
             model = torch.compile(model)
             info("torch.compile() ativado.")
         except Exception:
             pass
+    else:
+        info("torch.compile() desativado para o DETR.")
 
-    use_amp = DEVICE.startswith("cuda")
-    scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
+    use_amp = CFG_USE_AMP and DEVICE.startswith("cuda")
+    scaler = torch.amp.GradScaler("cuda", enabled=use_amp) if use_amp else None
+    info(f"AMP DETR: {'ativado' if use_amp else 'desativado'}; clip_grad_norm={CFG_CLIP_GRAD_NORM}")
 
     # Sumário do modelo
     summarize_model(model, DEVICE, BATCH_SIZE, IMAGE_SIZE)
@@ -344,7 +348,14 @@ def main(args):
             info(f"Epoch {epoch+1}/{EPOCHS}")
             try:
                 train_loss = train(
-                    train_loader, model, criterion, optimizer, DEVICE, epoch=epoch, scaler=scaler
+                    train_loader,
+                    model,
+                    criterion,
+                    optimizer,
+                    DEVICE,
+                    epoch=epoch,
+                    max_norm=CFG_CLIP_GRAD_NORM,
+                    scaler=scaler,
                 )
             except RuntimeError as re:
                 # Típicos erros: CUDA OOM

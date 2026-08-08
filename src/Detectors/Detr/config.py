@@ -6,12 +6,15 @@ from pathlib import Path
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 BATCH_SIZE = int(os.getenv("DETR_BATCH", "16"))
 RESIZE_TO = int(os.getenv("DETR_RESIZE_TO", "640"))
-NUM_EPOCHS = int(os.getenv("DETR_EPOCHS", "1000"))
+NUM_EPOCHS = int(os.getenv("DETR_EPOCHS", "3000"))
 NUM_WORKERS = int(os.getenv("DETR_WORKERS", "8"))
-PATIENCE = int(os.getenv("DETR_PATIENCE", "50"))
+PATIENCE = int(os.getenv("DETR_PATIENCE", "300"))
 LR = float(os.getenv("DETR_LR", "0.0001"))
 OPTIMIZER = "AdamW"
 WEIGHT_DECAY = float(os.getenv("DETR_WEIGHT_DECAY", "0.0001"))
+CLIP_GRAD_NORM = float(os.getenv("DETR_CLIP_GRAD_NORM", "0.1"))
+USE_AMP = os.getenv("DETR_AMP", "false").strip().lower() in {"1", "true", "yes", "on"}
+USE_COMPILE = os.getenv("DETR_COMPILE", "false").strip().lower() in {"1", "true", "yes", "on"}
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 ROOT_DATA_DIR = os.environ.get(
     'DATASET_ROOT',
@@ -76,6 +79,9 @@ def get_training_params() -> dict:
         "learning_rate": LR,
         "optimizer": OPTIMIZER,
         "weight_decay": WEIGHT_DECAY,
+        "clip_grad_norm": CLIP_GRAD_NORM,
+        "use_amp": USE_AMP,
+        "use_compile": USE_COMPILE,
         "data_path": DATA_PATH,
         "device": str(DEVICE),
         "root_data_dir": ROOT_DATA_DIR,
