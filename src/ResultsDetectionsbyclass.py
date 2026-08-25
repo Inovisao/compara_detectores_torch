@@ -27,8 +27,8 @@ except (FileNotFoundError, ModuleNotFoundError) as _faster_exc:
 from sage import SageAggregator, detect_sage_dataset
 
 # Constantes
-LIMIAR_THRESHOLD = 0.50
-IOU_THRESHOLD = 0.50
+LIMIAR_THRESHOLD = 0.2
+IOU_THRESHOLD = 0.2
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = PROJECT_ROOT / "results"
 RESULTS_PATH = RESULTS_DIR / "prediction"

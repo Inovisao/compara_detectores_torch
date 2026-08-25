@@ -275,6 +275,8 @@ else:
     DOBRAS = int(len(os.listdir(DIR_PATH))/3)
     FOLD_NAMES = [f'fold_{i}' for i in range(1, DOBRAS + 1)]
 
+print(f"Total de Dobras: {DOBRAS}")
+
 TRAINING_PARAMS_LOG = _new_training_params_payload()
 _write_training_params_json(TRAINING_PARAMS_LOG)
 
