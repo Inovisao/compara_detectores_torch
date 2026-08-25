@@ -14,7 +14,7 @@ SRC_DIR = PROJECT_ROOT / "src"
 
 def _parse_args() -> argparse.Namespace:
     default_model = PROJECT_ROOT / "src" / "model_checkpoints" / "fold_1" / "YOLOV5_TPH" / "train" / "weights" / "best.pt"
-    default_dataset = PROJECT_ROOT / "dataset" / "tiles" / "sage" / "fold_1"
+    default_dataset = PROJECT_ROOT / "dataset" / "all"
 
     parser = argparse.ArgumentParser(
         description="Executa a avaliação de um checkpoint .pt/.pth usando o pipeline principal."
@@ -37,7 +37,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--dataset-root",
         default=str(default_dataset),
-        help="Diretório raiz da dobra (ex.: dataset/tiles/sage/fold_1).",
+        help="Diretório raiz do dataset ou da dobra (ex.: dataset/all).",
     )
     parser.add_argument(
         "--save-imgs",
@@ -48,8 +48,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--tiling-mode",
         default="auto",
-        choices=["auto", "sage", "basic", "normal", "none"],
-        help="Força o modo de tiling a ser usado na agregação (auto detecta automaticamente).",
+        choices=["auto", "basic", "normal", "none"],
+        help="Mantido por compatibilidade; a avaliação usa sempre o split de teste diretamente.",
     )
     return parser.parse_args()
 

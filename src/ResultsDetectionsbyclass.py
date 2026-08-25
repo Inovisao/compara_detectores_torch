@@ -24,7 +24,6 @@ except (FileNotFoundError, ModuleNotFoundError) as _faster_exc:
     ResultFaster = None
     _FASTER_IMPORT_ERROR = _faster_exc
 #from Detectors.Detr.inference_image_detect import resultDetr
-from sage import SageAggregator, detect_sage_dataset
 
 # Constantes
 LIMIAR_THRESHOLD = 0.2
@@ -39,16 +38,20 @@ RESULTS_BY_CLASS_CSV_PATH = RESULTS_DIR / "resultsbyclass.csv"
 COUNTING_CSV_PATH = RESULTS_DIR / "counting.csv"
 
 
-def _resolve_tiling_mode(root: str, requested_mode: str = "auto") -> bool:
-    """Return True if SAGE aggregation should be used based on the desired tiling mode."""
+def _validate_tiling_mode(requested_mode: str = "auto") -> str:
+    """Valida o modo de tiling pedido.
+
+    A agregação SAGE foi removida; o pipeline avalia sempre as imagens do
+    split de teste diretamente. O parâmetro é mantido apenas para não quebrar
+    quem já passa --tiling-mode na linha de comando.
+    """
     normalized = (requested_mode or "auto").strip().lower()
-    if normalized not in {"auto", "sage", "basic", "normal", "none"}:
-        raise ValueError(f"Tiling mode inválido: {requested_mode}")
-    if normalized == "sage":
-        return True
-    if normalized in {"basic", "normal", "none"}:
-        return False
-    return detect_sage_dataset(root)
+    if normalized not in {"auto", "basic", "normal", "none"}:
+        raise ValueError(
+            f"Tiling mode inválido: {requested_mode}. "
+            "Use 'auto', 'basic', 'normal' ou 'none'."
+        )
+    return normalized
 
 
 def _has_filesjson(root: str) -> bool:
@@ -322,18 +325,12 @@ def compute_metrics(preds, targets, num_classes=1):
 def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto"):
     """Gera resultados para um modelo específico e salva as métricas por classe."""
     test_json_path, tile_images_dir = _resolve_test_split(root, fold)
-    use_sage = _resolve_tiling_mode(root, tiling_mode)
+    _validate_tiling_mode(tiling_mode)
 
-    if use_sage:
-        aggregator = SageAggregator(root, fold)
-        classes_dict = aggregator.classes_dict
-        ground_truth = None
-        predictions = None
-    else:
-        annotations_path = _resolve_class_annotations(root)
-        classes_dict = get_classes(annotations_path)
-        ground_truth = {}
-        predictions = {}
+    annotations_path = _resolve_class_annotations(root)
+    classes_dict = get_classes(annotations_path)
+    ground_truth = {}
+    predictions = {}
 
     coco_test = load_dataset(test_json_path)
     for image in coco_test:
@@ -365,21 +362,15 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
         else:
             raise ValueError(f"Modelo de inferência não suportado: {model_name}")
 
-        if use_sage:
-            aggregator.add_tile_prediction(file_name, result)
-        else:
-            gt_items = []
-            for i, bbox in enumerate(image['annotations']['bboxes']):
-                x1, y1, width, height = bbox
-                label = image['annotations']['labels'][i]
-                gt_items.append([x1, y1, width, height, label])
-            ground_truth[file_name] = gt_items
-            predictions[file_name] = result
+        gt_items = []
+        for i, bbox in enumerate(image['annotations']['bboxes']):
+            x1, y1, width, height = bbox
+            label = image['annotations']['labels'][i]
+            gt_items.append([x1, y1, width, height, label])
+        ground_truth[file_name] = gt_items
+        predictions[file_name] = result
 
-    if use_sage:
-        ground_truth, predictions, image_source, classes_dict = aggregator.finalize()
-    else:
-        image_source = tile_images_dir
+    image_source = tile_images_dir
 
     for cls in sorted(classes_dict.keys()):
         if cls == 0:

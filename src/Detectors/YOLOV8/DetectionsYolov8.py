@@ -60,12 +60,19 @@ class resultYOLO:
             cv2.waitKey(0)
             cv2.destroyAllWindows()
 
+        # A ordem aqui precisa ser [xmin, ymin, xmax, ymax, conf, cls], que é
+        # exatamente o que xyxy_to_xywh desempacota. Antes a confiança e a
+        # classe entravam trocadas: a saída continuava com 6 campos e passava
+        # em qualquer checagem de formato, mas o campo 5 virava a confiança e
+        # o 6 a classe — invertidos em relação aos demais detectores.
         for i,bbox in enumerate(detections.xyxy):
             if detections.confidence[i] > LIMIAR_THRESHOLD:
-                yolo_box.append([int(bbox[0]),int(bbox[1]),int(bbox[2]),int(bbox[3]),int(detections.class_id[i])+1,detections.confidence[i]])
+                yolo_box.append([int(bbox[0]),int(bbox[1]),int(bbox[2]),int(bbox[3]),float(detections.confidence[i]),int(detections.class_id[i])+1])
 
 
         coco_boxes = xyxy_to_xywh(yolo_box)
 
-        return coco_boxes
+        # xyxy_to_xywh devolve [x, y, w, h, conf, cls]; o contrato do pipeline
+        # é [x, y, w, h, label, score], então reordena os dois últimos campos.
+        return [[x, y, w, h, cls, conf] for x, y, w, h, conf, cls in coco_boxes]
 

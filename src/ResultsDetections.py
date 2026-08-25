@@ -11,6 +11,7 @@ from torchmetrics.classification import BinaryPrecision, BinaryRecall, BinaryF1S
 import shutil
 import sys
 import csv
+import traceback
 from pathlib import Path
 
 # Importações dos modelos de detecção
@@ -30,7 +31,6 @@ except (FileNotFoundError, ModuleNotFoundError) as _faster_exc:
     faster_config = None
     _FASTER_IMPORT_ERROR = _faster_exc
 #from Detectors.Detr.inference_image_detect import resultDetr
-from sage import SageAggregator, detect_sage_dataset
 
 # Constantes
 LIMIAR_THRESHOLD = 0.2
@@ -44,16 +44,20 @@ RESULTS_CSV_PATH = RESULTS_DIR / "results.csv"
 COUNTING_CSV_PATH = RESULTS_DIR / "counting.csv"
 
 
-def _resolve_tiling_mode(root: str, requested_mode: str = "auto") -> bool:
-    """Return True if SAGE aggregation should be used based on the desired tiling mode."""
+def _validate_tiling_mode(requested_mode: str = "auto") -> str:
+    """Valida o modo de tiling pedido.
+
+    A agregação SAGE foi removida; o pipeline avalia sempre as imagens do
+    split de teste diretamente. O parâmetro é mantido apenas para não quebrar
+    quem já passa --tiling-mode na linha de comando.
+    """
     normalized = (requested_mode or "auto").strip().lower()
-    if normalized not in {"auto", "sage", "basic", "normal", "none"}:
-        raise ValueError(f"Tiling mode inválido: {requested_mode}")
-    if normalized == "sage":
-        return True
-    if normalized in {"basic", "normal", "none"}:
-        return False
-    return detect_sage_dataset(root)
+    if normalized not in {"auto", "basic", "normal", "none"}:
+        raise ValueError(
+            f"Tiling mode inválido: {requested_mode}. "
+            "Use 'auto', 'basic', 'normal' ou 'none'."
+        )
+    return normalized
 
 
 def _has_filesjson(root: str) -> bool:
@@ -340,18 +344,12 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
         _configure_faster_inference(root, fold)
 
     test_json_path, tile_images_dir = _resolve_test_split(root, fold)
-    use_sage = _resolve_tiling_mode(root, tiling_mode)
+    _validate_tiling_mode(tiling_mode)
 
-    if use_sage:
-        aggregator = SageAggregator(root, fold)
-        classes_dict = aggregator.classes_dict
-        predictions = None
-        ground_truth = None
-    else:
-        annotations_path = _resolve_class_annotations(root)
-        classes_dict = get_classes(annotations_path)
-        predictions = {}
-        ground_truth = {}
+    annotations_path = _resolve_class_annotations(root)
+    classes_dict = get_classes(annotations_path)
+    predictions = {}
+    ground_truth = {}
 
     coco_test = load_dataset(test_json_path)
     for image in coco_test:
@@ -387,21 +385,15 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
         else:
             raise ValueError(f"Modelo de inferência não suportado: {model_name}")
 
-        if use_sage:
-            aggregator.add_tile_prediction(file_name, result)
-        else:
-            gt_items = []
-            for i, bbox in enumerate(image['annotations']['bboxes']):
-                x1, y1, width, height = bbox
-                label = image["annotations"]['labels'][i]
-                gt_items.append([x1, y1, width, height, label])
-            ground_truth[file_name] = gt_items
-            predictions[file_name] = result
+        gt_items = []
+        for i, bbox in enumerate(image['annotations']['bboxes']):
+            x1, y1, width, height = bbox
+            label = image["annotations"]['labels'][i]
+            gt_items.append([x1, y1, width, height, label])
+        ground_truth[file_name] = gt_items
+        predictions[file_name] = result
 
-    if use_sage:
-        ground_truth, predictions, image_source, classes_dict = aggregator.finalize()
-    else:
-        image_source = tile_images_dir
+    image_source = tile_images_dir
 
     class_ids = sorted(classes_dict.keys())
     class_to_index = {cls_id: idx for idx, cls_id in enumerate(class_ids)}
@@ -450,13 +442,29 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
     for key in ground_truth:
         count_classes = [0] * len(class_to_index)
         preds_for_key = predictions.get(key, [])
+        # Cada predição casa com NO MÁXIMO um ground-truth, e cada ground-truth
+        # é consumido por apenas uma predição. Sem isso, uma predição que
+        # cruza N caixas da mesma classe era contada N vezes, inflando a
+        # contagem e, por consequência, MAE/RMSE — em cenas densas (centenas
+        # de sementes por imagem) o erro chegava a ~6%.
+        matched_gt = set()
         for bbox in preds_for_key:
-            for gt_bbox in ground_truth[key]:
+            best_iou = 0.0
+            best_gt = None
+            for i, gt_bbox in enumerate(ground_truth[key]):
+                if i in matched_gt:
+                    continue
+                if int(bbox[4]) != int(gt_bbox[-1]):
+                    continue
                 iou = calculate_iou(bbox[:4], gt_bbox[:4])
-                if iou >= IOU_THRESHOLD and int(bbox[4]) == int(gt_bbox[-1]):
-                    idx = class_to_index.get(int(bbox[4]))
-                    if idx is not None:
-                        count_classes[idx] += 1
+                if iou >= IOU_THRESHOLD and iou > best_iou:
+                    best_iou = iou
+                    best_gt = i
+            if best_gt is not None:
+                matched_gt.add(best_gt)
+                idx = class_to_index.get(int(bbox[4]))
+                if idx is not None:
+                    count_classes[idx] += 1
         prediction_counts.append(count_classes)
     prediction_counts = torch.tensor(prediction_counts) if prediction_counts else torch.zeros((0, len(class_to_index)))
 
@@ -492,10 +500,23 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
 def create_csv(selected_model, fold, root, model_path, save_imgs, tiling_mode="auto"):
     """Cria um arquivo CSV com os resultados das métricas."""
     results_path = RESULTS_CSV_PATH
+
+    # A avaliação e a escrita do CSV ficam em blocos separados: antes um único
+    # try/except cobria as duas, então um erro de inferência (ex.: KeyError de
+    # uma classe ausente em classes_dict) era reportado como "falha ao salvar
+    # resultados", escondendo a causa real. O traceback completo é impresso
+    # para que a linha faltante no CSV possa ser diagnosticada.
     try:
         mAP, mAP50, mAP75, MAE, RMSE, precision, recall, fscore, r = generate_results(
             root, fold, model_path, selected_model, save_imgs, tiling_mode=tiling_mode
         )
+    except Exception as e:
+        print(f"[ERRO] Falha ao avaliar {selected_model} em {fold}: {type(e).__name__}: {e}")
+        traceback.print_exc()
+        print(f"[ERRO] Nenhuma linha foi gravada em {results_path} para {selected_model}/{fold}.")
+        return
+
+    try:
         results_path.parent.mkdir(parents=True, exist_ok=True)
         file_exists = results_path.exists()
         with results_path.open(mode="a", newline="") as file:
@@ -505,4 +526,5 @@ def create_csv(selected_model, fold, root, model_path, save_imgs, tiling_mode="a
             writer.writerow([selected_model, fold, mAP, mAP50, mAP75, MAE, RMSE, r, precision, recall, fscore])
         print(f"[INFO] Resultados salvos com sucesso em {results_path}")
     except Exception as e:
-        print(f"[ERRO] Falha ao salvar resultados em {results_path}: {e}")
+        print(f"[ERRO] Falha ao salvar resultados em {results_path}: {type(e).__name__}: {e}")
+        traceback.print_exc()
