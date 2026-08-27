@@ -39,3 +39,9 @@ src/Detectors/Detr/__pycache__/runDetr.cpython-39.pyc
 src/Detectors/YOLOV5_TPH/tph-yolov5
 .codex
 CLAUDE.md
+
+# Saidas de treino do ultralytics e checkpoints
+src/runs/
+runs/
+src/model_checkpoints/
+model_checkpoints/

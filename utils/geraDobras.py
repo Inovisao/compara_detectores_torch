@@ -24,8 +24,31 @@ parser.add_argument('-valperc', default='0.3',dest='valperc', type=float,
                     help="Percentual a ser usado para validação durante o treinamento",required=False)
 parser.add_argument('--having-annotations', dest='having_annotations', action='store_true',
                     help='Ignora imagens que não tenham nenhuma anotação')
+parser.add_argument('--group-by-source', dest='group_by_source', action='store_true',
+                    help='Mantém todas as variantes de augmentation de uma mesma imagem-fonte '
+                         'na mesma dobra. O Roboflow nomeia as variantes como '
+                         '<fonte>.rf.<hash>.jpg, então a fonte é o trecho antes de ".rf.". '
+                         'Sem esta flag, variantes da mesma foto caem em dobras diferentes e '
+                         'o modelo é testado em cenas que já viu no treino.')
+parser.add_argument('--one-variant-test', dest='one_variant_test', action='store_true',
+                    help='Usa apenas UMA variante por fonte no conjunto de teste (as demais são '
+                         'descartadas do teste). Evita avaliar sobre imagens augmentadas e que '
+                         'a mesma cena pese N vezes na média. Requer --group-by-source.')
 
 args = parser.parse_args()
+
+
+def source_key(file_name):
+    """Nome da imagem-fonte: o Roboflow gera '<fonte>.rf.<hash>.<ext>' por variante."""
+    return file_name.split('.rf.')[0]
+
+
+def group_images(images):
+    """Agrupa as imagens por fonte, preservando a ordem de aparição."""
+    grupos = {}
+    for img in images:
+        grupos.setdefault(source_key(img['file_name']), []).append(img)
+    return grupos
 
 def save_coco(file, info, licenses, images, annotations, categories):
     with open(file, 'wt', encoding='UTF-8') as coco:
@@ -103,15 +126,39 @@ def main(args):
             for f in files:
                 os.remove(f)
 
-            qtd_teste = number_of_images//args.folds  # Duas barras para fazer divisão inteira (sem resto)
-            print('Quantidade de Imagens em Cada Conjunto de Teste = ',qtd_teste)
+            if args.group_by_source:
+                # Particiona por IMAGEM-FONTE, não por arquivo: as variantes de
+                # augmentation de uma mesma foto (mesmo prefixo antes de ".rf.")
+                # vão todas para a mesma dobra. Sem isso, uma variante pode cair
+                # no treino e outra no teste — o modelo seria avaliado numa cena
+                # que já viu, e a métrica ficaria otimista.
+                grupos = group_images(images)
+                chaves = list(grupos.keys())
+                qtd_teste = len(chaves)//args.folds
+                print('Agrupando por imagem-fonte (.rf.)')
+                print('Fontes = ', len(chaves), ' | Imagens = ', number_of_images)
+                print('Quantidade de Fontes em Cada Conjunto de Teste = ', qtd_teste)
 
-            # Crias as dobras 
-            folds=[]
-            for i in range(0,args.folds-1):
-                images, z = train_test_split(images, test_size=qtd_teste)
-                folds.append(z)
-            folds.append(images)
+                restante = chaves
+                folds_chaves = []
+                for i in range(0, args.folds-1):
+                    restante, z = train_test_split(restante, test_size=qtd_teste)
+                    folds_chaves.append(z)
+                folds_chaves.append(restante)
+
+                # Converte os grupos de volta em listas de imagens
+                folds = [funcy.lcat(grupos[k] for k in fk) for fk in folds_chaves]
+            else:
+                qtd_teste = number_of_images//args.folds  # Duas barras para fazer divisão inteira (sem resto)
+                print('Quantidade de Imagens em Cada Conjunto de Teste = ',qtd_teste)
+
+                # Crias as dobras
+                folds_chaves = None
+                folds=[]
+                for i in range(0,args.folds-1):
+                    images, z = train_test_split(images, test_size=qtd_teste)
+                    folds.append(z)
+                folds.append(images)
             
             for i in range(0,args.folds):
 
@@ -124,8 +171,33 @@ def main(args):
                     if i!=j:
                         xy=xy+folds[j]
 
-                # Aqui xy está sendo dividido entre treino e validação
-                x, y = train_test_split(xy, test_size=args.valperc)
+                if args.group_by_source:
+                    if args.one_variant_test:
+                        # Mantém só a primeira variante de cada fonte no teste: as
+                        # demais são a mesma cena augmentada, então avaliá-las
+                        # inflaria o peso daquela cena e mediria desempenho sobre
+                        # imagens artificiais em vez de fotos reais.
+                        vistas = set()
+                        z_unico = []
+                        for img in z:
+                            chave = source_key(img['file_name'])
+                            if chave not in vistas:
+                                vistas.add(chave)
+                                z_unico.append(img)
+                        print('Teste reduzido a 1 variante por fonte: ',
+                              len(z), ' -> ', len(z_unico), ' imagens')
+                        z = z_unico
+
+                    # Treino/validação também são separados por fonte, para que a
+                    # validação não sirva de espelho do treino durante o early stopping.
+                    grupos_xy = group_images(xy)
+                    chaves_xy = list(grupos_xy.keys())
+                    ch_treino, ch_val = train_test_split(chaves_xy, test_size=args.valperc)
+                    x = funcy.lcat(grupos_xy[k] for k in ch_treino)
+                    y = funcy.lcat(grupos_xy[k] for k in ch_val)
+                else:
+                    # Aqui xy está sendo dividido entre treino e validação
+                    x, y = train_test_split(xy, test_size=args.valperc)
 
                 arq_treino=args.json+'fold_'+str(i+1)+'_train.json'
                 arq_val=args.json+'fold_'+str(i+1)+'_val.json'
@@ -138,5 +210,18 @@ def main(args):
                 print("Salvou {} anotações em {}".format(len(x), arq_treino))
                 print("Salvou {} anotações em {}".format(len(y), arq_val))
                 print("Salvou {} anotações em {}".format(len(z), arq_teste))
+
+                # Confere que nenhuma fonte do teste aparece no treino/validação.
+                fontes_teste = {source_key(i['file_name']) for i in z}
+                fontes_treino = {source_key(i['file_name']) for i in x + y}
+                vazamento = fontes_teste & fontes_treino
+                if vazamento:
+                    print("  [ATENCAO] {} de {} fontes do teste também estão no treino"
+                          .format(len(vazamento), len(fontes_teste)))
+                    if args.group_by_source:
+                        raise SystemExit("Vazamento com --group-by-source: isso é um bug.")
+                    print("  Use --group-by-source para eliminar esse vazamento.")
+                else:
+                    print("  Sem vazamento: nenhuma fonte do teste aparece no treino.")
 if __name__ == "__main__":
     main(args)

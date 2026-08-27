@@ -158,6 +158,7 @@ def register_training_params(model: str, fold: str, root: str, mode: str, model_
 
     run_payload = {
         "rede": model,
+        "run_label": run_label(model),
         "fold": fold,
         "modo": mode,
         "dataset_root": root,
@@ -270,10 +271,24 @@ if USE_TILED_DATASET:
     ROOT_DATA_DIR = None  # Will be set per fold
     FOLD_NAMES = fold_dirs
 else:
-    ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
+    # Qual dataset usar: DATASET_NAME=first|second (ou o caminho completo em
+    # DATASET_ROOT). Cada um precisa ter 'train/' com as imagens e 'filesJSON/'
+    # com as dobras geradas pelo utils/geraDobras.py.
+    DATASET_NAME = os.getenv('DATASET_NAME', 'first')
+    ROOT_DATA_DIR = os.getenv(
+        'DATASET_ROOT', os.path.join('..', 'dataset', DATASET_NAME)
+    )
     DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
+    if not os.path.isdir(DIR_PATH):
+        raise FileNotFoundError(
+            f"Pasta de dobras não encontrada: {DIR_PATH}\n"
+            "Gere as dobras antes de treinar, a partir de utils/:\n"
+            f"  python geraDobras.py -annotations {ROOT_DATA_DIR}/train/_annotations.coco.json "
+            f"-json {ROOT_DATA_DIR}/filesJSON/ --group-by-source --one-variant-test"
+        )
     DOBRAS = int(len(os.listdir(DIR_PATH))/3)
     FOLD_NAMES = [f'fold_{i}' for i in range(1, DOBRAS + 1)]
+    print(f"Dataset: {ROOT_DATA_DIR}")
 
 print(f"Total de Dobras: {DOBRAS}")
 
@@ -284,24 +299,58 @@ GeraRult = True # True para gerar Resultados False para não gerar
 save_imgs = True # True para salvar imagens em predictes False para não salvar
 GeraResultByClass = False # True para Salvar Resultados Por classes
 CONTINUE = False # True para Continuar sem apagar os pesos ja treinados
-resetar_pasta(str(RESULTS_PATH))
 
-if GeraRult:
+# Etiqueta opcional da execução: separa checkpoints e rotula as linhas do CSV.
+# Serve para rodar o mesmo detector em configurações diferentes sem que uma
+# sobrescreva a outra — por exemplo, comparar portes da YOLO26:
+#   RUN_TAG=nano   YOLO26_WEIGHTS=yolo26n.pt MODELS_TO_RUN=YOLO26 python main.py
+#   RUN_TAG=small  YOLO26_WEIGHTS=yolo26s.pt MODELS_TO_RUN=YOLO26 python main.py
+#   RUN_TAG=medium YOLO26_WEIGHTS=yolo26m.pt MODELS_TO_RUN=YOLO26 python main.py
+RUN_TAG = os.getenv('RUN_TAG', '').strip()
+
+# Com RUN_TAG, o CSV é preservado entre execuções para acumular a comparação;
+# sem ele, o comportamento antigo (reescrever a cada rodada) é mantido.
+APPEND_RESULTS = bool(RUN_TAG)
+
+if RUN_TAG:
+    print(f"Execução etiquetada como: {RUN_TAG}")
+else:
+    resetar_pasta(str(RESULTS_PATH))
+
+
+def run_label(model_name):
+    """Nome usado no CSV e nas pastas de checkpoint."""
+    return f"{model_name}_{RUN_TAG}" if RUN_TAG else model_name
+
+if GeraRult and not APPEND_RESULTS:
     RESULTS_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
     print_to_file('ml,fold,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore', RESULTS_CSV_PATH, 'w')
     print_to_file('ml,fold,groundtruth,predicted,TP,FP,dif,fileName', COUNTING_CSV_PATH, 'w')# Inicia o arquivo de Results
 
+if GeraRult and APPEND_RESULTS:
+    # Modo acumulativo: cria os arquivos com cabeçalho só na primeira execução.
+    RESULTS_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if not RESULTS_CSV_PATH.exists():
+        print_to_file('ml,fold,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore', RESULTS_CSV_PATH, 'w')
+    if not COUNTING_CSV_PATH.exists():
+        print_to_file('ml,fold,groundtruth,predicted,TP,FP,dif,fileName', COUNTING_CSV_PATH, 'w')
+
 if GeraResultByClass:
     RESULTS_BY_CLASS_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
-    print_to_file('ml,fold,classes,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore', RESULTS_BY_CLASS_CSV_PATH, 'w')
+    if not (APPEND_RESULTS and RESULTS_BY_CLASS_CSV_PATH.exists()):
+        print_to_file('ml,fold,classes,mAP,mAP50,mAP75,MAE,RMSE,r,precision,recall,fscore', RESULTS_BY_CLASS_CSV_PATH, 'w')
 
 # Loop Para o selecionar o Modelo
 for model in MODELS:
     print(f"[INFO] Processando modelo: {model}")
     # Loop Para Treinar o Modelo na referente a Dobra
     for fold in FOLD_NAMES:
-        fold_dir = os.path.join('model_checkpoints', fold)
-        print(f"[INFO] Iniciando fold {fold} para {model}")
+        # Com RUN_TAG, cada execução tem seu próprio diretório de checkpoints,
+        # para que rodar o mesmo detector em outra configuração não apague os
+        # pesos da rodada anterior.
+        fold_dir = os.path.join('model_checkpoints', RUN_TAG, fold) if RUN_TAG \
+            else os.path.join('model_checkpoints', fold)
+        print(f"[INFO] Iniciando fold {fold} para {run_label(model)}")
 
         # Set ROOT_DATA_DIR for this fold if using tiled datasets
         if USE_TILED_DATASET:
@@ -335,6 +384,7 @@ for model in MODELS:
                 model_path=model_path,
                 save_imgs=save_imgs,
                 tiling_mode=TILING_MODE,
+                label=run_label(model),
             )
         if GeraResultByClass:
             generate_results(

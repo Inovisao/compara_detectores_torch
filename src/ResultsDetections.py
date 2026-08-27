@@ -497,9 +497,15 @@ def generate_results(root, fold, model, model_name, save_imgs, tiling_mode="auto
 
     return mAP.item(), mAP50.item(), mAP75.item(), mae.item(), rmse.item(), precision, recall, fscore, r.item()
 
-def create_csv(selected_model, fold, root, model_path, save_imgs, tiling_mode="auto"):
-    """Cria um arquivo CSV com os resultados das métricas."""
+def create_csv(selected_model, fold, root, model_path, save_imgs, tiling_mode="auto", label=None):
+    """Cria um arquivo CSV com os resultados das métricas.
+
+    `selected_model` escolhe o detector; `label` é o nome gravado na coluna 'ml'
+    do CSV. Separar os dois permite rodar o mesmo detector em configurações
+    diferentes (ex.: portes da YOLO26) sem confundir as linhas do resultado.
+    """
     results_path = RESULTS_CSV_PATH
+    csv_label = label or selected_model
 
     # A avaliação e a escrita do CSV ficam em blocos separados: antes um único
     # try/except cobria as duas, então um erro de inferência (ex.: KeyError de
@@ -511,9 +517,9 @@ def create_csv(selected_model, fold, root, model_path, save_imgs, tiling_mode="a
             root, fold, model_path, selected_model, save_imgs, tiling_mode=tiling_mode
         )
     except Exception as e:
-        print(f"[ERRO] Falha ao avaliar {selected_model} em {fold}: {type(e).__name__}: {e}")
+        print(f"[ERRO] Falha ao avaliar {csv_label} em {fold}: {type(e).__name__}: {e}")
         traceback.print_exc()
-        print(f"[ERRO] Nenhuma linha foi gravada em {results_path} para {selected_model}/{fold}.")
+        print(f"[ERRO] Nenhuma linha foi gravada em {results_path} para {csv_label}/{fold}.")
         return
 
     try:
@@ -523,7 +529,7 @@ def create_csv(selected_model, fold, root, model_path, save_imgs, tiling_mode="a
             writer = csv.writer(file)
             if not file_exists:
                 writer.writerow(["ml", "fold", "mAP", "mAP50", "mAP75", "MAE", "RMSE", "accuracy", "precision", "recall", "fscore"])
-            writer.writerow([selected_model, fold, mAP, mAP50, mAP75, MAE, RMSE, r, precision, recall, fscore])
+            writer.writerow([csv_label, fold, mAP, mAP50, mAP75, MAE, RMSE, r, precision, recall, fscore])
         print(f"[INFO] Resultados salvos com sucesso em {results_path}")
     except Exception as e:
         print(f"[ERRO] Falha ao salvar resultados em {results_path}: {type(e).__name__}: {e}")
