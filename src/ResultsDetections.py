@@ -298,25 +298,41 @@ def generate_results(root, fold, model, model_name, save_imgs):
     metric.update(predictions_map, ground_truth_map)
     result_map = metric.compute()
 
+    valid_class_ids = list(classes_dict.keys())
+    
     ground_truth_counts = []
     for key in ground_truth:
         count_classes = [0] * len(classes_dict)
         for bbox in ground_truth[key]:
-            count_classes[bbox[-1]] += 1
+            # Mapeia o ID do COCO (ex: 1) para o índice válido da lista (ex: 0)
+            idx = valid_class_ids.index(bbox[-1])
+            count_classes[idx] += 1
         ground_truth_counts.append(count_classes)
+        
+    # ADICIONE ESTA LINHA: Converte a lista para Tensor
     ground_truth_counts = torch.tensor(ground_truth_counts)
 
     prediction_counts = []
     for key in predictions:
         count_classes = [0] * len(classes_dict)
         for bbox in predictions[key]:
+            
+            # PREVENÇÃO: Se a YOLO retornou a classe no formato 0-index,
+            # forçamos a conversão para o ID oficial do formato COCO.
+            if bbox[4] not in valid_class_ids and int(bbox[4]) < len(valid_class_ids):
+                bbox[4] = valid_class_ids[int(bbox[4])]
+                
             for gt_bbox in ground_truth[key]:
                 iou = calculate_iou(bbox[:4], gt_bbox[:4])
                 if bbox[4] == gt_bbox[-1] and iou >= IOU_THRESHOLD:
-                    count_classes[bbox[4]] += 1
+                    idx = valid_class_ids.index(bbox[4])
+                    count_classes[idx] += 1
         prediction_counts.append(count_classes)
+        
+    # ADICIONE ESTA LINHA: Converte a lista para Tensor
     prediction_counts = torch.tensor(prediction_counts)
-
+    
+    # Agora as somas funcionarão corretamente
     pred_counts = prediction_counts.sum(dim=1)
     gt_counts = ground_truth_counts.sum(dim=1)
 
@@ -335,10 +351,10 @@ def generate_results(root, fold, model, model_name, save_imgs):
     return mAP.item(), mAP50.item(), mAP75.item(), mae.item(), rmse.item(), precision, recall, fscore, r.item()
 
 def create_csv(selected_model, fold, root, model_path, save_imgs):
-    """Cria um arquivo CSV com os resultados das métricas."""
+    results_path = os.path.join('..', 'results', 'results.csv')
+    
     try:
         mAP, mAP50, mAP75, MAE, RMSE, precision, recall, fscore, r = generate_results(root, fold, model_path, selected_model, save_imgs)
-        results_path = os.path.join('..', 'results', 'results.csv')
         file_exists = os.path.isfile(results_path)
         dir_path = os.path.dirname(results_path)
         if not os.path.exists(dir_path):

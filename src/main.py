@@ -89,13 +89,13 @@ def test_model(model,fold_dir):
 _args = parse_args()
 
 # YOLOV8, Faster, Detr
-MODELS = ['YOLOV8', 'Faster'] #Variavel para selecionar os modelos (usada se --models não for passado)
+MODELS = ['YOLOV8', 'Faster', 'Detr'] #Variavel para selecionar os modelos (usada se --models não for passado)
 
 if _args.models is not None:
     MODELS = _args.models
     print(f"Modelos selecionados via linha de comando: {MODELS}")
 
-APENAS_TESTE = True # True para apenas testar modelos treinados False para Treinar e Testar.
+APENAS_TESTE = False # True para apenas testar modelos treinados False para Treinar e Testar.
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 DIR_PATH = os.path.join(ROOT_DATA_DIR, 'filesJSON')
 DOBRAS = int(len(os.listdir(DIR_PATH))/3)

@@ -26,6 +26,6 @@ def resize_images_in_directory(input_dir, output_dir, size=(640, 640)):
             resize_image(input_path, output_path, size)
 
 # Exemplo de uso
-input_directory = 'train'  # Diretório de entrada
+input_directory = '../dataset/all/train'  # Diretório de entrada
 output_directory = '../dataset/all/train'  # Diretório de saída
 resize_images_in_directory(input_directory, output_directory)

@@ -30,7 +30,7 @@ from utils.detection.detr.logging import set_log, coco_log
 RANK = int(os.getenv('RANK', -1))
 np.random.seed(42)
 
-def error(msg: str, exc: Exception | None = None, exit_code: int = 1):
+def error(msg: str, exc: Exception = None, exit_code: int = 1):
     """Loga erro padronizado e encerra o processo."""
     print(f"[ERRO] {msg}", file=sys.stderr)
     if exc is not None:
@@ -380,7 +380,7 @@ def main(args):
 
             try:
                 if len(val_map) > 0:
-                    save_best_model(model, val_map[-1], epoch, OUT_DIR, data_configs, args.model)
+                    save_best_model(model, val_map[-1][0], epoch, OUT_DIR, data_configs, args.model)
             except Exception as e:
                 warn(f"Falha ao salvar melhor modelo: {e}")
 

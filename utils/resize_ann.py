@@ -29,7 +29,7 @@ def resize_annotations(coco_json_path, output_json_path, new_size=(640, 640)):
         json.dump(coco_data, f, indent=4)
 
 # Exemplo de uso
-coco_json_file = 'train/_annotations.coco.json'  # Caminho para o arquivo JSON original
+coco_json_file = '../dataset/all/train/_annotations.coco.json'  # Caminho para o arquivo JSON original
 output_json_file = '../dataset/all/train/_annotations.coco.json'  # Caminho para o novo arquivo JSON
 
 resize_annotations(coco_json_file, output_json_file, new_size=(640, 640))
