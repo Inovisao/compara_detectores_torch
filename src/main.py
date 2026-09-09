@@ -239,7 +239,7 @@ def test_model(model,fold_dir):
     return model_path
 
 # YOLOV8, YOLOV11, YOLO26, YOLOV5_TPH, Faster, RetinaNet, Detr
-DEFAULT_MODELS = ['YOLOV8', 'YOLOV11', 'YOLO26', 'Faster']
+DEFAULT_MODELS = ['YOLO26']
 
 
 def _get_models_to_run():
@@ -274,7 +274,7 @@ else:
     # Qual dataset usar: DATASET_NAME=first|second (ou o caminho completo em
     # DATASET_ROOT). Cada um precisa ter 'train/' com as imagens e 'filesJSON/'
     # com as dobras geradas pelo utils/geraDobras.py.
-    DATASET_NAME = os.getenv('DATASET_NAME', 'first')
+    DATASET_NAME = os.getenv('DATASET_NAME', 'second')
     ROOT_DATA_DIR = os.getenv(
         'DATASET_ROOT', os.path.join('..', 'dataset', DATASET_NAME)
     )
@@ -306,7 +306,7 @@ CONTINUE = False # True para Continuar sem apagar os pesos ja treinados
 #   RUN_TAG=nano   YOLO26_WEIGHTS=yolo26n.pt MODELS_TO_RUN=YOLO26 python main.py
 #   RUN_TAG=small  YOLO26_WEIGHTS=yolo26s.pt MODELS_TO_RUN=YOLO26 python main.py
 #   RUN_TAG=medium YOLO26_WEIGHTS=yolo26m.pt MODELS_TO_RUN=YOLO26 python main.py
-RUN_TAG = os.getenv('RUN_TAG', '').strip()
+RUN_TAG = os.getenv('RUN_TAG', 'finetune_second').strip()
 
 # Com RUN_TAG, o CSV é preservado entre execuções para acumular a comparação;
 # sem ele, o comportamento antigo (reescrever a cada rodada) é mantido.

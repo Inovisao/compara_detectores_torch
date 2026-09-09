@@ -47,17 +47,26 @@ def _resolve_split_paths(root: Path, fold: str) -> List[Tuple[str, Path, Path]]:
     return splits
 
 
-def _collect_class_names(annotation_paths: Sequence[Path]) -> List[str]:
+def _collect_class_mapping(annotation_paths: Sequence[Path]) -> Tuple[Dict[int, int], List[str]]:
     categories: Dict[int, str] = {}
+    present_category_ids = set()
     for path in annotation_paths:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         for category in data.get("categories", []):
             categories[int(category["id"])] = category["name"]
+        present_category_ids.update(
+            int(annotation["category_id"])
+            for annotation in data.get("annotations", [])
+        )
 
-    if not categories:
-        raise ValueError("No categories found in the provided annotation files.")
-    return [categories[idx] for idx in sorted(categories)]
+    class_ids = sorted(idx for idx in present_category_ids if idx in categories)
+    if not class_ids:
+        raise ValueError("No annotated categories found in the provided annotation files.")
+
+    category_mapping = {category_id: class_index for class_index, category_id in enumerate(class_ids)}
+    class_names = [categories[category_id] for category_id in class_ids]
+    return category_mapping, class_names
 
 
 def _prepare_output_dirs(output_root: Path, splits: Iterable[str]) -> None:
@@ -75,13 +84,18 @@ def _annotation_index(annotations: List[Dict]) -> Dict[int, List[Dict]]:
     return indexed
 
 
-def _convert_bbox(ann: Dict, image_width: float, image_height: float) -> str:
+def _convert_bbox(
+    ann: Dict,
+    image_width: float,
+    image_height: float,
+    category_mapping: Dict[int, int],
+) -> str:
     x, y, w, h = ann["bbox"]
     x_center = (x + w / 2.0) / image_width
     y_center = (y + h / 2.0) / image_height
     rel_width = w / image_width
     rel_height = h / image_height
-    class_index = int(ann["category_id"]) - 1
+    class_index = category_mapping[int(ann["category_id"])]
     return f"{class_index} {x_center:.6f} {y_center:.6f} {rel_width:.6f} {rel_height:.6f}\n"
 
 
@@ -91,6 +105,7 @@ def _process_split(
     images_src: Path,
     output_root: Path,
     dataset_root: Path,
+    category_mapping: Dict[int, int],
 ) -> None:
     with open(json_path, "r", encoding="utf-8") as f:
         dataset = json.load(f)
@@ -106,8 +121,9 @@ def _process_split(
         image_height = float(image_info.get("height", 1)) or 1.0
 
         label_lines = [
-            _convert_bbox(ann, image_width, image_height)
+            _convert_bbox(ann, image_width, image_height, category_mapping)
             for ann in annotations_by_image.get(image_id, [])
+            if int(ann["category_id"]) in category_mapping
         ]
 
         label_path = labels_dir / f"{Path(file_name).stem}.txt"
@@ -162,13 +178,13 @@ def CriarLabelsYOLO26(fold: str, root_dir: str | Path) -> Path:
     splits_info = _resolve_split_paths(dataset_root, fold)
     split_names = [info[0] for info in splits_info]
     annotation_paths = [info[1] for info in splits_info]
-    class_names = _collect_class_names(annotation_paths)
+    category_mapping, class_names = _collect_class_mapping(annotation_paths)
 
     output_root = dataset_root / "YOLO26"
     _prepare_output_dirs(output_root, split_names)
 
     for split_name, json_path, images_src in splits_info:
-        _process_split(split_name, json_path, images_src, output_root, dataset_root)
+        _process_split(split_name, json_path, images_src, output_root, dataset_root, category_mapping)
 
     data_yaml_path = dataset_root / "data_yolo26.yaml"
     _write_data_yaml(data_yaml_path, output_root, class_names, split_names)
