@@ -10,18 +10,18 @@ MOSTRAIMAGE = False
     # Função do detector da YOLOV8
 def xyxy_to_xywh(boxes: list)-> list:
     """
-    Converte caixas delimitadoras no formato xyxy para xywh.
+    Converte caixas [x1, y1, x2, y2, class_id, confidence] para xywh.
 
-    :param boxes: Lista ou array de caixas no formato [x_min, y_min, x_max, y_max, conf, class].
-    :return: Lista de caixas no formato [x, y, w, h, conf, class].
+    :param boxes: Lista ou array de caixas no formato [x1, y1, x2, y2, class_id, confidence].
+    :return: Lista de caixas no formato [x, y, w, h, class_id, confidence].
     """
     coco_boxes = []
 
     for box in boxes:
-        x_min, y_min, x_max, y_max, conf, cls = box
+        x_min, y_min, x_max, y_max, class_id, confidence = box
         w = x_max - x_min
         h = y_max - y_min
-        coco_boxes.append([x_min, y_min, w, h, conf, cls])
+        coco_boxes.append([x_min, y_min, w, h, class_id, confidence])
     return coco_boxes
     
 class resultYOLO:
@@ -32,13 +32,13 @@ class resultYOLO:
             detections.confidence[:, np.newaxis]
         ))
     # Função onde passamos a imagem e o modelo treinado
-    def result(frame,modelName,LIMIAR_THRESHOLD):
+    def result(frame, modelName, LIMIAR_THRESHOLD, class_ids=None):
         yolo_box = []
-        MODEL=modelName 
-        model = YOLO(MODEL) # Lendo o modelo Treinado
-        model.fuse()
+        model = modelName if hasattr(modelName, 'predict') else YOLO(modelName)
+        if hasattr(model, 'fuse'):
+            model.fuse()
 
-        results = model(frame) # Ira ler a imagem e marcar os Objetos
+        results = model.predict(source=frame, conf=LIMIAR_THRESHOLD, verbose=False)
         # Chama a função para facilitar a visualização dos objetos
         detections = Detections(
                 xyxy=results[0].boxes.xyxy.cpu().numpy(),
@@ -62,7 +62,19 @@ class resultYOLO:
 
         for i,bbox in enumerate(detections.xyxy):
             if detections.confidence[i] > LIMIAR_THRESHOLD:
-                yolo_box.append([int(bbox[0]),int(bbox[1]),int(bbox[2]),int(bbox[3]),int(detections.class_id[i])+1,detections.confidence[i]])
+                class_index = int(detections.class_id[i])
+                if class_ids is None:
+                    class_id = class_index + 1
+                elif isinstance(class_ids, dict):
+                    class_names = model.names
+                    class_name = class_names[class_index]
+                    class_id = class_ids[class_name]
+                else:
+                    class_id = class_ids[class_index]
+                yolo_box.append([
+                    int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3]),
+                    class_id, float(detections.confidence[i])
+                ])
 
 
         coco_boxes = xyxy_to_xywh(yolo_box)

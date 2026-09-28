@@ -131,8 +131,12 @@ def process_predictions(ground_truth, predictions, classes, save_img, root, fold
         img_path = os.path.join(root, "train", key)
         image = cv2.imread(img_path)
 
-        gt_count = len(ground_truth[key][cls])
-        pred_count = len(predictions[key][cls])
+        class_ground_truth = ground_truth[key][cls]
+        class_predictions = [
+            bbox for bbox in predictions[key][cls] if bbox[5] > LIMIAR_THRESHOLD
+        ]
+        gt_count = len(class_ground_truth)
+        pred_count = len(class_predictions)
         ground_truth_list_count.append(gt_count)
         predict_list_count.append(pred_count)
         cv2.putText(image, f"GT: {gt_count}", (5, 30), cv2.FONT_HERSHEY_TRIPLEX, 1, (255, 0, 0), 1)
@@ -142,12 +146,12 @@ def process_predictions(ground_truth, predictions, classes, save_img, root, fold
         false_positives = 0
         matched_gt = set()
 
-        for bbox_pred in predictions[key][cls]:
+        for bbox_pred in class_predictions:
             x1_max, y1_max = int(bbox_pred[0] + bbox_pred[2]), int(bbox_pred[1] + bbox_pred[3])
             best_iou = 0
             best_gt = None
 
-            for i, bbox_gt in enumerate(ground_truth[key][cls]):
+            for i, bbox_gt in enumerate(class_ground_truth):
                 x2_max, y2_max = int(bbox_gt[0] + bbox_gt[2]), int(bbox_gt[1] + bbox_gt[3])
                 iou = calculate_iou(bbox_pred[:4], bbox_gt[:4])
                 cv2.putText(image, str(classes[bbox_gt[-1]]), (int(bbox_gt[0]), int(bbox_gt[1]+5)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), 1, cv2.LINE_AA)
@@ -158,7 +162,7 @@ def process_predictions(ground_truth, predictions, classes, save_img, root, fold
 
             if best_gt is not None:
                 matched_gt.add(best_gt)
-                gt_class = ground_truth[key][cls][best_gt][-1]
+                gt_class = class_ground_truth[best_gt][-1]
 
                 ground_truth_list.append(1)
                 predict_list.append(1)
@@ -179,7 +183,7 @@ def process_predictions(ground_truth, predictions, classes, save_img, root, fold
                 predict_list.append(1)
                 false_positives += 1
 
-        for i, bbox_gt in enumerate(ground_truth[key][cls]):
+        for i, bbox_gt in enumerate(class_ground_truth):
             if i not in matched_gt:
                 x2_max, y2_max = int(bbox_gt[0] + bbox_gt[2]), int(bbox_gt[1] + bbox_gt[3])
                 cv2.rectangle(image, (int(bbox_gt[0]), int(bbox_gt[1])), (x2_max, y2_max), (255, 0, 0), thickness=2)
@@ -234,7 +238,7 @@ def generate_results(root, fold, model, model_name, save_imgs):
     predictions = {}
     ground_truth = {}
     for image in coco_test:
-        ground_truth_list_class = []
+        ground_truth_list_class = {}
         for cls in classes_dict:
             ground_truth_list = []
 
@@ -243,16 +247,19 @@ def generate_results(root, fold, model, model_name, save_imgs):
                 label = image["annotations"]['labels'][i]
                 if label == cls:
                     ground_truth_list.append([x1, y1, width, height, label])
-            ground_truth_list_class.append(ground_truth_list)
+            ground_truth_list_class[cls] = ground_truth_list
 
         ground_truth[image['file_name']] = ground_truth_list_class
         image_path = os.path.join(root, 'train', image['file_name'])
 
     
         frame = cv2.imread(image_path)
-        result_list_classe = []
+        result_list_classe = {}
         if model_name == "YOLOV8":
-            result = resultYOLO.result(frame, model,LIMIAR_THRESHOLD)
+            result = resultYOLO.result(
+                frame, model, 0.001,
+                class_ids={name: category_id for category_id, name in classes_dict.items()},
+            )
         elif model_name == "Faster":
             print(image_path)
             result = ResultFaster.resultFaster(frame,model,LIMIAR_THRESHOLD)
@@ -269,13 +276,11 @@ def generate_results(root, fold, model, model_name, save_imgs):
             for bbox in result:
                 if bbox[4] == cls:
                     result_list.append(bbox)
-            result_list_classe.append(result_list)
+            result_list_classe[cls] = result_list
         predictions[image['file_name']] = result_list_classe
 
 
     for cls in classes_dict:
-        if cls == 0:
-            continue
         ground_truth_map = []
         predictions_map = []
 
@@ -286,7 +291,10 @@ def generate_results(root, fold, model, model_name, save_imgs):
                 bbox = xywh_to_xyxy(values[:4])
                 bbox_list.append(bbox)
                 label_list.append(values[-1])
-            ground_truth_map.append({"boxes": torch.tensor(bbox_list), "labels": torch.tensor(label_list)})
+            ground_truth_map.append({
+                "boxes": torch.tensor(bbox_list, dtype=torch.float32).reshape(-1, 4),
+                "labels": torch.tensor(label_list, dtype=torch.int64),
+            })
  
         for key in predictions:
             bbox_list = []
@@ -297,7 +305,11 @@ def generate_results(root, fold, model, model_name, save_imgs):
                 bbox_list.append(bbox)
                 label_list.append(values[4])
                 score_list.append(values[5])
-            predictions_map.append({"boxes": torch.tensor(bbox_list), "scores": torch.tensor(score_list), "labels": torch.tensor(label_list)})
+            predictions_map.append({
+                "boxes": torch.tensor(bbox_list, dtype=torch.float32).reshape(-1, 4),
+                "scores": torch.tensor(score_list, dtype=torch.float32),
+                "labels": torch.tensor(label_list, dtype=torch.int64),
+            })
 
         metric = MeanAveragePrecision()
         metric.update(predictions_map, ground_truth_map)
@@ -314,7 +326,9 @@ def generate_results(root, fold, model, model_name, save_imgs):
 
         prediction_counts = []
         for key in predictions:
-            prediction_counts.append(len(predictions[key][cls]))
+            prediction_counts.append(sum(
+                bbox[5] > LIMIAR_THRESHOLD for bbox in predictions[key][cls]
+            ))
         prediction_counts = torch.tensor(prediction_counts)
 
         MAE = MeanAbsoluteError()(prediction_counts, ground_truth_counts)

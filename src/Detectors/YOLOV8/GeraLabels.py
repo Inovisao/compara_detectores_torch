@@ -2,117 +2,81 @@ import json
 import os
 import shutil
 import yaml
+from collections import defaultdict
 
 ROOT_DATA_DIR = os.path.join('..', 'dataset','all')
 
 
 # Função para criar o dataset para treinamento da YOLOV8
 def CriarLabelsYOLOV8(fold):
-    # Abre o arquivo Json onde temos as anotações de cada imagem
     with open(os.path.join(ROOT_DATA_DIR, 'train', '_annotations.coco.json'), 'r') as f:
         data = json.load(f)
-    
-    ann_ids = []
-    for anotation in data["annotations"]:
-        if anotation["category_id"] not in ann_ids:
-            ann_ids.append(anotation["category_id"])
-    Classe = []
-    for category in data["categories"]:
-        if category["id"] in ann_ids:
-            Classe.append(category["name"],)
+
+    category_ids = {annotation['category_id'] for annotation in data['annotations']}
+    categories = [category for category in data['categories'] if category['id'] in category_ids]
+    class_id_by_category = {
+        category['id']: class_id for class_id, category in enumerate(categories)
+    }
     caminho_arquivo_yaml = os.path.join(ROOT_DATA_DIR, 'data.yaml')
-    
-    # Carregue o conteúdo do arquivo YAML
     with open(caminho_arquivo_yaml, 'r') as arquivo:
         conteudo = yaml.safe_load(arquivo)
 
-    # Altere o conteúdo conforme necessário
-    conteudo['nc'] = len(Classe)
-    conteudo['names'] = Classe
+    conteudo['nc'] = len(categories)
+    conteudo['names'] = [category['name'] for category in categories]
 
-    # Salve o conteúdo alterado de volta no arquivo YAML
     with open(caminho_arquivo_yaml, 'w') as arquivo:
-        yaml.dump(conteudo, arquivo)
+        yaml.safe_dump(conteudo, arquivo, sort_keys=False)
 
-    if os.path.exists(os.path.join(ROOT_DATA_DIR,'YOLO')):
-        shutil.rmtree(os.path.join(ROOT_DATA_DIR, 'YOLO'))
+    yolo_root = os.path.join(ROOT_DATA_DIR, 'YOLO')
+    if os.path.exists(yolo_root):
+        shutil.rmtree(yolo_root)
 
-    for c1 in ['train', 'test', 'valid']:
-        for c2 in ['labels', 'images']:
-            os.makedirs(os.path.join(ROOT_DATA_DIR, 'YOLO', c1, c2), exist_ok=True)
+    for split in ('train', 'test', 'valid'):
+        for kind in ('labels', 'images'):
+            os.makedirs(os.path.join(yolo_root, split, kind), exist_ok=True)
 
-    caminhos = (os.listdir(os.path.join(ROOT_DATA_DIR,'filesJSON')))
-    foldsUsadas = []
-    #Pega o caminho do arquivo coco que esta sendo usada
-    for caminho in caminhos:
+    files_json = os.path.join(ROOT_DATA_DIR, 'filesJSON')
+    for filename in sorted(os.listdir(files_json)):
+        parts = filename.split('_')
+        if len(parts) < 3 or '_'.join(parts[:2]) != fold or not filename.endswith('.json'):
+            continue
 
-        fold_check = caminho.split("_")[0] + "_" +caminho.split("_")[1]
+        split = os.path.splitext(parts[-1])[0]
+        if split == 'val':
+            split = 'valid'
+        if split not in ('train', 'test', 'valid'):
+            continue
 
-        if str(fold_check) == str(fold):
-            foldsUsadas.append(caminho)
+        with open(os.path.join(files_json, filename), 'r') as f:
+            fold_data = json.load(f)
 
-    for Caminho in foldsUsadas:
-        path = Caminho.split('_')[-1][0:-5]
+        annotations_by_image = defaultdict(list)
+        for annotation in fold_data['annotations']:
+            annotations_by_image[annotation['image_id']].append(annotation)
 
-        caminho = os.path.join(ROOT_DATA_DIR,'filesJSON',Caminho)
-        # Lendo o arquivo JSON
-        with open(caminho, 'r') as f:
-            anotacaoDobras = json.load(f)
-        # Exibindo os dados lidos
-        NameFile = []
-        imageID = []
-        anotacao = {}
-        idAnotcao = {}
-        #Salva a lista de id das imagens
-        for i in range(len(anotacaoDobras['annotations'])):
-            imageID.append(anotacaoDobras['annotations'][i]['image_id'])
+        for image in fold_data['images']:
+            image_path = os.path.join(ROOT_DATA_DIR, 'train', image['file_name'])
+            image_width = float(image['width'])
+            image_height = float(image['height'])
+            if image_width <= 0 or image_height <= 0:
+                raise ValueError(f"Dimensões inválidas na imagem {image['file_name']}")
 
-        #Faz a lista sem repetir os IDs
-        imageID = (list(set(imageID)))
+            label_lines = []
+            for annotation in annotations_by_image[image['id']]:
+                category_id = annotation['category_id']
+                if category_id not in class_id_by_category:
+                    raise ValueError(f"Categoria COCO desconhecida: {category_id}")
 
-        #Cria um dicionario Com ID das imagens
-        for i in imageID:
-            anotacao[i] = []
-            idAnotcao[i] = [] 
-        #Ira pegar as anotações es classes de cada imagens e salvar em seus dicionarios
-        for id in imageID:
-            for i in range(len(anotacaoDobras['annotations'])):
-                if anotacaoDobras['annotations'][i]['image_id'] == id:
-                    anotacao[id].append(anotacaoDobras['annotations'][i]['bbox'])
-                    idAnotcao[id].append(anotacaoDobras['annotations'][i]['category_id']-1)
-        #Salva o nome de cada imagem
-        for i in imageID:
-            for j in range(len(anotacaoDobras['images'])):
-                if (anotacaoDobras['images'][j]['id']) == i:
-                    NameFile.append(anotacaoDobras['images'][j]['file_name'])
-        
-        slectImage = 0
-        #Converte as anotações para o formato da YOLOV8
-        for id in imageID:
-            linhas = []
-            for i in range (len(anotacao[id])):
-                x1 = int(anotacao[id][i][0])
-                y1 = int(anotacao[id][i][1])
+                x, y, width, height = map(float, annotation['bbox'])
+                x_center = (x + width / 2) / image_width
+                y_center = (y + height / 2) / image_height
+                label_lines.append(
+                    f"{class_id_by_category[category_id]} {x_center:.8f} {y_center:.8f} "
+                    f"{width / image_width:.8f} {height / image_height:.8f}\n"
+                )
 
-                x2 = int(x1 + int(anotacao[id][i][2]))
-                y2 = int(y1 + int(anotacao[id][i][3]))
-
-                x_center = abs((x1+ x2)/2)
-                y_center = abs((y1 + y2) / 2)
-
-                width = abs(anotacao[id][i][2])
-                height = abs(anotacao[id][i][3])
-                linhas.append(str(abs(idAnotcao[id][i]))+' '+str(x_center/640)+' '+str(y_center/640)+' '+str(width/640)+' '+str(height/640)+"\n")
-
-            image = os.path.join(ROOT_DATA_DIR,'train',NameFile[slectImage])
-            arq = NameFile[slectImage][0:-4]+'.txt'
-            with open(arq, 'w') as arquivo:
-            # Escrevendo múltiplas linhas no arquivo
-                arquivo.writelines(linhas)
-            slectImage+=1
-            
-            if path == 'val':
-                path = 'valid'
-
-            shutil.move(arq, os.path.join(ROOT_DATA_DIR,'YOLO', path, 'labels'))
-            shutil.copy(image, os.path.join(ROOT_DATA_DIR,'YOLO', path, 'images'))
+            label_name = os.path.splitext(os.path.basename(image['file_name']))[0] + '.txt'
+            label_path = os.path.join(yolo_root, split, 'labels', label_name)
+            with open(label_path, 'w') as arquivo:
+                arquivo.writelines(label_lines)
+            shutil.copy2(image_path, os.path.join(yolo_root, split, 'images'))

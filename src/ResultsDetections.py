@@ -133,7 +133,8 @@ def process_predictions(ground_truth, predictions, classes, save_img, root, fold
         image = cv2.imread(img_path)
 
         gt_count = len(ground_truth[key])
-        pred_count = len(predictions[key])
+        image_predictions = [bbox for bbox in predictions[key] if bbox[5] > LIMIAR_THRESHOLD]
+        pred_count = len(image_predictions)
         ground_truth_list_count.append(gt_count)
         predict_list_count.append(pred_count)
         cv2.putText(image, f"GT: {gt_count}", (5, 30), cv2.FONT_HERSHEY_TRIPLEX, 1, (255, 0, 0), 1)
@@ -143,7 +144,7 @@ def process_predictions(ground_truth, predictions, classes, save_img, root, fold
         false_positives = 0
         matched_gt = set()
 
-        for bbox_pred in predictions[key]:
+        for bbox_pred in image_predictions:
             x1_max, y1_max = int(bbox_pred[0] + bbox_pred[2]), int(bbox_pred[1] + bbox_pred[3])
             best_iou = 0
             best_gt = None
@@ -241,6 +242,9 @@ def generate_results(root, fold, model, model_name, save_imgs):
     annotations_path = os.path.join(root, 'train', '_annotations.coco.json')
 
     classes_dict = get_classes(annotations_path)
+    category_id_by_name = {
+        class_name: category_id for category_id, class_name in classes_dict.items()
+    }
     coco_test = load_dataset(test_json_path)
     predictions = {}
     ground_truth = {}
@@ -257,7 +261,7 @@ def generate_results(root, fold, model, model_name, save_imgs):
         frame = cv2.imread(image_path)
 
         if model_name == "YOLOV8":
-            result = resultYOLO.result(frame, model,LIMIAR_THRESHOLD)
+            result = resultYOLO.result(frame, model, 0.001, class_ids=category_id_by_name)
         elif model_name == "Faster":
             print(image_path)
             result = ResultFaster.resultFaster(frame,model,LIMIAR_THRESHOLD)
@@ -281,7 +285,10 @@ def generate_results(root, fold, model, model_name, save_imgs):
             bbox = xywh_to_xyxy(values[:4])
             bbox_list.append(bbox)
             label_list.append(values[-1])
-        ground_truth_map.append({"boxes": torch.tensor(bbox_list), "labels": torch.tensor(label_list)})
+        ground_truth_map.append({
+            "boxes": torch.tensor(bbox_list, dtype=torch.float32).reshape(-1, 4),
+            "labels": torch.tensor(label_list, dtype=torch.int64),
+        })
         
     for key in predictions:
         bbox_list = []
@@ -292,14 +299,16 @@ def generate_results(root, fold, model, model_name, save_imgs):
             bbox_list.append(bbox)
             label_list.append(values[4])
             score_list.append(values[5])
-        predictions_map.append({"boxes": torch.tensor(bbox_list), "scores": torch.tensor(score_list), "labels": torch.tensor(label_list)})
+        predictions_map.append({
+            "boxes": torch.tensor(bbox_list, dtype=torch.float32).reshape(-1, 4),
+            "scores": torch.tensor(score_list, dtype=torch.float32),
+            "labels": torch.tensor(label_list, dtype=torch.int64),
+        })
 
     metric = MeanAveragePrecision()
     metric.update(predictions_map, ground_truth_map)
     result_map = metric.compute()
 
-    valid_class_ids = list(classes_dict.keys())
-    
     ground_truth_counts = []
     for key in ground_truth:
         count_classes = [0] * len(classes_dict)
@@ -316,6 +325,8 @@ def generate_results(root, fold, model, model_name, save_imgs):
     for key in predictions:
         count_classes = [0] * len(classes_dict)
         for bbox in predictions[key]:
+            if bbox[5] <= LIMIAR_THRESHOLD:
+                continue
             
             # PREVENÇÃO: Se a YOLO retornou a classe no formato 0-index,
             # forçamos a conversão para o ID oficial do formato COCO.
