@@ -242,12 +242,18 @@ def generate_results(root, fold, model, model_name, save_imgs):
     annotations_path = os.path.join(root, 'train', '_annotations.coco.json')
 
     classes_dict = get_classes(annotations_path)
+    valid_class_ids = list(classes_dict.keys())
     category_id_by_name = {
         class_name: category_id for category_id, class_name in classes_dict.items()
     }
     coco_test = load_dataset(test_json_path)
     predictions = {}
     ground_truth = {}
+    if model_name == "YOLOV8" and not hasattr(model, 'predict'):
+        from ultralytics import YOLO
+        model = YOLO(model)
+        model.fuse()
+
     for image in coco_test:
 
         ground_truth_list = []
@@ -363,6 +369,12 @@ def generate_results(root, fold, model, model_name, save_imgs):
 
 def create_csv(selected_model, fold, root, model_path, save_imgs):
     results_path = os.path.join('..', 'results', 'results.csv')
+
+    if not os.path.isfile(model_path):
+        raise FileNotFoundError(
+            f"Checkpoint do modelo não encontrado: {model_path}. "
+            "Treine o modelo antes de avaliá-lo ou corrija o caminho do checkpoint."
+        )
     
     try:
         mAP, mAP50, mAP75, MAE, RMSE, precision, recall, fscore, r = generate_results(root, fold, model_path, selected_model, save_imgs)
@@ -378,3 +390,4 @@ def create_csv(selected_model, fold, root, model_path, save_imgs):
         print(f"[INFO] Resultados salvos com sucesso em {results_path}")
     except Exception as e:
         print(f"[ERRO] Falha ao salvar resultados em {results_path}: {e}")
+        raise

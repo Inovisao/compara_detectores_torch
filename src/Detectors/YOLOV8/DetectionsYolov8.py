@@ -34,8 +34,9 @@ class resultYOLO:
     # Função onde passamos a imagem e o modelo treinado
     def result(frame, modelName, LIMIAR_THRESHOLD, class_ids=None):
         yolo_box = []
-        model = modelName if hasattr(modelName, 'predict') else YOLO(modelName)
-        if hasattr(model, 'fuse'):
+        model_is_loaded = hasattr(modelName, 'predict')
+        model = modelName if model_is_loaded else YOLO(modelName)
+        if not model_is_loaded and hasattr(model, 'fuse'):
             model.fuse()
 
         results = model.predict(source=frame, conf=LIMIAR_THRESHOLD, verbose=False)

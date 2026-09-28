@@ -237,6 +237,11 @@ def generate_results(root, fold, model, model_name, save_imgs):
     coco_test = load_dataset(test_json_path)
     predictions = {}
     ground_truth = {}
+    if model_name == "YOLOV8" and not hasattr(model, 'predict'):
+        from ultralytics import YOLO
+        model = YOLO(model)
+        model.fuse()
+
     for image in coco_test:
         ground_truth_list_class = {}
         for cls in classes_dict:
