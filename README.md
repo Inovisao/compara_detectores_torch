@@ -1,6 +1,40 @@
 # Código para Treinamento de Redes de Detecção
 
 Este repositório foi desenvolvido para facilitar a junção de múltiplas redes neurais no treinamento de modelos de detecção de objetos.
+
+## Fine-tuning do first para o second
+
+No ambiente Python com as dependências de treinamento instaladas, execute:
+
+```bash
+cd src
+DATASET_NAME=second \
+RUN_TAG=finetune_second \
+MODELS_TO_RUN=YOLO26 \
+YOLO26_WEIGHTS="$PWD/model_checkpoints/nano/fold_2/YOLO26/train/weights/best.pt" \
+YOLO26_EPOCHS=100 YOLO26_PATIENCE=20 YOLO26_BATCH=16 \
+YOLO26_LR0=0.0001 YOLO26_DEVICE=0 \
+python3 main.py
+```
+
+Cada dobra do `second` começa com o mesmo checkpoint do `first` indicado acima.
+Os checkpoints são salvos em `src/model_checkpoints/finetune_second/`.
+Para um novo experimento, use outro `RUN_TAG`: reutilizar a etiqueta substitui seus checkpoints.
+
+Os resultados são separados automaticamente pelo dataset:
+
+- `results/first/results.csv` e `results/second/results.csv`;
+- `counting.csv`, `resultsbyclass.csv` (quando habilitado) e `prediction/` dentro da pasta de cada dataset;
+- `training_params.json` na pasta do dataset, salvo antes do treino e atualizado após cada dobra;
+- `runs/<data-hora>/training_params.json` preserva os parâmetros de cada execução;
+- cada checkpoint também recebe seu `training_params.json`, incluindo `training_args` do `args.yaml` efetivamente usado.
+
+`DATASET_ROOT`, quando definido, seleciona o dataset pelo caminho e usa o nome dessa pasta para separar os resultados.
+O CSV acumula execuções quando `RUN_TAG` está preenchido. Os arquivos antigos diretamente em `results/` não são importados automaticamente.
+Para treinar no `first` a partir dos pesos base, use `DATASET_NAME=first`, `RUN_TAG=nano_first` e `YOLO26_WEIGHTS=yolo26n.pt` (requer o dataset `first` disponível).
+
+Para gerar gráficos, execute de `utils/`: `Rscript graficos.R first` ou `Rscript graficos.R second`.
+
 ## Link dos codigos utilizados como base
 ### YOLOV8
 - **https://docs.ultralytics.com/pt/modes/train/#resuming-interrupted-trainings**:

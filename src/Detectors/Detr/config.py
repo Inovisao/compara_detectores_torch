@@ -1,11 +1,22 @@
 import torch
 import json
 import os
-BATCH_SIZE = 8 # lote de imagens
-RESIZE_TO = 640 # tamanho da imagem
-NUM_EPOCHS = 1000 # Numero de epocas
-NUM_WORKERS = 4 # Numero de workers
-LR = 0.0001 # Taxa de aprendizagem
+import sys
+from pathlib import Path
+
+# train.py/train_detector.py rodam como script (subprocesso) e só enxergam a própria pasta;
+# src/ precisa estar no path para achar hyperparameters.py.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from hyperparameters import param  # noqa: E402
+
+# Valores em src/hyperparameters.py (por dataset); DETR_* sobrescreve.
+BATCH_SIZE = param("Detr", "batch_size", "DETR_BATCH")  # lote de imagens
+RESIZE_TO = param("Detr", "resize_to", "DETR_RESIZE")  # tamanho da imagem
+NUM_EPOCHS = param("Detr", "epochs", "DETR_EPOCHS")  # numero de epocas
+NUM_WORKERS = param("Detr", "num_workers", "DETR_NUM_WORKERS")
+LR = param("Detr", "learning_rate", "DETR_LR")  # taxa de aprendizagem
+LR_BACKBONE = param("Detr", "lr_backbone", "DETR_LR_BACKBONE")
+WEIGHT_DECAY = param("Detr", "weight_decay", "DETR_WEIGHT_DECAY")
 DATA_PATH = os.path.join('..','dataset','all','dataDetr.yaml')
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 ROOT_DATA_DIR = os.path.join('..','dataset','all')
@@ -46,6 +57,8 @@ def get_training_params() -> dict:
         "num_epochs": NUM_EPOCHS,
         "num_workers": NUM_WORKERS,
         "learning_rate": LR,
+        "lr_backbone": LR_BACKBONE,
+        "weight_decay": WEIGHT_DECAY,
         "data_path": DATA_PATH,
         "device": str(DEVICE),
         "root_data_dir": ROOT_DATA_DIR,

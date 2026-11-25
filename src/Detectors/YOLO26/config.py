@@ -6,20 +6,19 @@ from pathlib import Path
 
 from ultralytics import YOLO
 
+from hyperparameters import param
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SRC_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATA = PROJECT_ROOT / "dataset" / "all" / "data.yaml"
-DEFAULT_FINETUNE_WEIGHTS = SRC_ROOT / "model_checkpoints" / "nano" / "fold_2" / "YOLO26" / "train" / "weights" / "best.pt"
-DEFAULT_WEIGHTS = os.getenv("YOLO26_WEIGHTS", str(DEFAULT_FINETUNE_WEIGHTS))
 DEFAULT_PROJECT = SRC_ROOT / "runs" / "detect" / "YOLO26"
 
 
-def _env_bool(name: str, default: bool) -> bool:
-    value = os.getenv(name)
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "t", "yes", "y"}
+def _resolve_weights(weights: str) -> str:
+    """Pesos relativos a src/ viram caminho absoluto quando o arquivo existe."""
+    candidate = SRC_ROOT / weights
+    return str(candidate) if not Path(weights).is_absolute() and candidate.exists() else weights
 
 
 def _normalize_device(value: str | None) -> str:
@@ -39,34 +38,35 @@ def _ultralytics_device(value: str) -> str:
 
 
 def get_training_params(data_yaml: str | Path | None = None) -> dict:
+    # Valores em src/hyperparameters.py (por dataset); YOLO26_* sobrescreve.
     data_path = Path(os.getenv("YOLO26_DATA", data_yaml or DEFAULT_DATA))
+    p = lambda key: param("YOLO26", key, f"YOLO26_{key.upper()}")
     return {
-        "weights": DEFAULT_WEIGHTS,
+        "weights": _resolve_weights(p("weights")),
         "data": str(data_path),
-        "epochs": int(os.getenv("YOLO26_EPOCHS", "100")),
-        "imgsz": int(os.getenv("YOLO26_IMGSZ", "640")),
-        "patience": int(os.getenv("YOLO26_PATIENCE", "20")),
-        "batch": int(os.getenv("YOLO26_BATCH", "16")),
+        "epochs": p("epochs"),
+        "imgsz": p("imgsz"),
+        "patience": p("patience"),
+        "batch": p("batch"),
         "project": os.getenv("YOLO26_PROJECT", str(DEFAULT_PROJECT)),
         "run_name": os.getenv("YOLO26_RUN_NAME", "train"),
-        "optimizer": os.getenv("YOLO26_OPTIMIZER", "SGD"),
-        "single_cls": _env_bool("YOLO26_SINGLE_CLS", False),
-        "rect": _env_bool("YOLO26_RECT", False),
-        "cos_lr": _env_bool("YOLO26_COS_LR", True),
-        "lr0": float(os.getenv("YOLO26_LR0", "0.0001")),
-        "lrf": float(os.getenv("YOLO26_LRF", "0.01")),
-        "weight_decay": float(os.getenv("YOLO26_WEIGHT_DECAY", "0.0005")),
-        "freeze": os.getenv("YOLO26_FREEZE"),
-        "plots": _env_bool("YOLO26_PLOTS", True),
-        "device": _normalize_device(os.getenv("YOLO26_DEVICE")),
-        "workers": int(os.getenv("YOLO26_WORKERS", "4")),
+        "optimizer": p("optimizer"),
+        "single_cls": p("single_cls"),
+        "rect": p("rect"),
+        "cos_lr": p("cos_lr"),
+        "lr0": p("lr0"),
+        "lrf": p("lrf"),
+        "weight_decay": p("weight_decay"),
+        "freeze": p("freeze"),
+        "plots": p("plots"),
+        "device": _normalize_device(p("device")),
+        "workers": p("workers"),
     }
 
 
 def treino(data_yaml: str | Path | None = None) -> None:
-    model = YOLO(DEFAULT_WEIGHTS)
-
     params = get_training_params(data_yaml)
+    model = YOLO(params["weights"])
 
     train_kwargs = dict(
         data=params["data"],

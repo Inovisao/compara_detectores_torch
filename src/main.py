@@ -8,11 +8,13 @@ from ResultsDetectionsbyclass import generate_results, RESULTS_BY_CLASS_CSV_PATH
 import shutil
 import time
 from datetime import datetime
+from result_paths import RESULTS_DIR, DATASET_NAME
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATASET_PATH = PROJECT_ROOT / "dataset" / "tiles"
 TILING_MODE = os.getenv("TILING_MODE", "basic")
-TRAINING_PARAMS_JSON_PATH = PROJECT_ROOT / "results" / "training_params.json"
+TRAINING_PARAMS_JSON_PATH = RESULTS_DIR / "training_params.json"
+TRAINING_PARAMS_ARCHIVE_PATH = RESULTS_DIR / "runs" / datetime.now().strftime("%Y%m%dT%H%M%S_%f") / "training_params.json"
 
 # Disable Weights & Biases logging unless explicitly re-enabled outside.
 os.environ.setdefault("WANDB_DISABLED", "true")
@@ -99,7 +101,8 @@ def _get_model_training_params(model: str) -> dict:
         return get_training_params()
     if model == "YOLO26":
         from Detectors.YOLO26.config import get_training_params
-        return get_training_params()
+        data_yaml = Path(ROOT_DATA_DIR).resolve() / "data_yolo26.yaml" if ROOT_DATA_DIR else None
+        return get_training_params(data_yaml)
     if model == "YOLOV5_TPH":
         from Detectors.YOLOV5_TPH.config import get_training_params
         return get_training_params()
@@ -118,17 +121,22 @@ def _get_model_training_params(model: str) -> dict:
 def _new_training_params_payload() -> dict:
     return {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "dataset": DATASET_NAME,
+        "dataset_root": ROOT_DATA_DIR,
+        "run_tag": RUN_TAG,
+        "results_csv": str(RESULTS_CSV_PATH),
         "selected_models": MODELS,
         "folds": FOLD_NAMES,
-        "models": {},
+        "models": {model: {"rede": model, "hyperparametros": _get_model_training_params(model)} for model in MODELS},
         "runs": [],
     }
 
 
 def _write_training_params_json(payload: dict) -> None:
-    TRAINING_PARAMS_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with TRAINING_PARAMS_JSON_PATH.open("w", encoding="utf-8") as f:
-        json.dump(_json_safe(payload), f, indent=2, ensure_ascii=False)
+    for path in (TRAINING_PARAMS_JSON_PATH, TRAINING_PARAMS_ARCHIVE_PATH):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as f:
+            json.dump(_json_safe(payload), f, indent=2, ensure_ascii=False)
 
 
 def _resolve_training_params_dir(model: str, model_path: str | None) -> Path:
@@ -165,6 +173,12 @@ def register_training_params(model: str, fold: str, root: str, mode: str, model_
         "model_path": model_path,
         "hyperparametros": TRAINING_PARAMS_LOG["models"][model]["hyperparametros"],
     }
+    # O YAML do treinamento registra o dataset e os argumentos efetivamente usados.
+    args_path = _resolve_training_params_dir(model, model_path) / "args.yaml"
+    if args_path.exists():
+        import yaml
+        with args_path.open(encoding="utf-8") as f:
+            run_payload["training_args"] = yaml.safe_load(f)
     TRAINING_PARAMS_LOG["runs"].append(run_payload)
     _write_run_training_params_json(run_payload)
     _write_training_params_json(TRAINING_PARAMS_LOG)
@@ -274,7 +288,6 @@ else:
     # Qual dataset usar: DATASET_NAME=first|second (ou o caminho completo em
     # DATASET_ROOT). Cada um precisa ter 'train/' com as imagens e 'filesJSON/'
     # com as dobras geradas pelo utils/geraDobras.py.
-    DATASET_NAME = os.getenv('DATASET_NAME', 'second')
     ROOT_DATA_DIR = os.getenv(
         'DATASET_ROOT', os.path.join('..', 'dataset', DATASET_NAME)
     )
@@ -292,9 +305,6 @@ else:
 
 print(f"Total de Dobras: {DOBRAS}")
 
-TRAINING_PARAMS_LOG = _new_training_params_payload()
-_write_training_params_json(TRAINING_PARAMS_LOG)
-
 GeraRult = True # True para gerar Resultados False para não gerar
 save_imgs = True # True para salvar imagens em predictes False para não salvar
 GeraResultByClass = False # True para Salvar Resultados Por classes
@@ -307,6 +317,9 @@ CONTINUE = False # True para Continuar sem apagar os pesos ja treinados
 #   RUN_TAG=small  YOLO26_WEIGHTS=yolo26s.pt MODELS_TO_RUN=YOLO26 python main.py
 #   RUN_TAG=medium YOLO26_WEIGHTS=yolo26m.pt MODELS_TO_RUN=YOLO26 python main.py
 RUN_TAG = os.getenv('RUN_TAG', 'finetune_second').strip()
+
+TRAINING_PARAMS_LOG = _new_training_params_payload()
+_write_training_params_json(TRAINING_PARAMS_LOG)
 
 # Com RUN_TAG, o CSV é preservado entre execuções para acumular a comparação;
 # sem ele, o comportamento antigo (reescrever a cada rodada) é mantido.

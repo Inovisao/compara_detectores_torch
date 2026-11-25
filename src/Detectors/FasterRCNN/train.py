@@ -17,6 +17,10 @@ from config import (
     BATCH_SIZE,
     DEVICE,
     LR,
+    MOMENTUM,
+    WEIGHT_DECAY,
+    LR_STEP_SIZE,
+    LR_GAMMA,
     OUT_DIR,
     PATIENCE,
 )
@@ -83,12 +87,12 @@ params = [p for p in model.parameters() if p.requires_grad]
 optimizer = torch.optim.SGD(
     params,
     lr=LR,
-    momentum=0.9,
-    weight_decay=0.0005
+    momentum=MOMENTUM,
+    weight_decay=WEIGHT_DECAY
 )
 
 
-lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
+lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=LR_STEP_SIZE, gamma=LR_GAMMA)
 
 def train_one_epoch(model, optimizer, data_loader, device, epoch):
     model.train()

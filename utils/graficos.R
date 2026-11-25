@@ -9,10 +9,16 @@ library(data.table)
 
 options(scipen = 999)
 
+# Execute de utils/: Rscript graficos.R first (ou second).
+args <- commandArgs(trailingOnly = TRUE)
+dataset <- if (length(args) > 0) args[[1]] else "second"
+if (!dataset %in% c("first", "second")) stop("Use first ou second como argumento.")
+results_dir <- file.path("..", "results", dataset)
+
 # -------------------------------------------------------------------
 # BOXPLOT DO DESEMPENHO ENTRE TÉCNICAS
 #
-dados <- read.table('../results/results.csv', sep = ',', header = TRUE)
+dados <- read.table(file.path(results_dir, 'results.csv'), sep = ',', header = TRUE)
 
 # Reordena a coluna 'ml' para garantir que o primeiro elemento seja o primeiro boxplot
 dados$ml <- factor(dados$ml, levels = unique(dados$ml))
@@ -36,13 +42,14 @@ for (metrica in metricas) {
 }
 
 g <- grid.arrange(grobs = graficos, ncol = 3)
-ggsave(paste("../results/boxplot.png", sep = ""), g, width = 12, height = 10)
+ggsave(file.path(results_dir, "boxplot.png"), g, width = 12, height = 10)
 print(g)
 
 # -------------------------------------------------------------------
 # XY CONTAGEM MANUAL X AUTOMÁTICA - JUNTANDO TODAS AS DOBRAS
 #
-dadosContagem <- read.table('../results/counting.csv', sep = ',', header = TRUE)
+if (file.exists(file.path(results_dir, 'counting.csv'))) {
+dadosContagem <- read.table(file.path(results_dir, 'counting.csv'), sep = ',', header = TRUE)
 
 dadosContagem$ml <- factor(dadosContagem$ml, levels = unique(dadosContagem$ml))
 
@@ -82,11 +89,14 @@ for (net in nets) {
 }
 
 g <- grid.arrange(grobs = graficos, ncol = 2)
-ggsave(paste("../results/counting.png", sep = ""), g, width = 10, height = 12)
+ggsave(file.path(results_dir, "counting.png"), g, width = 10, height = 12)
 print(g)
+} else {
+  message("Sem counting.csv para este dataset; apenas os boxplots serão gerados.")
+}
 
 # Arquivo para salvar os resultados
-output_file <- '../results/anova_all_results.txt'
+output_file <- file.path(results_dir, 'anova_all_results.txt')
 
 # Limpar o arquivo antes de começar
 sink(output_file)

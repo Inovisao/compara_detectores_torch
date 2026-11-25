@@ -36,12 +36,9 @@ except (FileNotFoundError, ModuleNotFoundError) as _faster_exc:
 LIMIAR_THRESHOLD = 0.2
 IOU_THRESHOLD = 0.2
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-RESULTS_DIR = PROJECT_ROOT / "results"
-RESULTS_PATH = RESULTS_DIR / "prediction"
+from result_paths import RESULTS_DIR, RESULTS_PATH, RESULTS_CSV_PATH, COUNTING_CSV_PATH
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 RESULTS_PATH.mkdir(parents=True, exist_ok=True)
-RESULTS_CSV_PATH = RESULTS_DIR / "results.csv"
-COUNTING_CSV_PATH = RESULTS_DIR / "counting.csv"
 
 
 def _validate_tiling_mode(requested_mode: str = "auto") -> str:

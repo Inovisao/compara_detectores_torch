@@ -1,16 +1,28 @@
 import json
 import os
-from pathlib import Path
 from typing import Optional
 
 import torch
 
-BATCH_SIZE = 4 # lote de imagens
-RESIZE_TO = 640 # tamanho da imagem
-NUM_EPOCHS = 1000 # Numero de epocas
-NUM_WORKERS = 4 # Paciencia
-LR = 0.0001 # Taxa de aprendizagem
-PATIENCE = 150
+import sys
+from pathlib import Path
+
+# train.py/train_detector.py rodam como script (subprocesso) e só enxergam a própria pasta;
+# src/ precisa estar no path para achar hyperparameters.py.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from hyperparameters import param  # noqa: E402
+
+# Valores em src/hyperparameters.py (por dataset); FASTER_* sobrescreve.
+BATCH_SIZE = param("Faster", "batch_size", "FASTER_BATCH")  # lote de imagens
+RESIZE_TO = param("Faster", "resize_to", "FASTER_RESIZE")  # tamanho da imagem
+NUM_EPOCHS = param("Faster", "epochs", "FASTER_EPOCHS")  # numero de epocas
+NUM_WORKERS = param("Faster", "num_workers", "FASTER_NUM_WORKERS")
+LR = param("Faster", "learning_rate", "FASTER_LR")  # taxa de aprendizagem
+MOMENTUM = param("Faster", "momentum", "FASTER_MOMENTUM")
+WEIGHT_DECAY = param("Faster", "weight_decay", "FASTER_WEIGHT_DECAY")
+LR_STEP_SIZE = param("Faster", "lr_step_size", "FASTER_LR_STEP")
+LR_GAMMA = param("Faster", "lr_gamma", "FASTER_LR_GAMMA")
+PATIENCE = param("Faster", "patience", "FASTER_PATIENCE")
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -112,6 +124,10 @@ def get_training_params() -> dict:
         "num_epochs": NUM_EPOCHS,
         "num_workers": NUM_WORKERS,
         "learning_rate": LR,
+        "momentum": MOMENTUM,
+        "weight_decay": WEIGHT_DECAY,
+        "lr_step_size": LR_STEP_SIZE,
+        "lr_gamma": LR_GAMMA,
         "patience": PATIENCE,
         "device": str(DEVICE),
         "out_dir": OUT_DIR,
@@ -139,6 +155,10 @@ __all__ = [
     "NUM_EPOCHS",
     "NUM_WORKERS",
     "LR",
+    "MOMENTUM",
+    "WEIGHT_DECAY",
+    "LR_STEP_SIZE",
+    "LR_GAMMA",
     "PATIENCE",
     "DEVICE",
     "OUT_DIR",

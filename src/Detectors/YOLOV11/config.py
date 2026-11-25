@@ -5,47 +5,44 @@ from pathlib import Path
 
 from ultralytics import YOLO
 
+from hyperparameters import param
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SRC_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATA = PROJECT_ROOT / "dataset" / "all" / "data.yaml"
-DEFAULT_WEIGHTS = os.getenv("YOLOV11_WEIGHTS", "yolo11s.pt")
 DEFAULT_PROJECT = SRC_ROOT / "runs" / "detect" / "YOLOV11"
 
 
-def _env_bool(name: str, default: bool) -> bool:
-    value = os.getenv(name)
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "t", "yes", "y"}
-
-
 def get_training_params(data_yaml: str | Path | None = None) -> dict:
+    # Valores em src/hyperparameters.py (por dataset); YOLOV11_* sobrescreve.
     data_path = Path(os.getenv("YOLOV11_DATA", data_yaml or DEFAULT_DATA))
+    p = lambda key: param("YOLOV11", key, f"YOLOV11_{key.upper()}")
     return {
-        "weights": DEFAULT_WEIGHTS,
+        "weights": p("weights"),
         "data": str(data_path),
-        "epochs": int(os.getenv("YOLOV11_EPOCHS", "1000")),
-        "imgsz": int(os.getenv("YOLOV11_IMGSZ", "640")),
-        "patience": int(os.getenv("YOLOV11_PATIENCE", "100")),
-        "batch": int(os.getenv("YOLOV11_BATCH", "16")),
+        "epochs": p("epochs"),
+        "imgsz": p("imgsz"),
+        "patience": p("patience"),
+        "batch": p("batch"),
         "project": os.getenv("YOLOV11_PROJECT", str(DEFAULT_PROJECT)),
         "run_name": os.getenv("YOLOV11_RUN_NAME", "train"),
-        "optimizer": os.getenv("YOLOV11_OPTIMIZER", "SGD"),
-        "single_cls": _env_bool("YOLOV11_SINGLE_CLS", False),
-        "rect": _env_bool("YOLOV11_RECT", False),
-        "cos_lr": _env_bool("YOLOV11_COS_LR", True),
-        "lr0": float(os.getenv("YOLOV8_LR0", "0.001")),
-        "lrf": float(os.getenv("YOLOV8_LRF", "0.2")),
-        "plots": _env_bool("YOLOV11_PLOTS", True),
-        "device": os.getenv("YOLOV11_DEVICE"),
+        "optimizer": p("optimizer"),
+        "single_cls": p("single_cls"),
+        "rect": p("rect"),
+        "cos_lr": p("cos_lr"),
+        "lr0": p("lr0"),
+        "lrf": p("lrf"),
+        "weight_decay": p("weight_decay"),
+        "plots": p("plots"),
+        "device": p("device"),
+        "workers": p("workers"),
     }
 
 
 def treino(data_yaml: str | Path | None = None) -> None:
-    model = YOLO(DEFAULT_WEIGHTS)
-
     params = get_training_params(data_yaml)
+    model = YOLO(params["weights"])
 
     train_kwargs = dict(
         data=params["data"],
@@ -62,6 +59,8 @@ def treino(data_yaml: str | Path | None = None) -> None:
         cos_lr=params["cos_lr"],
         lr0=params["lr0"],
         lrf=params["lrf"],
+        weight_decay=params["weight_decay"],
+        workers=params["workers"],
         plots=params["plots"],
     )
 

@@ -70,6 +70,7 @@ def main() -> None:
         raise FileNotFoundError(f"Diretório da dobra não encontrado: {dataset_root}")
 
     os.chdir(SRC_DIR)
+    os.environ["DATASET_ROOT"] = str(dataset_root)
 
     from ResultsDetections import create_csv  # noqa: WPS433
 

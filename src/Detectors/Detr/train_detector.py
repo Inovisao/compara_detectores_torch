@@ -10,7 +10,7 @@ from typing import Optional
 
 from config import (
     BATCH_SIZE as CFG_BATCH_SIZE, RESIZE_TO as CFG_RESIZE_TO, NUM_EPOCHS as CFG_NUM_EPOCHS,
-    NUM_WORKERS as CFG_NUM_WORKERS, LR as CFG_LR, DEVICE as CFG_DEVICE, ROOT_DATA_DIR,
+    NUM_WORKERS as CFG_NUM_WORKERS, LR as CFG_LR, LR_BACKBONE as CFG_LR_BACKBONE, WEIGHT_DECAY as CFG_WEIGHT_DECAY, DEVICE as CFG_DEVICE, ROOT_DATA_DIR,
     TRAIN_DIR, VALID_DIR, CLASSES as CFG_CLASSES, NUM_CLASSES as CFG_NUM_CLASSES,
     VISUALIZE_TRANSFORMED_IMAGES as CFG_VIS, OUT_DIR as CFG_OUT_DIR, DATA_PATH as CFG_DATA_PATH
 )
@@ -69,14 +69,14 @@ def parse_opt():
     parser.add_argument('--name', default=CFG_OUT_DIR, type=str, help='training result dir name')
     parser.add_argument('--imgsz', '--img-size', dest='imgsz', default=CFG_RESIZE_TO, type=int)
     parser.add_argument('--batch', default=CFG_BATCH_SIZE, type=int)
-    parser.add_argument('-j', '--workers', default=4, type=int)
+    parser.add_argument('-j', '--workers', default=CFG_NUM_WORKERS, type=int)
     parser.add_argument('-st', '--square-training', dest='square_training', action='store_true')
     parser.add_argument('-uta', '--use-train-aug', dest='use_train_aug', action='store_true')
     parser.add_argument('--mosaic', default=0.0, type=float)
     parser.add_argument('-vt', '--vis-transformed', dest='vis_transformed', action='store_true')
-    parser.add_argument('-lr', '--learning-rate', dest='learning_rate', type=float, default=5e-5)
-    parser.add_argument('-lrb', '--lr-backbone', dest='lr_backbone', type=float, default=1e-6)
-    parser.add_argument('--weight-decay', dest='weight_decay', default=1e-4, type=float)
+    parser.add_argument('-lr', '--learning-rate', dest='learning_rate', type=float, default=CFG_LR)
+    parser.add_argument('-lrb', '--lr-backbone', dest='lr_backbone', type=float, default=CFG_LR_BACKBONE)
+    parser.add_argument('--weight-decay', dest='weight_decay', default=CFG_WEIGHT_DECAY, type=float)
     parser.add_argument('--eos_coef', default=0.1, type=float)
     parser.add_argument('--no-lrs', dest='no_lrs', action='store_true')
     parser.add_argument('--weights', default=None, help='path to weights if resuming training')
